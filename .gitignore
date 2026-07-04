@@ -1,0 +1,4 @@
+# Firebase CLI debug artifacts
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
