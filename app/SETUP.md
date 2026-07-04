@@ -27,9 +27,9 @@ npm install -g firebase-tools
 firebase login
 
 # from app/ (the Flutter project root):
-flutterfire configure --project=ikhlas
+flutterfire configure --project=ikhlas-caecf
 ```
-If Firebase assigned a different project ID (e.g. `ikhlas-1a2b3`), use that ID here **and** update `.firebaserc` to match.
+(`ikhlas-caecf` is the live project ID; `.firebaserc` already points at it.)
 
 This generates `lib/firebase_options.dart` (replacing the committed placeholder stub) and registers the apps automatically. Select **android** (and later ios) when prompted; the Android package name is `io.ikhlaas.app` (already set in `android/app/build.gradle.kts`, matching `auth_service.dart`). The generated file contains client identifiers, not secrets — committing it is safe and keeps the project compiling from a fresh clone.
 
