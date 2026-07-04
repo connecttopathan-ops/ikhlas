@@ -1,9 +1,1 @@
-{
-  "firestore": {
-    "rules": "firebase/firestore.rules",
-    "indexes": "firebase/firestore.indexes.json"
-  },
-  "storage": {
-    "rules": "firebase/storage.rules"
-  }
-}
+{"firestore":{"rules":"firebase/firestore.rules","indexes":"firebase/firestore.indexes.json"},"storage":{"rules":"firebase/storage.rules"},"flutter":{"platforms":{"android":{"default":{"projectId":"ikhlas-caecf","appId":"1:443572192702:android:55c0efaaea9a8daaaa65ef","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"ikhlas-caecf","configurations":{"android":"1:443572192702:android:55c0efaaea9a8daaaa65ef"}}}}}}

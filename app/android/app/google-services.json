@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "443572192702",
+    "project_id": "ikhlas-caecf",
+    "storage_bucket": "ikhlas-caecf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:443572192702:android:55c0efaaea9a8daaaa65ef",
+        "android_client_info": {
+          "package_name": "io.ikhlaas.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0vGxXDnm1UL_VoW7udMGj5tEox064jt8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
