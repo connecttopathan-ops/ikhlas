@@ -33,6 +33,12 @@ dependencies:
   # source in a later phase behind the same verification.selfie shape)
   image_picker: ^1.1.2
 
+  # Application fraud signals: device fingerprint + approximate location
+  # recorded on the application doc (disclosed to the applicant)
+  device_info_plus: ^10.1.2
+  package_info_plus: ^8.0.2
+  geolocator: ^13.0.1
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

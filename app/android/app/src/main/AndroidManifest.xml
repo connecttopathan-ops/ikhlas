@@ -2,6 +2,9 @@
     <!-- Firebase Auth/Firestore/Storage need network access in release builds
          (debug/profile manifests already grant it for dev tooling). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Approximate location recorded with the application (fraud signal;
+         disclosed to the applicant on the verification step). -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="Ikhlas"
         android:name="${applicationName}"

@@ -1,8 +1,11 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../features/gate/questionnaire/questionnaire_models.dart';
 
 /// Writes the front half of the application. The application doc becomes
@@ -100,6 +103,10 @@ class ApplicationRepository {
       'submittedAt': FieldValue.serverTimestamp(),
       'intentDeclaration': draft,
       'answers': a.toAnswersMap(),
+      // Fraud/abuse signals, disclosed to the applicant on the
+      // verification step. Every field degrades gracefully — a denied
+      // permission never blocks submission.
+      'client': await _collectClientContext(),
       // Manual capture in Phase 1 — the liveness SDK later swaps
       // `provider` and adds checkId/livenessResult on this same shape.
       'verification': {
@@ -110,5 +117,72 @@ class ApplicationRepository {
         },
       },
     });
+  }
+
+  Future<Map<String, dynamic>> _collectClientContext() async {
+    final device = <String, dynamic>{};
+    try {
+      if (Platform.isAndroid) {
+        final info = await DeviceInfoPlugin().androidInfo;
+        device.addAll({
+          'platform': 'android',
+          'manufacturer': info.manufacturer,
+          'model': info.model,
+          'osVersion': info.version.release,
+          'sdkInt': info.version.sdkInt,
+          'isPhysicalDevice': info.isPhysicalDevice,
+        });
+      } else if (Platform.isIOS) {
+        final info = await DeviceInfoPlugin().iosInfo;
+        device.addAll({
+          'platform': 'ios',
+          'model': info.utsname.machine,
+          'osVersion': info.systemVersion,
+          'isPhysicalDevice': info.isPhysicalDevice,
+        });
+      }
+    } catch (_) {}
+    try {
+      final pkg = await PackageInfo.fromPlatform();
+      device['appVersion'] = '${pkg.version}+${pkg.buildNumber}';
+    } catch (_) {}
+
+    Map<String, dynamic>? location;
+    var locationStatus = 'unavailable';
+    try {
+      if (!await Geolocator.isLocationServiceEnabled()) {
+        locationStatus = 'service_off';
+      } else {
+        var perm = await Geolocator.checkPermission();
+        if (perm == LocationPermission.denied) {
+          perm = await Geolocator.requestPermission();
+        }
+        if (perm == LocationPermission.whileInUse ||
+            perm == LocationPermission.always) {
+          final pos = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.low, // coarse — city-level is enough
+              timeLimit: Duration(seconds: 8),
+            ),
+          );
+          location = {
+            'lat': pos.latitude,
+            'lng': pos.longitude,
+            'accuracyM': pos.accuracy,
+          };
+          locationStatus = 'captured';
+        } else {
+          locationStatus = 'denied';
+        }
+      }
+    } catch (_) {
+      locationStatus = 'error';
+    }
+
+    return {
+      'device': device,
+      if (location != null) 'location': location,
+      'locationStatus': locationStatus,
+    };
   }
 }

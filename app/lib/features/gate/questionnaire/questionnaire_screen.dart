@@ -447,7 +447,9 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
           const SizedBox(height: 22),
           Text(
             'Your application is reviewed by our team. Decisions are '
-            'typically made within 24 hours.',
+            'typically made within 24 hours.\n\n'
+            'For the safety of the pool, your device details and '
+            'approximate location are recorded with your application.',
             style: AppType.inter(12.5, color: DarkTokens.muted(), height: 1.6),
           ),
         ],
