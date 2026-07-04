@@ -12,7 +12,20 @@
           "package_name": "io.ikhlaas.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "443572192702-66q8ju1amej35037sajft14pbur02tp7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.ikhlaas.app",
+            "certificate_hash": "d1918f0d1c1f488c679d55f6eb4c1d4996c345b4"
+          }
+        },
+        {
+          "client_id": "443572192702-tjvs9dp76l5oa0rol7thiuh3vto789ui.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyB0vGxXDnm1UL_VoW7udMGj5tEox064jt8"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "443572192702-tjvs9dp76l5oa0rol7thiuh3vto789ui.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
