@@ -14,7 +14,8 @@ Follow top to bottom. ~30–40 min the first time.
 
 ## 3. Enable the services
 In the console:
-- **Build → Authentication → Get started →** enable **Google** and **Email/Password** (we use email link/OTP style). Later add **Apple** for iOS.
+- **Build → Authentication → Get started →** enable **Google** and **Email/Password** — and inside the Email/Password provider, also switch on **Email link (passwordless sign-in)**; `EmailOtpAuth` uses `sendSignInLinkToEmail`, which needs that toggle. Later add **Apple** for iOS.
+- **Authentication → Settings → Authorized domains →** add `ikhlaas.io` (the email-link `ActionCodeSettings.url` in `lib/data/auth/auth_service.dart` points there).
 - **Build → Firestore Database → Create database →** start in **production mode** (our rules lock it down) → location **asia-south1**.
 - **Build → Storage → Get started →** same region.
 
@@ -25,10 +26,12 @@ dart pub global activate flutterfire_cli
 npm install -g firebase-tools
 firebase login
 
-# from the ikhlas/ project root:
+# from app/ (the Flutter project root):
 flutterfire configure --project=ikhlas
 ```
-This generates `lib/firebase_options.dart` (git-ignored — contains your project keys) and registers iOS/Android apps automatically. Select both platforms when prompted.
+If Firebase assigned a different project ID (e.g. `ikhlas-1a2b3`), use that ID here **and** update `.firebaserc` to match.
+
+This generates `lib/firebase_options.dart` (replacing the committed placeholder stub) and registers the apps automatically. Select **android** (and later ios) when prompted; the Android package name is `io.ikhlaas.app` (already set in `android/app/build.gradle.kts`, matching `auth_service.dart`). The generated file contains client identifiers, not secrets — committing it is safe and keeps the project compiling from a fresh clone.
 
 ## 5. Install dependencies
 From `ikhlas/`:
@@ -46,12 +49,18 @@ flutter pub get
 
 ## 7. Deploy the security rules
 ```bash
+# from app/ — firebase.json + .firebaserc are checked in
 firebase deploy --only firestore:rules,storage
 ```
 (`firestore.rules` and `storage.rules` are in `firebase/`.)
 
-## 8. Run it
+## 8. Run it on an Android emulator
 ```bash
+# one-time: create an emulator if you don't have one
+sdkmanager "system-images;android-36;google_apis;x86_64" "emulator"
+avdmanager create avd -n ikhlas_dev -d pixel_7 -k "system-images;android-36;google_apis;x86_64"
+
+flutter emulators --launch ikhlas_dev
 flutter run
 ```
 You should see the splash → landing → login → phone capture → intent declaration flow.
