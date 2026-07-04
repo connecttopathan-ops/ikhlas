@@ -1,0 +1,38 @@
+rules_version = '2';
+
+// ============================================================
+// Ikhlas — Storage Security Rules
+// LAW 3 (photos): originals are NEVER publicly readable.
+// A user may upload/replace their own photos; reads happen only through
+// a backend signed-URL + watermark function (Phase 2). No public reads.
+// ============================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // users/{uid}/photos/* — private profile photos
+    match /users/{uid}/photos/{fileName} {
+      // Upload/replace/delete: only the owner.
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && request.resource.size < 8 * 1024 * 1024          // 8MB cap
+                   && request.resource.contentType.matches('image/.*'); // images only
+
+      // Direct reads are denied for everyone — served via signed URLs only (Phase 2).
+      allow read: if false;
+    }
+
+    // Selfie-verification captures (Week 3) — write-only from client, backend reads.
+    match /users/{uid}/verification/{fileName} {
+      allow write: if request.auth != null && request.auth.uid == uid
+                   && request.resource.size < 8 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow read: if false;
+    }
+
+    // Default deny.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

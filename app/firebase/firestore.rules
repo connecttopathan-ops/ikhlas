@@ -1,0 +1,101 @@
+rules_version = '2';
+
+// ============================================================
+// Ikhlas — Firestore Security Rules
+// The three laws of the gate (see ikhlas-tech-requirements.md §2):
+//   1. No browsing at the data layer — no client can list/query `users`.
+//   2. Gate state is server-authoritative — `status` only writable by backend.
+//   3. Applications are immutable after submission — audit trail.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- helpers ----
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+    function isModerator() {
+      // moderator role is set via a custom claim by an admin-only backend process
+      return isSignedIn() && request.auth.token.moderator == true;
+    }
+    // fields a client is NEVER allowed to set/change on their own user doc
+    function protectedUserFields() {
+      return ['status', 'strikes', 'phoneVerified', 'aadhaarBadge',
+              'ribaDisclosureBadge', 'createdAt'];
+    }
+    function touchesProtected() {
+      return request.resource.data.diff(resource.data)
+               .affectedKeys().hasAny(protectedUserFields());
+    }
+
+    // ============================================================
+    // users/{uid}
+    // LAW 1: get allowed only for self; LIST/QUERY denied for everyone.
+    //        (Discovery in Phase 2 reads server-generated match docs, not this.)
+    // LAW 2: status & other protected fields are backend-only.
+    // ============================================================
+    match /users/{uid} {
+      allow get: if isSelf(uid) || isModerator();
+      allow list: if isModerator();          // users can NEVER list the collection
+
+      allow create: if isSelf(uid)
+                    && request.resource.data.status == 'applying'
+                    && request.resource.data.strikes == 0
+                    && request.resource.data.phoneVerified == false;
+
+      // Self can update their own profile fields, but NOT protected/backend fields.
+      allow update: if isSelf(uid) && !touchesProtected();
+
+      // Only the backend/moderator can move status, strikes, badges, etc.
+      allow update: if isModerator();
+
+      allow delete: if isSelf(uid) || isModerator();
+    }
+
+    // ============================================================
+    // applications/{uid}
+    // LAW 3: immutable after submission. Client creates once; then read-only to self.
+    //        All decisioning (autoScore, aiTriage, decision) is backend-written.
+    // ============================================================
+    match /applications/{uid} {
+      allow get: if isSelf(uid) || isModerator();
+      allow list: if isModerator();
+
+      // Client may create their application exactly once, with no decision fields.
+      allow create: if isSelf(uid)
+                    && !exists(/databases/$(database)/documents/applications/$(uid))
+                    && !('decision' in request.resource.data)
+                    && !('aiTriage' in request.resource.data)
+                    && !('autoScore' in request.resource.data);
+
+      // After creation, clients can NEVER update or delete — audit trail is immutable.
+      // (Backend uses the Admin SDK, which bypasses these rules.)
+      allow update, delete: if isModerator();
+    }
+
+    // ============================================================
+    // moderators/{uid} — readable only by moderators; never client-writable
+    // ============================================================
+    match /moderators/{uid} {
+      allow read: if isModerator();
+      allow write: if false;   // managed out-of-band (Admin SDK / console)
+    }
+
+    // ============================================================
+    // config/* — gate rules etc. Backend & moderator read; never client-writable
+    // ============================================================
+    match /config/{doc} {
+      allow read: if isModerator();
+      allow write: if false;
+    }
+
+    // Default deny for anything not matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
