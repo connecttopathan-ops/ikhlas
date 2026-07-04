@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../features/gate/questionnaire/questionnaire_models.dart';
 
 /// Writes the front half of the application. The application doc becomes
 /// IMMUTABLE after full submission (enforced by firestore.rules) — during
@@ -43,6 +44,48 @@ class ApplicationRepository {
         'typedName': typedName,
         'timestamp': FieldValue.serverTimestamp(),
       },
+    });
+  }
+
+  /// Live user doc — drives the status-based router guards.
+  Stream<DocumentSnapshot<Map<String, dynamic>>> userDocStream() =>
+      _db.collection('users').doc(_uid).snapshots();
+
+  /// Submits the full application: profile facts onto users/{uid}
+  /// (never protected fields), then the create-once applications/{uid}
+  /// doc that the gate engine reacts to. Immutable from this moment
+  /// (firestore.rules) — the audit trail begins here.
+  Future<void> submitApplication(QuestionnaireAnswers a) async {
+    final userRef = _db.collection('users').doc(_uid);
+    final snap = await userRef.get();
+    final draft =
+        (snap.data()?['draft'] as Map<String, dynamic>?)?['intentDeclaration'];
+    if (draft == null) {
+      throw StateError('Intent declaration missing — cannot submit.');
+    }
+
+    await userRef.update({
+      'gender': a.gender,
+      'dob': Timestamp.fromDate(a.dob!),
+      'profile.maritalStatus': a.maritalStatus,
+      'profile.hasChildren': a.hasChildren,
+      'profile.revert': a.revert,
+      'profile.country': a.country.trim(),
+      'profile.city': a.city.trim(),
+      'profile.willingToRelocate': a.willingToRelocate,
+      'profile.languages': a.languagesList,
+      if (a.ethnicity.trim().isNotEmpty) 'profile.ethnicity': a.ethnicity.trim(),
+      'profile.education': a.education.trim(),
+      'profile.profession': a.profession.trim(),
+      if (a.sect.trim().isNotEmpty) 'profile.sect': a.sect.trim(),
+      if (a.madhhab.trim().isNotEmpty) 'profile.madhhab': a.madhhab.trim(),
+      'lastActiveAt': FieldValue.serverTimestamp(),
+    });
+
+    await _db.collection('applications').doc(_uid).set({
+      'submittedAt': FieldValue.serverTimestamp(),
+      'intentDeclaration': draft,
+      'answers': a.toAnswersMap(),
     });
   }
 }

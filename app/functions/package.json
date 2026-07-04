@@ -1,0 +1,16 @@
+{
+  "name": "ikhlas-functions",
+  "private": true,
+  "description": "Ikhlas Cloud Functions — gate engine and review funnel",
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.1.0"
+  }
+}

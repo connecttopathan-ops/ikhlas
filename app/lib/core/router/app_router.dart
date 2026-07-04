@@ -1,5 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/splash/splash_screen.dart';
@@ -7,22 +7,47 @@ import '../../features/onboarding/landing_screen.dart';
 import '../../features/onboarding/login_screen.dart';
 import '../../features/onboarding/phone_capture_screen.dart';
 import '../../features/gate/declaration_screen.dart';
-import '../theme/app_theme.dart';
-import '../theme/widgets.dart';
+import '../../features/gate/questionnaire/questionnaire_screen.dart';
+import '../../features/gate/review_wait_screen.dart';
+import '../../features/gate/decision_screens.dart';
+import '../../providers/application_provider.dart';
 
-/// Router with status-based guards: an unauthenticated user can never
-/// deep-link past login. Gate-stage guards (status: applying/approved/etc.)
-/// extend this redirect in Week 2 when the questionnaire lands.
+/// Router with status-based guards (ikhlas-tech-requirements.md §4):
+/// an "applying" user can never deep-link past the gate, and once the
+/// gate decides, users are pinned to their decision surface.
 final routerProvider = Provider<GoRouter>((ref) {
-  return GoRouter(
+  final notifier = RouterNotifier(ref);
+  final router = GoRouter(
     initialLocation: '/',
+    refreshListenable: notifier,
     redirect: (context, state) {
       final user = FirebaseAuth.instance.currentUser;
-      final publicRoutes = {'/', '/landing', '/login'};
-      if (user == null && !publicRoutes.contains(state.matchedLocation)) {
-        return '/landing';
+      final loc = state.matchedLocation;
+      const publicRoutes = {'/', '/landing', '/login'};
+
+      if (user == null) {
+        return publicRoutes.contains(loc) ? null : '/landing';
       }
-      return null;
+
+      // Signed in: gate status drives where you're allowed to be.
+      final status = ref.read(userStatusProvider);
+      switch (status) {
+        case 'under_review':
+          return loc == '/review-wait' ? null : '/review-wait';
+        case 'approved':
+          return (loc == '/welcome' || loc == '/profile-builder')
+              ? null
+              : '/welcome';
+        case 'soft_rejected':
+          return loc == '/decision' ? null : '/decision';
+        default:
+          // 'applying' (or doc still loading): the application flow is fine,
+          // decision surfaces are not. /review-wait stays reachable — right
+          // after submission the client lands there while the gate engine
+          // is still flipping status server-side.
+          const gated = {'/welcome', '/profile-builder', '/decision'};
+          return gated.contains(loc) ? '/landing' : null;
+      }
     },
     routes: [
       GoRoute(path: '/', builder: (_, __) => const SplashScreen()),
@@ -30,27 +55,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/phone', builder: (_, __) => const PhoneCaptureScreen()),
       GoRoute(path: '/declaration', builder: (_, __) => const DeclarationScreen()),
-      // Week 2: /questionnaire (A–E), /verify, /review-wait, /decision
-      GoRoute(path: '/questionnaire', builder: (_, __) => const ComingNextWeek()),
+      GoRoute(path: '/questionnaire', builder: (_, __) => const QuestionnaireScreen()),
+      GoRoute(path: '/review-wait', builder: (_, __) => const ReviewWaitScreen()),
+      GoRoute(path: '/welcome', builder: (_, __) => const ApprovedScreen()),
+      GoRoute(path: '/decision', builder: (_, __) => const SoftRejectedScreen()),
+      GoRoute(path: '/profile-builder', builder: (_, __) => const ProfileBuilderPlaceholder()),
     ],
   );
+  ref.onDispose(router.dispose);
+  return router;
 });
 
-/// Temporary Week-2 placeholder so the Week-1 flow completes end-to-end.
-class ComingNextWeek extends StatelessWidget {
-  const ComingNextWeek({super.key});
-  @override
-  Widget build(BuildContext context) => IkhlasScaffold(
-        child: Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const GirihMark(size: 64, opacity: .8),
-            const SizedBox(height: 20),
-            Text('Questionnaire — Week 2',
-                style: AppType.fraunces(22, color: DarkTokens.ivory)),
-            const SizedBox(height: 8),
-            Text('Declaration saved. The gate continues here next.',
-                style: AppType.inter(13, color: DarkTokens.muted())),
-          ]),
-        ),
-      );
+/// Re-runs the router redirect whenever auth or the user doc changes —
+/// this is how a gate decision made server-side moves the UI in realtime.
+class RouterNotifier extends ChangeNotifier {
+  RouterNotifier(Ref ref) {
+    ref.listen(authStateProvider, (_, __) => notifyListeners());
+    ref.listen(userDocProvider, (_, __) => notifyListeners());
+  }
 }
