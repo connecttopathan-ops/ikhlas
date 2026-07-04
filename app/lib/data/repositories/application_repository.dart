@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../../features/gate/questionnaire/questionnaire_models.dart';
 
 /// Writes the front half of the application. The application doc becomes
@@ -51,11 +54,22 @@ class ApplicationRepository {
   Stream<DocumentSnapshot<Map<String, dynamic>>> userDocStream() =>
       _db.collection('users').doc(_uid).snapshots();
 
+  /// Uploads the verification selfie to the private verification path
+  /// (storage.rules: owner-write only, no client reads). Returns the
+  /// storage path recorded on the application doc.
+  Future<String> uploadSelfie(File image) async {
+    final path = 'users/$_uid/verification/selfie.jpg';
+    await FirebaseStorage.instance.ref(path).putFile(
+        image, SettableMetadata(contentType: 'image/jpeg'));
+    return path;
+  }
+
   /// Submits the full application: profile facts onto users/{uid}
   /// (never protected fields), then the create-once applications/{uid}
   /// doc that the gate engine reacts to. Immutable from this moment
   /// (firestore.rules) — the audit trail begins here.
-  Future<void> submitApplication(QuestionnaireAnswers a) async {
+  Future<void> submitApplication(QuestionnaireAnswers a,
+      {required String selfieStoragePath}) async {
     final userRef = _db.collection('users').doc(_uid);
     final snap = await userRef.get();
     final draft =
@@ -86,6 +100,15 @@ class ApplicationRepository {
       'submittedAt': FieldValue.serverTimestamp(),
       'intentDeclaration': draft,
       'answers': a.toAnswersMap(),
+      // Manual capture in Phase 1 — the liveness SDK later swaps
+      // `provider` and adds checkId/livenessResult on this same shape.
+      'verification': {
+        'selfie': {
+          'provider': 'manual_capture',
+          'storagePath': selfieStoragePath,
+          'capturedAt': FieldValue.serverTimestamp(),
+        },
+      },
     });
   }
 }

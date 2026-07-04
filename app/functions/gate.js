@@ -32,9 +32,10 @@ const DEFAULT_RULES = {
  * @param {object} answers   applications/{uid}.answers
  * @param {Date|null} dob    users/{uid}.dob as JS Date
  * @param {object} rules     config/gateRules doc (merged over defaults)
+ * @param {object} ctx       { hasSelfie } — verification context
  * @returns {{result: 'auto_pass'|'auto_reject'|'manual_review', reasons: string[]}}
  */
-function evaluateGate(answers, dob, rules = {}) {
+function evaluateGate(answers, dob, rules = {}, ctx = {}) {
   const r = {
     ...DEFAULT_RULES,
     ...rules,
@@ -82,6 +83,11 @@ function evaluateGate(answers, dob, rules = {}) {
   for (const field of ['timeframe', 'prayer', 'e1_tawhid', 'e2_riba', 'e3_ribaPractice']) {
     if (!answers?.[field]) reasons.push(`manual_review:missing:${field}`);
   }
+
+  // Selfie is mandatory before any approval (PRD §4.1 Step 4). With
+  // manual capture there is no liveness verdict, so absence escalates
+  // to a human rather than auto-approving an unverified applicant.
+  if (!ctx.hasSelfie) reasons.push('manual_review:missing:selfie');
 
   if (reasons.length > 0) return { result: 'manual_review', reasons };
   return { result: 'auto_pass', reasons: ['all_deterministic_rules_passed'] };

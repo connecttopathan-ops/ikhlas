@@ -37,7 +37,10 @@ exports.onApplicationSubmit = onDocumentCreated(
     const dobTs = userSnap.get('dob');
     const dob = dobTs ? dobTs.toDate() : null;
 
-    const verdict = evaluateGate(application.answers || {}, dob, rules);
+    const hasSelfie = Boolean(application.verification?.selfie?.storagePath);
+    const verdict = evaluateGate(application.answers || {}, dob, rules, {
+      hasSelfie,
+    });
 
     const appUpdate = {
       autoScore: { result: verdict.result, reasons: verdict.reasons },
@@ -62,8 +65,9 @@ exports.onApplicationSubmit = onDocumentCreated(
         appUpdate.decidedBy = 'auto';
         userUpdate.status = 'soft_rejected';
         break;
-      default: // manual_review — human queue (AI triage inserts here in W3)
+      default: // manual_review — human queue (AI triage inserts here later)
         userUpdate.status = 'under_review';
+        appUpdate.queue = 'human'; // admin dashboard queries on this
     }
 
     await Promise.all([

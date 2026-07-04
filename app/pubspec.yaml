@@ -29,6 +29,10 @@ dependencies:
   # Fonts (Fraunces display + Inter body — loaded via google_fonts)
   google_fonts: ^6.2.1
 
+  # Selfie capture (manual for now; a liveness SDK replaces the capture
+  # source in a later phase behind the same verification.selfie shape)
+  image_picker: ^1.1.2
+
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

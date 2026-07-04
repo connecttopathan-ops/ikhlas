@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/widgets.dart';
 import '../../../providers/application_provider.dart';
@@ -19,10 +22,11 @@ class QuestionnaireScreen extends ConsumerStatefulWidget {
 }
 
 class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
-  static const _totalSteps = 8;
+  static const _totalSteps = 9;
   int _step = 1;
   final _a = QuestionnaireAnswers();
   bool _submitting = false;
+  XFile? _selfie;
 
   // Text controllers for free-text fields (kept alive across steps).
   late final _city = TextEditingController(text: _a.city);
@@ -41,7 +45,9 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
   Future<void> _submit() async {
     setState(() => _submitting = true);
     try {
-      await ref.read(applicationRepositoryProvider).submitApplication(_a);
+      final repo = ref.read(applicationRepositoryProvider);
+      final path = await repo.uploadSelfie(File(_selfie!.path));
+      await repo.submitApplication(_a, selfieStoragePath: path);
       if (mounted) context.go('/review-wait');
     } catch (e) {
       if (mounted) {
@@ -51,6 +57,16 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         setState(() => _submitting = false);
       }
     }
+  }
+
+  Future<void> _captureSelfie() async {
+    final shot = await ImagePicker().pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.front,
+      maxWidth: 1200,
+      imageQuality: 85,
+    );
+    if (shot != null) setState(() => _selfie = shot);
   }
 
   Future<void> _pickDob() async {
@@ -80,7 +96,8 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         5 => _sectionC3(),
         6 => _sectionD1(),
         7 => _sectionD2(),
-        _ => _sectionE(),
+        8 => _sectionE(),
+        _ => _selfieStep(),
       },
     );
   }
@@ -352,8 +369,6 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         title: 'Affirmations',
         intro: 'These reflect the standard of the Ikhlas pool. '
             'Answer truthfully before Allah.',
-        ctaLabel: 'Submit my application',
-        loading: _submitting,
         children: [
           const QuestionLabel(
               'I affirm that all worship and supplication is for Allah alone. '
@@ -376,13 +391,66 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
               options: Choices.e3,
               selected: _a.e3RibaPractice,
               onSelect: (v) => setState(() => _a.e3RibaPractice = v)),
-          const SizedBox(height: 18),
+        ],
+        onNext: _a.sectionEComplete ? _next : null,
+      );
+
+  // ---- Verification selfie (manual capture; liveness SDK later) ----
+  Widget _selfieStep() => StepScaffold(
+        step: 9,
+        totalSteps: _totalSteps,
+        eyebrow: 'Verification',
+        title: 'One honest photo',
+        intro: 'A quick selfie confirms you are you. It is seen only by '
+            'our review team — never by other members.',
+        ctaLabel: 'Submit my application',
+        loading: _submitting,
+        children: [
+          Center(
+            child: InkWell(
+              onTap: _submitting ? null : _captureSelfie,
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              child: Container(
+                width: 220,
+                height: 280,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                  border: Border.all(
+                      color: DarkTokens.gold
+                          .withOpacity(_selfie == null ? .45 : .9),
+                      width: 1),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _selfie == null
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const GirihMark(size: 56, opacity: .8),
+                          const SizedBox(height: 18),
+                          Text('Tap to take your selfie',
+                              style: AppType.inter(13.5,
+                                  color: DarkTokens.muted(.7))),
+                        ],
+                      )
+                    : Image.file(File(_selfie!.path), fit: BoxFit.cover),
+              ),
+            ),
+          ),
+          if (_selfie != null) ...[
+            const SizedBox(height: 14),
+            Center(
+              child: QuietLink(
+                  linkText: 'Retake photo',
+                  onTap: _submitting ? null : _captureSelfie),
+            ),
+          ],
+          const SizedBox(height: 22),
           Text(
             'Your application is reviewed by our team. Decisions are '
             'typically made within 24 hours.',
             style: AppType.inter(12.5, color: DarkTokens.muted(), height: 1.6),
           ),
         ],
-        onNext: _a.sectionEComplete && !_submitting ? _submit : null,
+        onNext: _selfie != null && !_submitting ? _submit : null,
       );
 }
