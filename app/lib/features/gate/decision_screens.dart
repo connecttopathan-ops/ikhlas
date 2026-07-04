@@ -98,22 +98,3 @@ class SoftRejectedScreen extends StatelessWidget {
   }
 }
 
-/// Placeholder for the Week-3/4 profile builder so the approved CTA
-/// has a destination.
-class ProfileBuilderPlaceholder extends StatelessWidget {
-  const ProfileBuilderPlaceholder({super.key});
-  @override
-  Widget build(BuildContext context) => IkhlasScaffold(
-        child: Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            const GirihMark(size: 64, opacity: .8),
-            const SizedBox(height: 20),
-            Text('Profile builder — coming next',
-                style: AppType.fraunces(22, color: DarkTokens.ivory)),
-            const SizedBox(height: 8),
-            Text('Photos, bio prompts, preferences and Wali setup land here.',
-                style: AppType.inter(13, color: DarkTokens.muted())),
-          ]),
-        ),
-      );
-}

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
+import '../../data/notifications/push_service.dart';
 import '../../providers/application_provider.dart';
 
 /// "Application under review" — the exclusivity moment, not a spinner
@@ -18,6 +19,14 @@ class _ReviewWaitScreenState extends ConsumerState<ReviewWaitScreen>
   late final AnimationController _breath = AnimationController(
       vsync: this, duration: const Duration(seconds: 5))
     ..repeat(reverse: true);
+
+  @override
+  void initState() {
+    super.initState();
+    // "We will notify you" — ask for notification permission exactly here,
+    // where the promise is being made.
+    PushService.register(ref.read(applicationRepositoryProvider));
+  }
 
   @override
   void dispose() {

@@ -26,3 +26,9 @@ final userStatusProvider = Provider<String?>((ref) {
   if (doc == null || !doc.exists) return null;
   return doc.data()?['status'] as String?;
 });
+
+/// Whether the profile builder has been completed.
+final profileCompleteProvider = Provider<bool>((ref) {
+  final doc = ref.watch(userDocProvider).value;
+  return doc?.data()?['profileComplete'] == true;
+});

@@ -10,6 +10,9 @@ import '../../features/gate/declaration_screen.dart';
 import '../../features/gate/questionnaire/questionnaire_screen.dart';
 import '../../features/gate/review_wait_screen.dart';
 import '../../features/gate/decision_screens.dart';
+import '../../features/profile/profile_builder_screen.dart';
+import '../../features/profile/home_screen.dart';
+import '../../features/settings/settings_screen.dart';
 import '../../providers/application_provider.dart';
 
 /// Router with status-based guards (ikhlas-tech-requirements.md §4):
@@ -31,10 +34,16 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Signed in: gate status drives where you're allowed to be.
       final status = ref.read(userStatusProvider);
+      final profileComplete = ref.read(profileCompleteProvider);
       switch (status) {
         case 'under_review':
           return loc == '/review-wait' ? null : '/review-wait';
         case 'approved':
+        case 'paused':
+          if (profileComplete) {
+            const allowed = {'/home', '/settings', '/profile-builder'};
+            return allowed.contains(loc) ? null : '/home';
+          }
           return (loc == '/welcome' || loc == '/profile-builder')
               ? null
               : '/welcome';
@@ -45,7 +54,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           // decision surfaces are not. /review-wait stays reachable — right
           // after submission the client lands there while the gate engine
           // is still flipping status server-side.
-          const gated = {'/welcome', '/profile-builder', '/decision'};
+          const gated = {
+            '/welcome', '/profile-builder', '/decision', '/home', '/settings'
+          };
           return gated.contains(loc) ? '/landing' : null;
       }
     },
@@ -59,7 +70,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/review-wait', builder: (_, __) => const ReviewWaitScreen()),
       GoRoute(path: '/welcome', builder: (_, __) => const ApprovedScreen()),
       GoRoute(path: '/decision', builder: (_, __) => const SoftRejectedScreen()),
-      GoRoute(path: '/profile-builder', builder: (_, __) => const ProfileBuilderPlaceholder()),
+      GoRoute(path: '/profile-builder', builder: (_, __) => const ProfileBuilderScreen()),
+      GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+      GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
     ],
   );
   ref.onDispose(router.dispose);

@@ -18,8 +18,12 @@ service firebase.storage {
                    && request.resource.size < 8 * 1024 * 1024          // 8MB cap
                    && request.resource.contentType.matches('image/.*'); // images only
 
-      // Direct reads are denied for everyone — served via signed URLs only (Phase 2).
-      allow read: if false;
+      // Owner sees their own photos (profile builder); moderators for
+      // review. OTHER members never read directly — cross-user viewing
+      // ships in Phase 2 exclusively via signed URLs + watermarking.
+      allow read: if request.auth != null
+                  && (request.auth.uid == uid
+                      || request.auth.token.moderator == true);
     }
 
     // Selfie-verification captures — owner writes; only moderators read

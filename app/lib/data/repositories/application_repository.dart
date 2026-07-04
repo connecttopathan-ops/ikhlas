@@ -119,6 +119,44 @@ class ApplicationRepository {
     });
   }
 
+  /// Uploads one profile photo; slot 0 is the primary photo.
+  Future<String> uploadProfilePhoto(File image, int slot) async {
+    final path = 'users/$_uid/photos/photo_$slot.jpg';
+    await FirebaseStorage.instance.ref(path).putFile(
+        image, SettableMetadata(contentType: 'image/jpeg'));
+    return path;
+  }
+
+  /// Saves the completed profile builder in one write. photoPrivacy
+  /// defaults to blur_until_match upstream (PRD §4.3 — privacy default).
+  Future<void> saveProfileBuilder({
+    required List<String> photoPaths,
+    required String photoPrivacy,
+    required List<Map<String, String>> bioPrompts,
+    required Map<String, dynamic> preferences,
+    Map<String, dynamic>? wali,
+  }) async {
+    await _db.collection('users').doc(_uid).update({
+      'photos': [
+        for (var i = 0; i < photoPaths.length; i++)
+          {'storagePath': photoPaths[i], 'order': i},
+      ],
+      'photoPrivacy': photoPrivacy,
+      'profile.bioPrompts': bioPrompts,
+      'preferences': preferences,
+      'wali': wali,
+      'profileComplete': true,
+      'lastActiveAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Registers an FCM token on the user doc (map keyed by token so
+  /// multiple devices coexist and dead tokens can be pruned server-side).
+  Future<void> saveFcmToken(String token) => _db
+      .collection('users')
+      .doc(_uid)
+      .set({'fcmTokens': {token: true}}, SetOptions(merge: true));
+
   Future<Map<String, dynamic>> _collectClientContext() async {
     final device = <String, dynamic>{};
     try {

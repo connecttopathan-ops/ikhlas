@@ -5,6 +5,8 @@
     <!-- Approximate location recorded with the application (fraud signal;
          disclosed to the applicant on the verification step). -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Decision push notifications (Android 13+ runtime permission). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="Ikhlas"
         android:name="${applicationName}"
