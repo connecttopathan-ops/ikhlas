@@ -231,6 +231,7 @@ async function loadPool() {
       ribaBadge: u.ribaDisclosureBadge === true,
       hasPhotos: (u.photos || []).length > 0,
       photoPrivacy: u.photoPrivacy || 'blur_until_match',
+      blockedUids: u.blockedUids || [],
       fcmTokens: u.fcmTokens || {},
     };
   });
@@ -283,8 +284,9 @@ async function writeBatchFor(user, pool, date) {
     .where('to', '==', user._id)
     .get();
   const interestedInMe = new Set(interestsSnap.docs.map((d) => d.get('from')));
+  const blocked = new Set(user.blockedUids || []);
 
-  const batch = buildBatch(user, pool, { seen, interestedInMe });
+  const batch = buildBatch(user, pool, { seen, interestedInMe, blocked });
   if (batch.length === 0) return 0;
 
   const wb = db.batch();
@@ -708,3 +710,299 @@ exports.archiveStaleConversations = onSchedule(
     }
   }
 );
+
+// ============================================================
+// Phase 3 — Family Stage (PRD §4.4 Stage 3). The app's success event:
+// "Family Stage initiations per 100 members" is the north star.
+// ============================================================
+
+async function convForMember(convId, uid) {
+  const ref = db.doc(`conversations/${convId}`);
+  const snap = await ref.get();
+  if (!snap.exists || !snap.get('participants').includes(uid)) {
+    throw new HttpsError('permission-denied', 'Not your conversation.');
+  }
+  if (String(snap.get('stage')).startsWith('closed_')) {
+    throw new HttpsError('failed-precondition', 'This conversation is closed.');
+  }
+  return { ref, snap };
+}
+
+/** Either party taps "Involve families" → records the request, notifies. */
+exports.requestFamilyStage = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const { ref, snap } = await convForMember(request.data?.convId, uid);
+  if (snap.get('familyStage')?.confirmed) return { ok: true };
+  await ref.update({
+    'familyStage.requestedBy': uid,
+    'familyStage.requestedAt': FieldValue.serverTimestamp(),
+  });
+  await ref.collection('messages').add({
+    from: 'system',
+    system: true,
+    text: 'A request to involve families has been made. When both agree, '
+      + 'guardian contacts are exchanged to take things forward, insha’Allah.',
+    at: FieldValue.serverTimestamp(),
+  });
+  const other = snap.get('participants').find((p) => p !== uid);
+  await pushTo(other, 'Involve families?',
+    'Your match has asked to bring families into the conversation.');
+  return { ok: true };
+});
+
+/** The other party confirms → stage=family, structured Wali exchange,
+ *  meeting intent recorded. THE north-star event. */
+exports.confirmFamilyStage = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const { ref, snap } = await convForMember(request.data?.convId, uid);
+  const fs = snap.get('familyStage') || {};
+  if (!fs.requestedBy || fs.requestedBy === uid) {
+    throw new HttpsError('failed-precondition',
+      'The other party must request the Family Stage first.');
+  }
+
+  const parts = snap.get('participants');
+  const [ua, ub] = await Promise.all(parts.map((p) => db.doc(`users/${p}`).get()));
+  const waliOf = (u) => {
+    const w = u.get('wali');
+    return w ? { name: w.name, relationship: w.relationship, phone: w.phone } : null;
+  };
+  // Wali contact details shared THROUGH the app (never typed in chat).
+  const exchange = {
+    [parts[0]]: waliOf(ua),
+    [parts[1]]: waliOf(ub),
+  };
+
+  await ref.update({
+    stage: 'family',
+    'familyStage.confirmed': true,
+    'familyStage.confirmedBy': uid,
+    'familyStage.confirmedAt': FieldValue.serverTimestamp(),
+    familyExchange: exchange,
+    stageHistory: FieldValue.arrayUnion({ stage: 'family', at: new Date() }),
+  });
+  await ref.collection('messages').add({
+    from: 'system',
+    system: true,
+    text: 'Family Stage reached, alhamdulillah. Guardian contacts have been '
+      + 'shared with both sides. May Allah bless this path.',
+    at: FieldValue.serverTimestamp(),
+  });
+
+  // North-star metric event — immutable analytics record.
+  await db.collection('metrics_familyStage').add({
+    convId: ref.id,
+    participants: parts,
+    at: FieldValue.serverTimestamp(),
+  });
+
+  // Notify both members and any observing Walis.
+  for (const p of parts) {
+    await pushTo(p, 'Family Stage reached',
+      'Guardian contacts have been exchanged. May Allah make it easy.');
+  }
+  await notifyWalisOf(parts, 'Family Stage reached',
+    'A conversation you oversee has reached the Family Stage.');
+  return { ok: true };
+});
+
+// ============================================================
+// Phase 3 — Trust, safety & moderation (PRD §4.6)
+// ============================================================
+
+const REPORT_REASONS = [
+  'not_serious', 'already_married', 'inappropriate',
+  'off_app', 'fake_profile', 'harassment',
+];
+
+exports.reportUser = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const { reportedUid, reason, detail, convId } = request.data || {};
+  if (!reportedUid || !REPORT_REASONS.includes(reason)) {
+    throw new HttpsError('invalid-argument', 'Invalid report.');
+  }
+  await db.collection('reports').add({
+    reporterUid: uid,
+    reportedUid,
+    reason,
+    detail: (detail || '').slice(0, 500),
+    convId: convId || null,
+    status: 'open',
+    createdAt: FieldValue.serverTimestamp(),
+  });
+
+  // Report → auto-freeze the conversation for review (< 24h target).
+  if (convId) {
+    await db.doc(`conversations/${convId}`)
+      .update({ frozen: true, frozenReason: 'reported' })
+      .catch(() => {});
+  }
+
+  // "Not serious" reports are first-class: 2 independent ones → re-review.
+  if (reason === 'not_serious') {
+    const priors = await db.collection('reports')
+      .where('reportedUid', '==', reportedUid)
+      .where('reason', '==', 'not_serious')
+      .get();
+    const distinct = new Set(priors.docs.map((d) => d.get('reporterUid')));
+    if (distinct.size >= 2) {
+      await db.doc(`users/${reportedUid}`)
+        .update({ seriousnessReview: true }).catch(() => {});
+    }
+  }
+  return { ok: true };
+});
+
+/** Block → instant mutual invisibility forever (PRD §4.6). Closes any
+ *  open conversation and removes each from the other's matching pool. */
+exports.blockUser = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const other = request.data?.otherUid;
+  if (!other) throw new HttpsError('invalid-argument', 'Missing user.');
+  await Promise.all([
+    db.doc(`users/${uid}`).set(
+      { blockedUids: FieldValue.arrayUnion(other) }, { merge: true }),
+    db.doc(`users/${other}`).set(
+      { blockedUids: FieldValue.arrayUnion(uid) }, { merge: true }),
+  ]);
+  const convId = convIdOf(uid, other);
+  await db.doc(`conversations/${convId}`).update({
+    stage: 'closed_blocked',
+    closedAt: FieldValue.serverTimestamp(),
+    stageHistory: FieldValue.arrayUnion({ stage: 'closed_blocked', at: new Date() }),
+  }).catch(() => {});
+  return { ok: true };
+});
+
+/** Moderator resolves a report: dismiss, or apply a strike escalation. */
+exports.moderateReport = onCall({ region: REGION }, async (request) => {
+  const modUid = requireAuth(request);
+  if (request.auth.token.moderator !== true) {
+    throw new HttpsError('permission-denied', 'Moderators only.');
+  }
+  const { reportId, action, reportedUid } = request.data || {};
+  // action: 'dismiss' | 'warn' | 'suspend' | 'ban'
+  if (reportId) {
+    await db.doc(`reports/${reportId}`).update({
+      status: 'resolved',
+      resolvedBy: modUid,
+      action: action || 'dismiss',
+      resolvedAt: FieldValue.serverTimestamp(),
+    });
+  }
+  if (!reportedUid || action === 'dismiss' || !action) return { ok: true };
+
+  const userRef = db.doc(`users/${reportedUid}`);
+  const snap = await userRef.get();
+  const strikes = (snap.get('strikes') || 0) + 1;
+
+  if (action === 'warn') {
+    await userRef.update({ strikes });
+    await pushTo(reportedUid, 'A note from Ikhlas',
+      'A concern was raised about your conduct. Please uphold the adab of Ikhlas.');
+  } else if (action === 'suspend') {
+    const until = Date.now() + 7 * 24 * 3600 * 1000;
+    await userRef.update({
+      strikes, status: 'suspended',
+      suspendedUntil: new Date(until),
+    });
+    await pushTo(reportedUid, 'Account suspended',
+      'Your account is suspended for 7 days following a review.');
+  } else if (action === 'ban') {
+    await userRef.update({ strikes: 3, status: 'banned' });
+    const phone = snap.get('phone');
+    if (phone) {
+      await db.doc(`banRegistry/${phone.replace(/[^0-9]/g, '')}`)
+        .set({ uid: reportedUid, at: FieldValue.serverTimestamp(), key: 'phone' });
+    }
+  }
+  return { ok: true, strikes };
+});
+
+// ============================================================
+// Phase 3 — Wali / Guardian portal (PRD §4.5). Magic-link + OTP; no app
+// install, no password. SMS delivery is stubbed until DLT registration.
+// ============================================================
+
+function sixDigit(seed) {
+  // Deterministic-free is fine here; derive from crypto.
+  return String(require('crypto').randomInt(100000, 1000000));
+}
+
+/** Seeker invites their Wali. Creates an invite + OTP; (stub) sends SMS. */
+exports.sendWaliInvite = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const userSnap = await db.doc(`users/${uid}`).get();
+  const wali = userSnap.get('wali');
+  if (!wali?.phone) {
+    throw new HttpsError('failed-precondition', 'Add a Wali first.');
+  }
+  const code = sixDigit();
+  const inviteRef = await db.collection('waliInvites').add({
+    ward: uid,
+    wardName: userSnap.get('profile.displayName') || 'your ward',
+    phone: wali.phone,
+    code,
+    verified: false,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  // STUB: real SMS via MSG91 once DLT registration completes.
+  console.log(`[wali-invite STUB] to ${wali.phone}: ` +
+    `https://wali.ikhlaas.io/?invite=${inviteRef.id} code ${code}`);
+  return { ok: true, inviteId: inviteRef.id };
+});
+
+/** Wali enters the OTP → we mint a Firebase custom token scoped to the
+ *  ward, which the portal uses to sign in. No password, no app. */
+exports.waliVerify = onCall({ region: REGION }, async (request) => {
+  const { inviteId, code } = request.data || {};
+  const ref = db.doc(`waliInvites/${inviteId}`);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError('not-found', 'Invite not found.');
+  if (String(snap.get('code')) !== String(code)) {
+    throw new HttpsError('permission-denied', 'Incorrect code.');
+  }
+  const ward = snap.get('ward');
+  await Promise.all([
+    ref.update({ verified: true, verifiedAt: FieldValue.serverTimestamp() }),
+    db.doc(`users/${ward}`).update({ 'wali.verified': true }).catch(() => {}),
+  ]);
+  const token = await getAuth().createCustomToken(`wali_${ward}`, {
+    wali: true,
+    ward,
+  });
+  return { token, ward };
+});
+
+/** Wali flags a concern to the ward (does not hard-block in v1). */
+exports.waliRequestPause = onCall({ region: REGION }, async (request) => {
+  if (request.auth?.token?.wali !== true) {
+    throw new HttpsError('permission-denied', 'Wali only.');
+  }
+  const ward = request.auth.token.ward;
+  await db.doc(`users/${ward}`).set(
+    { waliConcernRaisedAt: FieldValue.serverTimestamp() }, { merge: true });
+  await pushTo(ward, 'A note from your Wali',
+    'Your Wali has raised a concern and asked to pause. Please speak with them.');
+  return { ok: true };
+});
+
+// ---- shared notification helpers ----
+async function pushTo(uid, title, body) {
+  const tokens = Object.keys(
+    (await db.doc(`users/${uid}`).get()).get('fcmTokens') || {}
+  );
+  if (tokens.length === 0) return;
+  await getMessaging()
+    .sendEachForMulticast({ tokens, notification: { title, body } })
+    .catch(() => {});
+}
+
+async function notifyWalisOf(uids, title, body) {
+  for (const uid of uids) {
+    const w = (await db.doc(`users/${uid}`).get()).get('wali');
+    if (w?.permissionLevel === 'observe' && w?.phone) {
+      console.log(`[wali-notify STUB] ${w.phone}: ${title} — ${body}`);
+    }
+  }
+}

@@ -134,10 +134,12 @@ function buildBatch(user, candidates, opts = {}) {
   const limit = opts.limit || BATCH_LIMIT;
   const now = opts.now || new Date();
 
+  const blocked = opts.blocked || new Set();
   const eligible = candidates.filter(
     (c) =>
       c._id !== user._id &&
       !seen.has(c._id) &&
+      !blocked.has(c._id) &&
       c.status === 'approved' &&
       c.profileComplete === true &&
       hardFilterPass(user, c, now)

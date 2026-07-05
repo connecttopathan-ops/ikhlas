@@ -22,6 +22,11 @@ service cloud.firestore {
       // moderator role is set via a custom claim by an admin-only backend process
       return isSignedIn() && request.auth.token.moderator == true;
     }
+    // A Wali is signed in with a custom token carrying {wali:true, ward}.
+    function isWaliOf(uid) {
+      return isSignedIn() && request.auth.token.wali == true
+             && request.auth.token.ward == uid;
+    }
     // fields a client is NEVER allowed to set/change on their own user doc
     function protectedUserFields() {
       return ['status', 'strikes', 'phoneVerified', 'aadhaarBadge',
@@ -127,19 +132,47 @@ service cloud.firestore {
     // (stage transitions, adab, reveals and message delivery all go
     // through callables so the contact-info filter and cap can't be
     // bypassed).
+    function waliOversees(participants) {
+      // Wali of any participant may see the conversation (stage/metadata).
+      return isSignedIn() && request.auth.token.wali == true
+             && request.auth.token.ward in participants;
+    }
+    // Message transcripts are visible to a Wali only at "observe" level.
+    function waliObserves(participants) {
+      return waliOversees(participants)
+             && get(/databases/$(database)/documents/users/$(request.auth.token.ward))
+                  .data.wali.permissionLevel == 'observe';
+    }
+
     match /conversations/{convId} {
-      allow get, list: if isSignedIn()
-                       && request.auth.uid in resource.data.participants;
+      allow get, list: if (isSignedIn()
+                           && request.auth.uid in resource.data.participants)
+                       || waliOversees(resource.data.participants);
       allow write: if false;
 
       match /messages/{msgId} {
         allow read: if isSignedIn()
-                    && request.auth.uid in
-                       get(/databases/$(database)/documents/conversations/$(convId))
-                         .data.participants;
+                    && (request.auth.uid in
+                        get(/databases/$(database)/documents/conversations/$(convId))
+                          .data.participants
+                        || waliObserves(
+                           get(/databases/$(database)/documents/conversations/$(convId))
+                             .data.participants));
         allow write: if false;   // only sendMessage / system writes
       }
     }
+
+    // reports — a member files against another; only moderators read/act.
+    match /reports/{reportId} {
+      allow create: if isSelf(request.resource.data.reporterUid);
+      allow read, update, delete: if isModerator();
+    }
+
+    // blocks, ban registry, wali invites, metrics — backend-only.
+    match /blocks/{docId} { allow read, write: if false; }
+    match /banRegistry/{key} { allow read, write: if false; }
+    match /waliInvites/{id} { allow read, write: if false; }
+    match /metrics_familyStage/{id} { allow read: if isModerator(); allow write: if false; }
 
     // Default deny for anything not matched above.
     match /{document=**} {

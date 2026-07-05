@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'reports_queue.dart';
 import 'tokens.dart';
 
 /// Dashboard: Queue (actionable, oldest first) + All applications
@@ -16,7 +17,7 @@ class ReviewQueueScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: T.bg,
@@ -35,12 +36,17 @@ class ReviewQueueScreen extends StatelessWidget {
           bottom: TabBar(
             indicatorColor: T.gold,
             labelStyle: T.inter(13.5, weight: FontWeight.w600),
-            tabs: const [Tab(text: 'Queue'), Tab(text: 'All applications')],
+            tabs: const [
+              Tab(text: 'Queue'),
+              Tab(text: 'All applications'),
+              Tab(text: 'Reports'),
+            ],
           ),
         ),
         body: const TabBarView(children: [
           _ApplicationsList(queueOnly: true),
           _ApplicationsList(queueOnly: false),
+          ReportsQueue(),
         ]),
       ),
     );

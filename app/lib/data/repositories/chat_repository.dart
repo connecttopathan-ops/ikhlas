@@ -42,4 +42,24 @@ class ChatRepository {
   Future<void> grantPhotoReveal(String convId, {bool revoke = false}) => _fns
       .httpsCallable('grantPhotoReveal')
       .call({'convId': convId, 'revoke': revoke});
+
+  // ---- Family Stage ----
+  Future<void> requestFamilyStage(String convId) =>
+      _fns.httpsCallable('requestFamilyStage').call({'convId': convId});
+
+  Future<void> confirmFamilyStage(String convId) =>
+      _fns.httpsCallable('confirmFamilyStage').call({'convId': convId});
+
+  // ---- Moderation ----
+  Future<void> reportUser(String reportedUid, String reason,
+          {String? convId, String? detail}) =>
+      _fns.httpsCallable('reportUser').call({
+        'reportedUid': reportedUid,
+        'reason': reason,
+        if (convId != null) 'convId': convId,
+        if (detail != null) 'detail': detail,
+      });
+
+  Future<void> blockUser(String otherUid) =>
+      _fns.httpsCallable('blockUser').call({'otherUid': otherUid});
 }
