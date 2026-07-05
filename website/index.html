@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ikhlaas — Where nikah begins with deen</title>
+<meta name="description" content="Ikhlaas is an application-only community for practicing Muslims serious about nikah. Not a dating app.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..500&family=Inter:wght@400;500;600&family=Amiri&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4EFE3; --bg2:#EDE4D2; --bg3:#E6DAC3; --surface:#F0E8D8; --ink:#20281F; --ink-warm:#20281F;
+  --gold:#B4923A; --gold-lum:#DFB85C; --gold-link:#96762C; --green:#356048;
+  --cta:#1B3A27; --cta-text:#EAC96E; --hair:rgba(170,135,50,.5);
+  --champagne:#EAC96E;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:radial-gradient(150% 95% at 50% -12%, var(--bg) 0%, var(--bg2) 55%, var(--bg3) 100%); background-attachment:fixed; color:var(--ink);
+  font-family:Inter,system-ui,sans-serif; -webkit-font-smoothing:antialiased; overflow-x:hidden}
+body::before{content:""; position:fixed; inset:0; pointer-events:none; z-index:1; opacity:.04;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E")}
+.wrap{position:relative; z-index:2; max-width:720px; margin:0 auto; padding:0 32px}
+
+/* ambient girih layers — the immersive difference */
+.ambient{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden}
+.ambient svg{position:absolute; stroke:var(--gold); fill:none}
+.g1{top:-160px; right:-160px; width:520px; height:520px; opacity:.11}
+.g2{bottom:-200px; left:-200px; width:600px; height:600px; opacity:.07}
+.ambient svg *{stroke:var(--gold); fill:none; stroke-width:.6}
+
+.wordmark{position:relative; display:inline-block; font-family:Fraunces,serif;
+  font-weight:410; letter-spacing:-.018em; color:var(--ink); font-variation-settings:'opsz' 144}
+.wordmark .dot{position:absolute; background:var(--gold-lum); transform:rotate(45deg)}
+
+/* HERO */
+.hero{position:relative; min-height:100vh; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; text-align:center; padding:80px 32px; z-index:2}
+.seal-wrap{position:relative}
+.seal-svg circle,.seal-svg path{stroke:var(--gold); fill:none; stroke-width:.7;
+  stroke-dasharray:1400; stroke-dashoffset:1400}
+.seal-glow{position:absolute; inset:-20px; border-radius:50%;
+  background:radial-gradient(circle, rgba(234,201,110,.26), transparent 65%);
+  opacity:0; animation:none}
+.kicker{font-family:Amiri,serif; font-size:20px; color:var(--gold); opacity:0; transform:translateY(10px)}
+.hero .wordmark{font-size:32px; margin-top:12px; width:160px; height:42px; opacity:0; transform:translateY(12px)}
+.hero .wordmark .dot{left:2px; top:10px; width:11px; height:11px}
+.rule{width:60px; height:1px; margin:30px 0;
+  background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  transform:scaleX(0); transform-origin:center}
+.eyebrow{font-size:11px; font-weight:600; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--gold); opacity:0; transform:translateY(8px)}
+h1{font-family:Fraunces,serif; font-variation-settings:'opsz' 144; font-weight:400;
+  font-size:46px; line-height:1.08; color:var(--ink); margin-top:22px; max-width:12ch;
+  text-wrap:balance; opacity:0; transform:translateY(14px)}
+.sub{font-size:16px; color:rgba(23,37,27,.6); margin-top:16px; max-width:34ch; opacity:0; transform:translateY(10px)}
+.trust{display:flex; align-items:center; gap:10px; margin-top:22px; opacity:0; transform:translateY(10px); flex-wrap:wrap; justify-content:center}
+.diamond{width:6px; height:6px; background:var(--green); transform:rotate(45deg); flex:none}
+.trust span{font-size:13px; color:rgba(23,37,27,.62)}
+.cta{position:relative; margin-top:42px; height:56px; padding:0 44px; border:none; cursor:pointer;
+  border-radius:10px; background:var(--cta); color:var(--cta-text); overflow:hidden;
+  font-family:Inter; font-weight:600; font-size:15px; letter-spacing:.04em;
+  box-shadow:inset 0 0 0 1px rgba(201,162,39,.4);
+  opacity:0; transform:translateY(12px); transition:transform .4s ease, box-shadow .4s ease}
+.cta::after{content:""; position:absolute; top:0; left:-60%; width:40%; height:100%;
+  background:linear-gradient(90deg, transparent, rgba(234,201,110,.45), transparent);
+  transform:skewX(-20deg)}
+.cta:hover{box-shadow:inset 0 0 0 1px rgba(217,188,87,.7), 0 8px 24px rgba(21,42,29,.25)}
+.cta:hover::after{animation:sheen 1s ease}
+@keyframes sheen{from{left:-60%}to{left:120%}}
+.signin{margin-top:18px; font-size:13.5px; color:rgba(23,37,27,.55); opacity:0; transform:translateY(8px)}
+.signin a{color:var(--gold-link); text-decoration:none; border-bottom:1px solid rgba(148,116,32,.4)}
+.scroll-hint{position:absolute; bottom:30px; left:50%; transform:translateX(-50%);
+  font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:rgba(23,37,27,.4);
+  opacity:0; animation:fadePulse 2.5s ease 3s infinite}
+@keyframes fadePulse{0%,100%{opacity:0}50%{opacity:.6}}
+
+/* SOCIAL PROOF STRIP */
+.proof-strip{position:relative; z-index:2; text-align:center; padding:26px 32px;
+  border-top:1px solid rgba(148,116,32,.14); border-bottom:1px solid rgba(148,116,32,.14)}
+.proof-strip p{font-size:14px; color:rgba(23,37,27,.6); line-height:1.6}
+.proof-strip strong{font-weight:600; color:var(--ink)}
+.proof-strip .sep{color:var(--gold); margin:0 8px}
+
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes rise{to{opacity:1; transform:translateY(0)}}
+@keyframes ruleIn{to{transform:scaleX(1)}}
+@keyframes glowIn{to{opacity:1}}
+.loaded .seal-svg circle,.loaded .seal-svg path{animation:draw 1.8s ease forwards}
+.loaded .seal-glow{animation:glowIn 1.2s ease 1.2s forwards}
+.loaded .kicker{animation:rise .8s ease 1.1s forwards}
+.loaded .hero .wordmark{animation:rise .8s ease 1.3s forwards}
+.loaded .rule{animation:ruleIn .9s ease 1.5s forwards}
+.loaded .eyebrow{animation:rise .8s ease 1.7s forwards}
+.loaded h1{animation:rise .9s ease 1.85s forwards}
+.loaded .sub{animation:rise .8s ease 2.1s forwards}
+.loaded .trust{animation:rise .8s ease 2.25s forwards}
+.loaded .cta{animation:rise .8s ease 2.4s forwards}
+.loaded .signin{animation:rise .8s ease 2.55s forwards}
+
+/* SECTIONS — richer manuscript reveal (kicker inks first, then content) */
+section.block{position:relative; padding:130px 0; z-index:2}
+.sec-inner{position:relative}
+.illum-line{position:absolute; left:-32px; top:0; bottom:0; width:1px;
+  background:linear-gradient(180deg, transparent, var(--gold), transparent);
+  transform:scaleY(0); transform-origin:top; transition:transform 1.2s ease}
+.reveal.in .illum-line{transform:scaleY(1)}
+.reveal{opacity:0; transform:translateY(24px); transition:opacity 1s ease, transform 1s ease}
+.reveal.in{opacity:1; transform:none}
+.reveal .sec-kicker,.reveal .sec-eyebrow{opacity:0; transform:translateY(8px); transition:opacity .8s ease .2s, transform .8s ease .2s}
+.reveal.in .sec-kicker,.reveal.in .sec-eyebrow{opacity:1; transform:none}
+.sec-kicker{font-family:Amiri,serif; font-size:17px; color:var(--gold); margin-bottom:14px}
+.sec-eyebrow{font-size:11px; font-weight:600; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin-bottom:20px}
+.sec-h{font-family:Fraunces,serif; font-weight:400; font-size:33px; line-height:1.18; color:var(--ink); max-width:18ch; text-wrap:balance}
+.sec-lede{font-size:15.5px; color:rgba(23,37,27,.62); margin-top:20px; line-height:1.7; max-width:52ch}
+.cards{display:grid; grid-template-columns:1fr 1fr; gap:1px; margin-top:44px; background:rgba(148,116,32,.14)}
+.card{background:linear-gradient(180deg, var(--bg), var(--bg2)); padding:34px 30px; transition:background .5s ease, box-shadow .5s ease}
+.card:hover{background:var(--surface); box-shadow:inset 0 0 0 1px rgba(180,146,58,.22)}
+.card .cd{margin-bottom:14px}
+.card h3{font-family:Fraunces,serif; font-weight:500; font-size:20px; color:var(--ink)}
+.card p{font-size:14.5px; color:rgba(23,37,27,.58); margin-top:8px; line-height:1.65}
+.steps{margin-top:40px}
+.step{position:relative; padding:30px 0 30px 56px; border-bottom:1px solid rgba(148,116,32,.14)}
+.step:last-child{border-bottom:none}
+.step .num{position:absolute; left:0; top:30px; font-family:Fraunces,serif; font-size:26px;
+  color:var(--gold); font-variation-settings:'opsz' 40; opacity:.55}
+.step h3{font-family:Fraunces,serif; font-weight:500; font-size:20px; color:var(--ink)}
+.step p{font-size:14.5px; color:rgba(23,37,27,.58); margin-top:6px; line-height:1.65}
+
+/* sacred divider band */
+.band{position:relative; padding:90px 32px; text-align:center; z-index:2;
+  border-top:1px solid rgba(148,116,32,.14); border-bottom:1px solid rgba(148,116,32,.14)}
+.band .amiri{font-family:Amiri,serif; font-size:25px; color:var(--gold); line-height:2.05; max-width:22ch; margin:0 auto; direction:rtl}
+.band .en{font-size:13px; color:rgba(23,37,27,.5); margin-top:20px; font-style:italic; max-width:46ch; margin-left:auto; margin-right:auto; line-height:1.7}
+
+/* WAITLIST */
+.waitlist{position:relative; background:var(--surface); padding:110px 0; z-index:2}
+.form{max-width:440px; margin:34px auto 0}
+.field{margin-bottom:20px}
+.field label{display:block; font-size:11px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); margin-bottom:8px}
+.field input{width:100%; background:transparent; border:none; border-bottom:1px solid var(--hair);
+  padding:9px 0; font-size:16px; color:var(--ink); font-family:Inter; outline:none; transition:border-color .3s}
+.field input:focus{border-bottom-color:var(--gold)}
+.check{display:flex; gap:12px; align-items:flex-start; margin:26px 0; cursor:pointer}
+.check input{margin-top:3px; accent-color:var(--green)}
+.check span{font-size:14px; color:rgba(23,37,27,.7); line-height:1.5}
+.form .cta{width:100%; margin-top:8px; opacity:1; transform:none; animation:none}
+.form-success{max-width:440px; margin:34px auto 0; text-align:center; display:none;
+  padding:36px 30px; border:1px solid rgba(148,116,32,.28); border-radius:12px; background:rgba(240,232,216,.6)}
+.form-success .amiri{font-family:Amiri,serif; font-size:22px; color:var(--gold); margin-bottom:14px}
+.form-success p{font-size:15px; color:rgba(23,37,27,.7); line-height:1.7}
+
+footer{position:relative; padding:60px 32px; text-align:center; border-top:1px solid rgba(148,116,32,.14); z-index:2}
+footer .wordmark{font-size:20px; width:104px; height:26px}
+footer .wordmark .dot{left:1px; top:6px; width:7px; height:7px}
+footer .tagline{margin-top:10px; font-family:Fraunces,serif; font-style:italic; font-size:14px; color:rgba(23,37,27,.5)}
+footer .links{margin-top:20px; display:flex; gap:24px; justify-content:center; flex-wrap:wrap}
+footer .links a{font-size:13px; color:var(--gold-link); text-decoration:none}
+footer .copy{margin-top:24px; font-size:12px; color:rgba(23,37,27,.4)}
+
+@media(max-width:600px){
+  h1{font-size:36px} .hero .wordmark{font-size:28px}
+  .sec-h{font-size:27px} .cards{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  *{animation:none!important; transition:none!important}
+  .kicker,.hero .wordmark,.eyebrow,h1,.sub,.trust,.cta,.signin,.reveal,.seal-glow{opacity:1!important; transform:none!important}
+  .rule,.illum-line{transform:none!important}
+  .seal-svg circle,.seal-svg path{stroke-dashoffset:0!important}
+}
+</style>
+</head>
+<body>
+<div class="ambient">
+  <svg class="g1" viewBox="0 0 200 200">
+    <circle cx="100" cy="100" r="96"/><circle cx="100" cy="100" r="72"/>
+    <g>
+      <path d="M100 100 Q118 66 100 30 Q82 66 100 100"/>
+      <path d="M100 100 Q134 82 170 100 Q134 118 100 100"/>
+      <path d="M100 100 Q118 134 100 170 Q82 134 100 100"/>
+      <path d="M100 100 Q66 82 30 100 Q66 118 100 100"/>
+      <path d="M100 100 Q128 72 150 50 Q118 82 100 100"/>
+      <path d="M100 100 Q128 128 150 150 Q118 118 100 100"/>
+      <path d="M100 100 Q72 128 50 150 Q82 118 100 100"/>
+      <path d="M100 100 Q72 72 50 50 Q82 82 100 100"/>
+    </g>
+  </svg>
+  <svg class="g2" viewBox="0 0 200 200">
+    <circle cx="100" cy="100" r="96"/><circle cx="100" cy="100" r="60"/>
+    <g>
+      <path d="M100 100 Q118 66 100 30 Q82 66 100 100"/>
+      <path d="M100 100 Q134 82 170 100 Q134 118 100 100"/>
+      <path d="M100 100 Q118 134 100 170 Q82 134 100 100"/>
+      <path d="M100 100 Q66 82 30 100 Q66 118 100 100"/>
+    </g>
+  </svg>
+</div>
+
+<div class="hero">
+  <div class="seal-wrap">
+    <div class="seal-glow"></div>
+    <svg class="seal-svg" width="96" height="96" viewBox="0 0 96 96" aria-hidden="true">
+      <circle cx="48" cy="48" r="46"/><circle cx="48" cy="48" r="38"/>
+      <path d="M48 48 Q57 32 48 16 Q39 32 48 48"/>
+      <path d="M48 48 Q64 39 80 48 Q64 57 48 48"/>
+      <path d="M48 48 Q57 64 48 80 Q39 64 48 48"/>
+      <path d="M48 48 Q32 39 16 48 Q32 57 48 48"/>
+      <path d="M48 48 Q61 35 72 24 Q59 37 48 48"/>
+      <path d="M48 48 Q61 61 72 72 Q59 59 48 48"/>
+      <path d="M48 48 Q35 61 24 72 Q37 59 48 48"/>
+      <path d="M48 48 Q35 35 24 24 Q37 37 48 48"/>
+      <circle cx="48" cy="48" r="6"/>
+    </svg>
+  </div>
+  <div class="kicker">إخلاص</div>
+  <div class="wordmark">ıkhlaas<span class="dot"></span></div>
+  <div class="rule"></div>
+  <div class="eyebrow">Membership by application</div>
+  <h1>Ikhlaas is for Muslims serious about nikah.</h1>
+  <p class="sub">Not a dating app. An application-only community for practicing Muslims ready to marry.</p>
+  <div class="trust">
+    <span class="diamond"></span>
+    <span>Selfie-verified · Application-reviewed · Fewer than 4 in 10 accepted</span>
+  </div>
+  <button class="cta" onclick="document.getElementById('apply').scrollIntoView()">Request your invitation</button>
+  <div class="signin">Already a member? <a href="#">Sign in</a></div>
+  <div class="scroll-hint">Scroll</div>
+</div>
+
+<div class="proof-strip">
+  <p><strong>Nearly <span class="js-following">1,000</span> practicing Muslims are already following along.</strong><span class="sep">◆</span>Applications open soon, inshaAllah.</p>
+</div>
+
+<div class="wrap">
+  <section class="block">
+    <div class="reveal sec-inner">
+      <div class="illum-line"></div>
+      <div class="sec-eyebrow">Why by application</div>
+      <h2 class="sec-h">Most matrimonial apps let anyone in. That's the problem.</h2>
+      <p class="sec-lede">Ikhlaas is different by design. Every applicant is screened before they can join — for genuine intent to marry, consistent practice, and sincerity of deen. It's why members here are serious in a way they aren't anywhere else.</p>
+      <div class="cards">
+        <div class="card"><div class="cd"><span class="diamond"></span></div>
+          <h3>Intent, not curiosity</h3><p>You apply by declaring a real intention to marry. Browsers and time-wasters don't make it past the door.</p></div>
+        <div class="card"><div class="cd"><span class="diamond"></span></div>
+          <h3>Practice, honestly asked</h3><p>We ask about salah, deen, and the way you live — because compatibility of practice is what actually lasts.</p></div>
+        <div class="card"><div class="cd"><span class="diamond"></span></div>
+          <h3>Reviewed, not automated away</h3><p>Every application is reviewed by our team. Fewer than four in ten are accepted.</p></div>
+        <div class="card"><div class="cd"><span class="diamond"></span></div>
+          <h3>Verified, really</h3><p>A selfie liveness check confirms every member is a real person who is who they say they are. No catfish, no fakes.</p></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="wrap">
+  <section class="block">
+    <div class="reveal sec-inner">
+      <div class="illum-line"></div>
+      <div class="sec-eyebrow">Built the right way</div>
+      <h2 class="sec-h">Every detail respects the way marriage should begin.</h2>
+      <div class="cards">
+        <div class="card"><div class="cd"><span class="diamond"></span></div>
+          <h3>Your guardian, involved</h3><p>Invite your Wali through a private portal. Dignified, simple, the way it should be.</p></div>
+        <div class="card"><div class="cd"><span class="diamond"></span></div>
+          <h3>Your photos, your terms</h3><p>Blurred by default. Revealed only when you choose. Modesty is the setting, not an afterthought.</p></div>
+        <div class="card"><div class="cd"><span class="diamond"></span></div>
+          <h3>Guarded conversations</h3><p>No endless chatting. Conversations are limited, purposeful, and made to lead somewhere real — a nikah, inshaAllah.</p></div>
+        <div class="card"><div class="cd"><span class="diamond"></span></div>
+          <h3>A space to leave</h3><p>The goal is that you meet someone and go. We measure our success by the marriages that begin here.</p></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="band">
+  <div class="amiri">وَمِنْ آيَاتِهِ أَنْ خَلَقَ لَكُم مِّنْ أَنفُسِكُمْ أَزْوَاجًا لِّتَسْكُنُوا إِلَيْهَا وَجَعَلَ بَيْنَكُم مَّوَدَّةً وَرَحْمَةً</div>
+  <div class="en">"And among His signs is that He created for you spouses from among yourselves, that you may find tranquility in them; and He placed between you affection and mercy." — Ar-Rum 21</div>
+</div>
+
+<div class="wrap">
+  <section class="block">
+    <div class="reveal sec-inner">
+      <div class="illum-line"></div>
+      <div class="sec-kicker">إخلاص</div>
+      <div class="sec-eyebrow">The path to membership</div>
+      <h2 class="sec-h">Three steps. No shortcuts.</h2>
+      <div class="steps">
+        <div class="step"><div class="num">I</div>
+          <h3>Apply</h3><p>Declare your intention and complete a considered application. This is not a signup — it's the beginning of something you're serious about.</p></div>
+        <div class="step"><div class="num">II</div>
+          <h3>Reviewed by our team</h3><p>Every application is read by a person. You'll hear back within a day, inshaAllah.</p></div>
+        <div class="step"><div class="num">III</div>
+          <h3>Begin</h3><p>Once accepted, meet others who are as serious about nikah as you are — and start with sincerity.</p></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="waitlist" id="apply">
+  <div class="wrap">
+    <div class="reveal" style="text-align:center">
+      <div class="sec-kicker">إخلاص</div>
+      <h2 class="sec-h" style="margin:0 auto; text-align:center">Be among the first.</h2>
+      <p class="sub" style="margin:14px auto 0">Applications open soon. Join nearly <span class="js-following">1,000</span> practicing Muslims waiting for a better way to begin.</p>
+    </div>
+    <form class="form reveal" id="waitlist-form" novalidate>
+      <div class="field"><label for="wl-name">Your name</label><input id="wl-name" name="name" type="text" placeholder="Full name" required></div>
+      <div class="field"><label for="wl-email">Email</label><input id="wl-email" name="email" type="email" placeholder="you@example.com" required></div>
+      <label class="check"><input type="checkbox" name="intent" required>
+        <span>I am seeking nikah and intend to marry, inshaAllah.</span></label>
+      <button class="cta" type="submit">Request your invitation</button>
+    </form>
+    <div class="form-success" id="waitlist-success">
+      <div class="amiri">جزاك الله خيرًا</div>
+      <p>JazakAllahuKhairan — you're on the list, inshaAllah. We'll be in touch when applications open.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wordmark">ıkhlaas<span class="dot"></span></div>
+  <div class="tagline">Where nikah begins with deen</div>
+  <div class="links"><a href="#">Privacy</a><a href="#">Terms</a><a href="#">Contact</a><a href="#">Instagram</a></div>
+  <div class="copy">© 2026 Ikhlaas</div>
+</footer>
+
+<script>
+/* Single editable value — keep truthful, update as the following grows.
+   "following/waiting" (real) — never "members" (not yet accepted). */
+const FOLLOWING_COUNT = "1,000";
+document.querySelectorAll('.js-following').forEach(el=>{el.textContent = FOLLOWING_COUNT;});
+
+window.addEventListener('load',()=>document.body.classList.add('loaded'));
+const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in')}),{threshold:.12});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* Waitlist submit — show the honest success state (wire to backend before launch) */
+const form=document.getElementById('waitlist-form');
+if(form){
+  form.addEventListener('submit',(e)=>{
+    e.preventDefault();
+    if(!form.checkValidity()){form.reportValidity();return;}
+    // TODO: POST to waitlist endpoint here.
+    form.style.display='none';
+    document.getElementById('waitlist-success').style.display='block';
+  });
+}
+
+// subtle parallax on ambient girih (respects reduced motion)
+if(!matchMedia('(prefers-reduced-motion:reduce)').matches){
+  addEventListener('scroll',()=>{const y=scrollY;
+    document.querySelector('.g1').style.transform=`translateY(${y*.04}px) rotate(${y*.01}deg)`;
+    document.querySelector('.g2').style.transform=`translateY(${-y*.03}px) rotate(${-y*.01}deg)`;});
+}
+</script>
+</body>
+</html>
