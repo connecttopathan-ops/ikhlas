@@ -93,6 +93,45 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ============================================================
+    // matches/{uid}/... — server-generated daily batches. LAW 1 made
+    // real: discovery reads ONLY these docs, never the users collection.
+    // ============================================================
+    match /matches/{uid}/batches/{date} {
+      allow get, list: if isSelf(uid);
+      allow write: if false;                 // generation is backend-only
+
+      match /entries/{otherUid} {
+        allow get, list: if isSelf(uid);
+        // The only client write in matching: expressing interest or
+        // passing on your own entry — nothing else may change.
+        allow update: if isSelf(uid)
+                      && request.resource.data.diff(resource.data)
+                           .affectedKeys().hasOnly(['action', 'actionAt'])
+                      && request.resource.data.action in ['interested', 'passed'];
+        allow create, delete: if false;
+      }
+    }
+
+    // Seen-history and the interests ledger are backend-only. Interest
+    // is NEVER readable — it surfaces exclusively through mutuality
+    // (no "who liked you" vanity surface, by design).
+    match /matches/{uid}/seen/{otherUid} {
+      allow read, write: if false;
+    }
+    match /interests/{docId} {
+      allow read, write: if false;
+    }
+
+    // conversations — participants may read; all writes are backend
+    // (stage transitions are server-authoritative; messages come with
+    // the guarded-chat build).
+    match /conversations/{convId} {
+      allow get, list: if isSignedIn()
+                       && request.auth.uid in resource.data.participants;
+      allow write: if false;
+    }
+
     // Default deny for anything not matched above.
     match /{document=**} {
       allow read, write: if false;

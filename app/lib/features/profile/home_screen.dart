@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
 import '../../data/notifications/push_service.dart';
 import '../../providers/application_provider.dart';
+import '../matches/match_batch.dart';
 
 /// Resting state for approved members. Daily matches land here in
 /// Phase 2 — until then this is the quiet, complete home.
@@ -42,27 +43,29 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     size: 22, color: DarkTokens.muted(.7)),
               ),
             ]),
-            const Spacer(flex: 2),
-            Center(child: GirihMark(size: 88, opacity: paused ? .45 : 1)),
-            const SizedBox(height: 40),
-            Center(
-              child: Text(paused ? 'Your profile is paused' : 'You are in the pool',
-                  style: AppType.fraunces(28, color: DarkTokens.ivory)),
-            ),
-            const SizedBox(height: 14),
-            Center(
-              child: Text(
-                paused
-                    ? 'Hidden from matching until you resume — take the time '
-                        'you need.'
-                    : 'Your profile is complete, alhamdulillah. Daily curated '
-                        'matches arrive here after Fajr when matching opens.',
-                textAlign: TextAlign.center,
-                style: AppType.inter(14,
-                    color: DarkTokens.muted(.62), height: 1.7),
-              ),
-            ),
-            const Spacer(flex: 3),
+            const SizedBox(height: 10),
+            if (paused)
+              Expanded(
+                child: Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const GirihMark(size: 88, opacity: .45),
+                    const SizedBox(height: 40),
+                    Text('Your profile is paused',
+                        style:
+                            AppType.fraunces(28, color: DarkTokens.ivory)),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Hidden from matching until you resume — take the '
+                      'time you need.',
+                      textAlign: TextAlign.center,
+                      style: AppType.inter(14,
+                          color: DarkTokens.muted(.62), height: 1.7),
+                    ),
+                  ]),
+                ),
+              )
+            else
+              const Expanded(child: MatchBatch()),
           ],
         ),
       ),

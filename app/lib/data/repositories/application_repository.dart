@@ -157,6 +157,33 @@ class ApplicationRepository {
       .doc(_uid)
       .set({'fcmTokens': {token: true}}, SetOptions(merge: true));
 
+  /// Today's batch date key — IST calendar day, matching the backend.
+  static String todayIst() {
+    final ist = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+    return '${ist.year.toString().padLeft(4, '0')}-'
+        '${ist.month.toString().padLeft(2, '0')}-'
+        '${ist.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Live stream of today's match entries (server-generated snapshots).
+  Stream<QuerySnapshot<Map<String, dynamic>>> todayEntriesStream() => _db
+      .collection('matches')
+      .doc(_uid)
+      .collection('batches')
+      .doc(todayIst())
+      .collection('entries')
+      .snapshots();
+
+  /// Express interest / pass — the only client-writable matching fields.
+  Future<void> setEntryAction(String otherUid, String action) => _db
+      .collection('matches')
+      .doc(_uid)
+      .collection('batches')
+      .doc(todayIst())
+      .collection('entries')
+      .doc(otherUid)
+      .update({'action': action, 'actionAt': FieldValue.serverTimestamp()});
+
   Future<Map<String, dynamic>> _collectClientContext() async {
     final device = <String, dynamic>{};
     try {

@@ -192,3 +192,216 @@ exports.deleteAccount = onCall({ region: REGION }, async (request) => {
   console.log(`account deleted: ${uid}`);
   return { ok: true };
 });
+
+// ============================================================
+// Phase 2 — Matching engine (PRD §4.2: curated daily batch, not swiping)
+// ============================================================
+const { onSchedule } = require('firebase-functions/v2/scheduler');
+const { buildBatch, istDateString } = require('./matching');
+
+/** Loads the full snapshot pool: approved+complete users joined with
+ *  their application answers (prayer/timeframe drive deen scoring). */
+async function loadPool() {
+  const [usersSnap, appsSnap] = await Promise.all([
+    db.collection('users')
+      .where('status', '==', 'approved')
+      .where('profileComplete', '==', true)
+      .get(),
+    db.collection('applications').get(),
+  ]);
+  const answers = {};
+  appsSnap.forEach((d) => (answers[d.id] = d.get('answers') || {}));
+  const names = {};
+  appsSnap.forEach(
+    (d) => (names[d.id] = (d.get('intentDeclaration.typedName') || '').split(' ')[0])
+  );
+  return usersSnap.docs.map((d) => {
+    const u = d.data();
+    return {
+      _id: d.id,
+      status: u.status,
+      profileComplete: u.profileComplete === true,
+      gender: u.gender,
+      dob: u.dob?.toDate?.() || null,
+      lastActiveAt: u.lastActiveAt?.toDate?.() || null,
+      profile: u.profile || {},
+      preferences: u.preferences || {},
+      answers: answers[d.id] || {},
+      displayName: names[d.id] || 'Member',
+      ribaBadge: u.ribaDisclosureBadge === true,
+      fcmTokens: u.fcmTokens || {},
+    };
+  });
+}
+
+function entrySnapshot(e) {
+  const c = e.candidate;
+  const now = new Date();
+  let age = null;
+  if (c.dob) {
+    age = now.getFullYear() - c.dob.getFullYear();
+    if (
+      now.getMonth() < c.dob.getMonth() ||
+      (now.getMonth() === c.dob.getMonth() && now.getDate() < c.dob.getDate())
+    ) age--;
+  }
+  return {
+    displayName: c.displayName,
+    age,
+    gender: c.gender,
+    city: c.profile.city || null,
+    country: c.profile.country || null,
+    profession: c.profile.profession || null,
+    education: c.profile.education || null,
+    languages: c.profile.languages || [],
+    maritalStatus: c.profile.maritalStatus || null,
+    hasChildren: c.profile.hasChildren ?? null,
+    revert: c.profile.revert === true,
+    sect: c.profile.sect || null,
+    madhhab: c.profile.madhhab || null,
+    prayer: c.answers.prayer || null,
+    timeframe: c.answers.timeframe || null,
+    ribaDisclosureBadge: c.ribaBadge,
+    bioPrompts: c.profile.bioPrompts || [],
+    compatibility: e.why,           // "You both pray five daily" etc.
+    score: e.score,                  // internal; not rendered to users
+    action: null,
+    actionAt: null,
+  };
+}
+
+/** Writes one user's batch: batch doc + entry docs + seen markers. */
+async function writeBatchFor(user, pool, date) {
+  const seenSnap = await db.collection(`matches/${user._id}/seen`).get();
+  const seen = new Set(seenSnap.docs.map((d) => d.id));
+  const interestsSnap = await db
+    .collection('interests')
+    .where('to', '==', user._id)
+    .get();
+  const interestedInMe = new Set(interestsSnap.docs.map((d) => d.get('from')));
+
+  const batch = buildBatch(user, pool, { seen, interestedInMe });
+  if (batch.length === 0) return 0;
+
+  const wb = db.batch();
+  const batchRef = db.doc(`matches/${user._id}/batches/${date}`);
+  wb.set(batchRef, {
+    date,
+    generatedAt: FieldValue.serverTimestamp(),
+    count: batch.length,
+  });
+  for (const e of batch) {
+    wb.set(batchRef.collection('entries').doc(e.candidate._id), entrySnapshot(e));
+    wb.set(db.doc(`matches/${user._id}/seen/${e.candidate._id}`), {
+      at: FieldValue.serverTimestamp(),
+      batchDate: date,
+    });
+  }
+  await wb.commit();
+
+  const tokens = Object.keys(user.fcmTokens);
+  if (tokens.length > 0) {
+    await getMessaging()
+      .sendEachForMulticast({
+        tokens,
+        notification: {
+          title: 'Your matches have arrived',
+          body: `${batch.length} carefully chosen ${
+            batch.length === 1 ? 'profile' : 'profiles'
+          } await you today, bi'idhnillah.`,
+        },
+      })
+      .catch(() => {});
+  }
+  return batch.length;
+}
+
+/** Daily batch generation — after Fajr, 07:00 IST (PRD: on-brand hour). */
+exports.generateDailyBatches = onSchedule(
+  { schedule: '0 7 * * *', timeZone: 'Asia/Kolkata', region: REGION },
+  async () => {
+    const pool = await loadPool();
+    const date = istDateString();
+    let total = 0;
+    for (const user of pool) {
+      const existing = await db.doc(`matches/${user._id}/batches/${date}`).get();
+      if (existing.exists) continue;
+      total += await writeBatchFor(user, pool, date);
+    }
+    console.log(`daily batches for ${date}: ${total} entries across ${pool.length} members`);
+  }
+);
+
+/** On-demand batch (new members mid-day + testing). Idempotent per day. */
+exports.generateMyBatch = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const date = istDateString();
+  const existing = await db.doc(`matches/${uid}/batches/${date}`).get();
+  if (existing.exists) return { date, created: false };
+  const pool = await loadPool();
+  const me = pool.find((u) => u._id === uid);
+  if (!me) {
+    throw new HttpsError('failed-precondition', 'Approved, complete profiles only.');
+  }
+  const n = await writeBatchFor(me, pool, date);
+  return { date, created: n > 0, count: n };
+});
+
+/** Interest/pass on a batch entry → interests ledger → mutual detection.
+ *  Mutual interest opens a conversation (stage: intro) — the PRD's
+ *  guarded-communication starting point. No "likes you" surface exists;
+ *  interest is only ever revealed through mutuality. */
+exports.onEntryAction = onDocumentUpdated(
+  { document: 'matches/{uid}/batches/{date}/entries/{otherUid}', region: REGION },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after || before.action === after.action) return;
+    const { uid, otherUid } = event.params;
+
+    if (after.action !== 'interested') return;
+
+    await db.doc(`interests/${uid}_${otherUid}`).set({
+      from: uid,
+      to: otherUid,
+      at: FieldValue.serverTimestamp(),
+    });
+
+    const reciprocal = await db.doc(`interests/${otherUid}_${uid}`).get();
+    if (!reciprocal.exists) return;
+
+    // Mutual, alhamdulillah — open the guarded conversation.
+    const convId = [uid, otherUid].sort().join('_');
+    const convRef = db.doc(`conversations/${convId}`);
+    if ((await convRef.get()).exists) return;
+    await convRef.set({
+      participants: [uid, otherUid].sort(),
+      stage: 'intro',                       // → deepening → family → closed_*
+      stageHistory: [
+        { stage: 'intro', at: new Date() }, // auditable event log (PRD §8)
+      ],
+      adabAcknowledged: {},
+      createdAt: FieldValue.serverTimestamp(),
+      lastMessageAt: null,
+    });
+
+    const both = await Promise.all([
+      db.doc(`users/${uid}`).get(),
+      db.doc(`users/${otherUid}`).get(),
+    ]);
+    for (const snap of both) {
+      const tokens = Object.keys(snap.get('fcmTokens') || {});
+      if (tokens.length > 0) {
+        await getMessaging()
+          .sendEachForMulticast({
+            tokens,
+            notification: {
+              title: 'A mutual match, alhamdulillah',
+              body: 'You both expressed interest. A guarded conversation is now open.',
+            },
+          })
+          .catch(() => {});
+      }
+    }
+  }
+);
