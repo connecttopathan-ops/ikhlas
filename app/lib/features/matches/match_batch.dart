@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
 import '../../providers/application_provider.dart';
+import 'member_photo.dart';
 
 /// Today's curated batch (PRD §4.2) — deen-first profile cards, exactly
 /// what the server generated, never a browse surface. Photos arrive with
@@ -142,16 +143,20 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Photo placeholder — girih silhouette (blur-by-default world;
-            // reveal pipeline is the next Phase-2 build)
+            // Photo through the server pipeline — blurred/watermarked per
+            // the member's privacy mode, girih silhouette when hidden.
             Container(
-              width: 84,
-              height: 104,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: DarkTokens.hairline(.4)),
               ),
-              child: const Center(child: GirihMark(size: 44, opacity: .55)),
+              child: e['hasPhotos'] == true
+                  ? MemberPhoto(
+                      ownerUid: widget.doc.id, width: 84, height: 104)
+                  : const SizedBox(
+                      width: 84,
+                      height: 104,
+                      child: Center(child: GirihMark(size: 44, opacity: .55))),
             ),
             const SizedBox(width: 16),
             Expanded(

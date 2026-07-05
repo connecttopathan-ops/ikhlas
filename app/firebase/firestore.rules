@@ -124,12 +124,21 @@ service cloud.firestore {
     }
 
     // conversations — participants may read; all writes are backend
-    // (stage transitions are server-authoritative; messages come with
-    // the guarded-chat build).
+    // (stage transitions, adab, reveals and message delivery all go
+    // through callables so the contact-info filter and cap can't be
+    // bypassed).
     match /conversations/{convId} {
       allow get, list: if isSignedIn()
                        && request.auth.uid in resource.data.participants;
       allow write: if false;
+
+      match /messages/{msgId} {
+        allow read: if isSignedIn()
+                    && request.auth.uid in
+                       get(/databases/$(database)/documents/conversations/$(convId))
+                         .data.participants;
+        allow write: if false;   // only sendMessage / system writes
+      }
     }
 
     // Default deny for anything not matched above.

@@ -229,6 +229,8 @@ async function loadPool() {
       answers: answers[d.id] || {},
       displayName: names[d.id] || 'Member',
       ribaBadge: u.ribaDisclosureBadge === true,
+      hasPhotos: (u.photos || []).length > 0,
+      photoPrivacy: u.photoPrivacy || 'blur_until_match',
       fcmTokens: u.fcmTokens || {},
     };
   });
@@ -262,6 +264,8 @@ function entrySnapshot(e) {
     prayer: c.answers.prayer || null,
     timeframe: c.answers.timeframe || null,
     ribaDisclosureBadge: c.ribaBadge,
+    hasPhotos: c.hasPhotos === true,
+    photoPrivacy: c.photoPrivacy || 'blur_until_match',
     bioPrompts: c.profile.bioPrompts || [],
     compatibility: e.why,           // "You both pray five daily" etc.
     score: e.score,                  // internal; not rendered to users
@@ -374,6 +378,44 @@ exports.onEntryAction = onDocumentUpdated(
     const convId = [uid, otherUid].sort().join('_');
     const convRef = db.doc(`conversations/${convId}`);
     if ((await convRef.get()).exists) return;
+
+    // 3-active-conversation cap (PRD §4.4). If either party is already at
+    // three, hold the match open until they close one — notify, don't drop.
+    const [na, nb] = await Promise.all([
+      activeConversationCount(uid),
+      activeConversationCount(otherUid),
+    ]);
+    if (na >= 3 || nb >= 3) {
+      const full = na >= 3 ? uid : otherUid;
+      const tokens = Object.keys(
+        (await db.doc(`users/${full}`).get()).get('fcmTokens') || {}
+      );
+      if (tokens.length > 0) {
+        await getMessaging()
+          .sendEachForMulticast({
+            tokens,
+            notification: {
+              title: 'A new match is waiting',
+              body:
+                'You have a mutual match, but you are at three active ' +
+                'conversations. Close one with dua to connect.',
+            },
+          })
+          .catch(() => {});
+      }
+      return; // conversation opens once a slot frees (re-checked on next action)
+    }
+
+    // Wali visibility: if either participant set an observing Wali, the
+    // conversation shows the transparency badge to both.
+    const [ua, ub] = await Promise.all([
+      db.doc(`users/${uid}`).get(),
+      db.doc(`users/${otherUid}`).get(),
+    ]);
+    const observing =
+      ua.get('wali')?.permissionLevel === 'observe' ||
+      ub.get('wali')?.permissionLevel === 'observe';
+
     await convRef.set({
       participants: [uid, otherUid].sort(),
       stage: 'intro',                       // → deepening → family → closed_*
@@ -381,6 +423,7 @@ exports.onEntryAction = onDocumentUpdated(
         { stage: 'intro', at: new Date() }, // auditable event log (PRD §8)
       ],
       adabAcknowledged: {},
+      waliObserving: observing,
       createdAt: FieldValue.serverTimestamp(),
       lastMessageAt: null,
     });
@@ -401,6 +444,266 @@ exports.onEntryAction = onDocumentUpdated(
             },
           })
           .catch(() => {});
+      }
+    }
+  }
+);
+
+// ============================================================
+// Photo pipeline (PRD §4.3) — originals never exposed. Every render
+// goes through this function: permission-checked, blurred per privacy
+// mode, watermarked with the viewer's id for leak tracing.
+// ============================================================
+const { onRequest } = require('firebase-functions/v2/https');
+const { processPhoto, decideVisibility } = require('./photos');
+
+const convIdOf = (a, b) => [a, b].sort().join('_');
+
+exports.photo = onRequest(
+  { region: REGION, memory: '512MiB', cors: true },
+  async (req, res) => {
+    try {
+      const authz = req.get('Authorization') || '';
+      const m = authz.match(/^Bearer (.+)$/);
+      if (!m) return res.status(401).send('unauthenticated');
+      const viewer = (await getAuth().verifyIdToken(m[1])).uid;
+
+      const owner = String(req.query.owner || '');
+      const idx = parseInt(req.query.idx || '0', 10) || 0;
+      if (!owner) return res.status(400).send('owner required');
+
+      const ownerSnap = await db.doc(`users/${owner}`).get();
+      if (!ownerSnap.exists) return res.status(404).send('not found');
+      const photos = ownerSnap.get('photos') || [];
+      if (idx >= photos.length) return res.status(404).send('no such photo');
+
+      const convSnap =
+        viewer === owner
+          ? null
+          : await db.doc(`conversations/${convIdOf(viewer, owner)}`).get();
+      const matched = !!convSnap && convSnap.exists;
+      const revealGranted =
+        matched && (convSnap.get('photoReveal')?.[owner] === true);
+      const today = new Date(Date.now() + 5.5 * 3600 * 1000)
+        .toISOString()
+        .slice(0, 10);
+      const inBatch = viewer === owner
+        ? false
+        : (await db
+            .doc(`matches/${viewer}/batches/${today}/entries/${owner}`)
+            .get()).exists;
+
+      // Owner always sees their own photos, unblurred, no watermark.
+      let allowed = true;
+      let blur = false;
+      if (viewer !== owner) {
+        const vis = decideVisibility({
+          privacy: ownerSnap.get('photoPrivacy') || 'blur_until_match',
+          matched,
+          revealGranted,
+          inViewerBatch: inBatch,
+        });
+        allowed = vis.allowed;
+        blur = vis.blur;
+      }
+      if (!allowed) return res.status(403).send('not permitted');
+
+      const [bytes] = await getStorage()
+        .bucket()
+        .file(photos[idx].storagePath)
+        .download();
+      const out = await processPhoto(bytes, {
+        blur,
+        watermarkText: viewer === owner ? null : viewer.slice(0, 8),
+      });
+
+      res.set('Cache-Control', 'private, max-age=300');
+      res.set('Content-Type', 'image/jpeg');
+      return res.status(200).send(out);
+    } catch (e) {
+      console.error('photo error', e);
+      return res.status(500).send('error');
+    }
+  }
+);
+
+// ============================================================
+// Guarded chat (PRD §4.4) — adab gate, contact-info blocking, 3-active
+// cap, 14-day lifecycle, End-with-dua. All writes are server-mediated.
+// ============================================================
+
+// Blocks phone numbers, emails, and off-app move attempts pre-Family Stage.
+const CONTACT_PATTERNS = [
+  /\b(?:\+?\d[\s-]?){7,}\b/, // phone-like digit runs
+  /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i, // email
+  /\b(whats\s?app|whatsapp|w\.?a\.?|insta(gram)?|telegram|t\.me|snap(chat)?|@[a-z0-9_.]{2,})\b/i,
+  /\b(my\s+number|call\s+me|text\s+me|move\s+(to|off)|off[-\s]?app)\b/i,
+];
+
+function containsContactInfo(text) {
+  return CONTACT_PATTERNS.some((re) => re.test(text));
+}
+
+async function activeConversationCount(uid) {
+  const snap = await db
+    .collection('conversations')
+    .where('participants', 'array-contains', uid)
+    .get();
+  return snap.docs.filter((d) => !String(d.get('stage')).startsWith('closed_'))
+    .length;
+}
+
+exports.acknowledgeAdab = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const convId = request.data?.convId;
+  const ref = db.doc(`conversations/${convId}`);
+  const snap = await ref.get();
+  if (!snap.exists || !snap.get('participants').includes(uid)) {
+    throw new HttpsError('permission-denied', 'Not your conversation.');
+  }
+  await ref.update({ [`adabAcknowledged.${uid}`]: true });
+  return { ok: true };
+});
+
+exports.sendMessage = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const { convId, text } = request.data || {};
+  const body = String(text || '').trim();
+  if (!body) throw new HttpsError('invalid-argument', 'Empty message.');
+  if (body.length > 2000) throw new HttpsError('invalid-argument', 'Too long.');
+
+  const ref = db.doc(`conversations/${convId}`);
+  const snap = await ref.get();
+  if (!snap.exists || !snap.get('participants').includes(uid)) {
+    throw new HttpsError('permission-denied', 'Not your conversation.');
+  }
+  if (String(snap.get('stage')).startsWith('closed_')) {
+    throw new HttpsError('failed-precondition', 'This conversation is closed.');
+  }
+  // Blocks and warns (PRD §4.4) — the message is NOT delivered.
+  if (containsContactInfo(body)) {
+    throw new HttpsError(
+      'invalid-argument',
+      'Sharing contact details or moving off Ikhlas is not allowed before ' +
+        'the Family Stage. Please keep the conversation here.'
+    );
+  }
+  await ref.collection('messages').add({
+    from: uid,
+    text: body,
+    at: FieldValue.serverTimestamp(),
+  });
+  await ref.update({
+    lastMessageAt: FieldValue.serverTimestamp(),
+    [`nudged`]: FieldValue.delete(),
+  });
+
+  const other = snap.get('participants').find((p) => p !== uid);
+  const tokens = Object.keys(
+    (await db.doc(`users/${other}`).get()).get('fcmTokens') || {}
+  );
+  if (tokens.length > 0) {
+    await getMessaging()
+      .sendEachForMulticast({
+        tokens,
+        notification: { title: 'New message', body: 'You have a new message on Ikhlas.' },
+      })
+      .catch(() => {});
+  }
+  return { ok: true };
+});
+
+exports.grantPhotoReveal = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const convId = request.data?.convId;
+  const ref = db.doc(`conversations/${convId}`);
+  const snap = await ref.get();
+  if (!snap.exists || !snap.get('participants').includes(uid)) {
+    throw new HttpsError('permission-denied', 'Not your conversation.');
+  }
+  // The owner grants reveal of THEIR photos to this conversation; revocable.
+  const grant = request.data?.revoke ? false : true;
+  await ref.update({ [`photoReveal.${uid}`]: grant });
+  return { ok: true, granted: grant };
+});
+
+exports.endWithDua = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const convId = request.data?.convId;
+  const ref = db.doc(`conversations/${convId}`);
+  const snap = await ref.get();
+  if (!snap.exists || !snap.get('participants').includes(uid)) {
+    throw new HttpsError('permission-denied', 'Not your conversation.');
+  }
+  if (String(snap.get('stage')).startsWith('closed_')) return { ok: true };
+  await ref.collection('messages').add({
+    from: 'system',
+    text:
+      'JazakAllah khair for your time — I don’t feel we’re a match. ' +
+      'May Allah grant you a righteous spouse.',
+    at: FieldValue.serverTimestamp(),
+    system: true,
+  });
+  await ref.update({
+    stage: 'closed_dua',
+    stageHistory: FieldValue.arrayUnion({ stage: 'closed_dua', at: new Date(), by: uid }),
+    closedAt: FieldValue.serverTimestamp(),
+  });
+  return { ok: true };
+});
+
+/**
+ * 14-day lifecycle (PRD §4.4): 7 days silent → nudge both; 14 days →
+ * auto-archive with a respectful closure. Kills zombie chats.
+ */
+exports.archiveStaleConversations = onSchedule(
+  { schedule: '0 8 * * *', timeZone: 'Asia/Kolkata', region: REGION },
+  async () => {
+    const now = Date.now();
+    const snap = await db.collection('conversations').get();
+    for (const d of snap.docs) {
+      const stage = String(d.get('stage'));
+      if (stage.startsWith('closed_')) continue;
+      const last =
+        d.get('lastMessageAt')?.toMillis?.() ||
+        d.get('createdAt')?.toMillis?.() ||
+        now;
+      const days = (now - last) / (24 * 3600 * 1000);
+
+      if (days >= 14) {
+        await d.ref.collection('messages').add({
+          from: 'system',
+          text:
+            'This conversation has rested for two weeks, so we have closed it ' +
+            'gently. May Allah write what is best for you both.',
+          at: FieldValue.serverTimestamp(),
+          system: true,
+        });
+        await d.ref.update({
+          stage: 'closed_timeout',
+          stageHistory: FieldValue.arrayUnion({ stage: 'closed_timeout', at: new Date() }),
+          closedAt: FieldValue.serverTimestamp(),
+        });
+      } else if (days >= 7 && !d.get('nudged')) {
+        await d.ref.update({ nudged: true });
+        for (const uid of d.get('participants')) {
+          const tokens = Object.keys(
+            (await db.doc(`users/${uid}`).get()).get('fcmTokens') || {}
+          );
+          if (tokens.length > 0) {
+            await getMessaging()
+              .sendEachForMulticast({
+                tokens,
+                notification: {
+                  title: 'A conversation is waiting',
+                  body:
+                    'A match is still open — a kind word keeps it alive. ' +
+                    'Conversations rest after 14 days of silence.',
+                },
+              })
+              .catch(() => {});
+          }
+        }
       }
     }
   }

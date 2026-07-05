@@ -13,6 +13,8 @@ import '../../features/gate/decision_screens.dart';
 import '../../features/profile/profile_builder_screen.dart';
 import '../../features/profile/home_screen.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/chat/conversations_screen.dart';
+import '../../features/chat/chat_screen.dart';
 import '../../providers/application_provider.dart';
 
 /// Router with status-based guards (ikhlas-tech-requirements.md §4):
@@ -41,8 +43,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         case 'approved':
         case 'paused':
           if (profileComplete) {
-            const allowed = {'/home', '/settings', '/profile-builder'};
-            return allowed.contains(loc) ? null : '/home';
+            final allowed = {'/home', '/settings', '/profile-builder',
+              '/conversations'};
+            if (allowed.contains(loc) || loc.startsWith('/chat/')) return null;
+            return '/home';
           }
           return (loc == '/welcome' || loc == '/profile-builder')
               ? null
@@ -55,9 +59,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           // after submission the client lands there while the gate engine
           // is still flipping status server-side.
           const gated = {
-            '/welcome', '/profile-builder', '/decision', '/home', '/settings'
+            '/welcome', '/profile-builder', '/decision', '/home', '/settings',
+            '/conversations'
           };
-          return gated.contains(loc) ? '/landing' : null;
+          if (gated.contains(loc) || loc.startsWith('/chat/')) return '/landing';
+          return null;
       }
     },
     routes: [
@@ -73,6 +79,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/profile-builder', builder: (_, __) => const ProfileBuilderScreen()),
       GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
       GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
+      GoRoute(path: '/conversations', builder: (_, __) => const ConversationsScreen()),
+      GoRoute(
+          path: '/chat/:id',
+          builder: (_, s) => ChatScreen(convId: s.pathParameters['id']!)),
     ],
   );
   ref.onDispose(router.dispose);

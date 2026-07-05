@@ -38,6 +38,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               Text('Ikhlas', style: AppType.fraunces(24, color: DarkTokens.gold)),
               const Spacer(),
               IconButton(
+                onPressed: () => context.go('/conversations'),
+                icon: Icon(Icons.chat_bubble_outline,
+                    size: 21, color: DarkTokens.muted(.7)),
+              ),
+              IconButton(
                 onPressed: () => context.go('/settings'),
                 icon: Icon(Icons.settings_outlined,
                     size: 22, color: DarkTokens.muted(.7)),
