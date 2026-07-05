@@ -129,30 +129,32 @@ section.block{position:relative; padding:130px 0; z-index:2}
 .step p{font-size:14.5px; color:rgba(23,37,27,.58); margin-top:6px; line-height:1.65}
 
 /* sacred divider band */
-.band{position:relative; padding:118px 32px; text-align:center; z-index:2; overflow:hidden;
+.band{position:relative; padding:100px 32px 300px; text-align:center; z-index:2; overflow:hidden;
   border-top:1px solid rgba(148,116,32,.14); border-bottom:1px solid rgba(148,116,32,.14)}
 .band .amiri{position:relative; z-index:1; font-family:Amiri,serif; font-size:25px; color:var(--gold); line-height:2.05; max-width:22ch; margin:0 auto; direction:rtl}
 .band .en{position:relative; z-index:1; font-size:13px; color:rgba(23,37,27,.5); margin-top:20px; font-style:italic; max-width:46ch; margin-left:auto; margin-right:auto; line-height:1.7}
 
-/* ── Prayer silhouette scene: husband leading wife in salah, behind the verse ── */
-.prayer-scene{position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none}
-.prayer-scene svg{position:absolute; inset:0; width:100%; height:100%}
-.prayer-fig{fill:var(--gold-deep); opacity:.4}
-.prayer-shadow{fill:var(--gold-deep); opacity:.09}
-@keyframes manCycle{
-  0%,16%   {d:path("M56 10 C40 10 38 30 44 40 L42 54 L34 68 L40 118 L42 210 L76 210 L74 118 L72 54 L66 44 C74 32 72 10 56 10 Z")}
-  32%,44%  {d:path("M8 96 C9 110 20 114 26 110 L32 108 L44 120 L54 132 L54 210 L76 210 L76 132 L64 112 L32 94 C24 88 14 86 8 96 Z")}
-  58%,72%  {d:path("M24 180 C11 182 9 201 16 206 L21 208 L12 210 L50 200 L60 210 L84 210 L80 164 L60 152 L34 174 C31 179 27 178 24 180 Z")}
-  86%,100% {d:path("M56 10 C40 10 38 30 44 40 L42 54 L34 68 L40 118 L42 210 L76 210 L74 118 L72 54 L66 44 C74 32 72 10 56 10 Z")}
-}
-@keyframes womanCycle{
-  0%,16%   {d:path("M58 9 C41 9 38 30 44 42 L34 72 L28 150 L24 210 L90 210 L86 150 L74 70 L70 44 C78 30 74 9 58 9 Z")}
-  32%,44%  {d:path("M8 88 C9 104 20 110 26 106 L26 156 L52 150 L50 210 L92 210 L88 150 L70 112 L32 90 C24 84 14 82 8 88 Z")}
-  58%,72%  {d:path("M26 180 C11 183 10 201 18 205 L12 210 L58 198 L58 210 L98 210 L86 166 L66 154 L38 176 C31 181 28 180 26 180 Z")}
-  86%,100% {d:path("M58 9 C41 9 38 30 44 42 L34 72 L28 150 L24 210 L90 210 L86 150 L74 70 L70 44 C78 30 74 9 58 9 Z")}
-}
-.prayer-man{animation:manCycle 11s ease-in-out infinite}
-.prayer-woman{animation:womanCycle 11s ease-in-out infinite}
+/* ── Prayer illustration: husband leading wife in salah, below the verse ── */
+.prayer-scene{position:absolute; left:0; right:0; bottom:16px; z-index:0; height:300px; pointer-events:none}
+.prayer-scene svg{width:100%; height:100%; display:block}
+.p-thobe{fill:#FBF9F3; stroke:#6E5A2E; stroke-width:2.4; stroke-linejoin:round; stroke-linecap:round}
+.p-cap{fill:#FBF9F3; stroke:#6E5A2E; stroke-width:2.4; stroke-linejoin:round}
+.p-skin{fill:#E6C6A0; stroke:#6E5A2E; stroke-width:2.2; stroke-linejoin:round}
+.p-beard{fill:#6E5A2E; opacity:.38}
+.p-khimar{fill:#5C8A6C; stroke:#2C5340; stroke-width:2.4; stroke-linejoin:round; stroke-linecap:round}
+.p-khimard{fill:#4E7A5E}
+.p-det{fill:none; stroke:#6E5A2E; stroke-width:1.6; stroke-linecap:round}
+.p-detl{fill:none; stroke:#2C5340; stroke-width:1.6; stroke-linecap:round}
+.p-mat{fill:#C9A24A; stroke:#6E5A2E; stroke-width:2}
+.p-mat2{fill:#B4923A}
+.p-fringe{stroke:#6E5A2E; stroke-width:1.4}
+.pR,.pS{opacity:0}  /* only qiyam shows when animation is disabled */
+@keyframes prayerQ{0%,20%{opacity:1} 24%,92%{opacity:0} 96%,100%{opacity:1}}
+@keyframes prayerR{0%,24%{opacity:0} 28%,44%{opacity:1} 48%,100%{opacity:0}}
+@keyframes prayerS{0%,48%{opacity:0} 52%,88%{opacity:1} 92%,100%{opacity:0}}
+.pQ{animation:prayerQ 11s linear infinite}
+.pR{animation:prayerR 11s linear infinite}
+.pS{animation:prayerS 11s linear infinite}
 
 /* WAITLIST */
 .waitlist{position:relative; background:var(--surface); padding:110px 0; z-index:2}
@@ -295,24 +297,28 @@ footer .copy{margin-top:24px; font-size:12px; color:rgba(23,37,27,.4)}
 
 <div class="band">
   <div class="prayer-scene" aria-hidden="true">
-    <svg viewBox="0 0 440 300" preserveAspectRatio="xMidYMax meet">
-      <defs>
-        <linearGradient id="prayerFloor" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stop-color="#B4923A" stop-opacity="0"/>
-          <stop offset=".5" stop-color="#B4923A" stop-opacity=".5"/>
-          <stop offset="1" stop-color="#B4923A" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      <ellipse class="prayer-shadow" cx="192" cy="282" rx="52" ry="4.5"/>
-      <ellipse class="prayer-shadow" cx="248" cy="282" rx="46" ry="4"/>
-      <rect x="130" y="279.4" width="200" height="1.3" fill="url(#prayerFloor)"/>
-      <!-- woman, a step behind (drawn first so the man overlaps in front) -->
-      <g transform="translate(213,158.2) scale(0.58)">
-        <path class="prayer-fig prayer-woman" d="M58 9 C41 9 38 30 44 42 L34 72 L28 150 L24 210 L90 210 L86 150 L74 70 L70 44 C78 30 74 9 58 9 Z"/>
+    <svg viewBox="0 0 300 250" preserveAspectRatio="xMidYMax meet">
+      <!-- woman: a step behind, drawn first so the man is in front -->
+      <g transform="translate(120,22) scale(0.8)">
+        <g class="pm">
+    <rect class="p-mat" x="2" y="220" width="116" height="10" rx="1"/>
+    <rect class="p-mat2" x="8" y="222" width="104" height="6"/>
+    <g class="p-fringe"><line x1="5" y1="230" x2="5" y2="234"/><line x1="10" y1="230" x2="10" y2="234"/><line x1="15" y1="230" x2="15" y2="234"/><line x1="20" y1="230" x2="20" y2="234"/><line x1="25" y1="230" x2="25" y2="234"/><line x1="30" y1="230" x2="30" y2="234"/><line x1="35" y1="230" x2="35" y2="234"/><line x1="40" y1="230" x2="40" y2="234"/><line x1="45" y1="230" x2="45" y2="234"/><line x1="50" y1="230" x2="50" y2="234"/><line x1="55" y1="230" x2="55" y2="234"/><line x1="60" y1="230" x2="60" y2="234"/><line x1="65" y1="230" x2="65" y2="234"/><line x1="70" y1="230" x2="70" y2="234"/><line x1="75" y1="230" x2="75" y2="234"/><line x1="80" y1="230" x2="80" y2="234"/><line x1="85" y1="230" x2="85" y2="234"/><line x1="90" y1="230" x2="90" y2="234"/><line x1="95" y1="230" x2="95" y2="234"/><line x1="100" y1="230" x2="100" y2="234"/><line x1="105" y1="230" x2="105" y2="234"/></g>
+  </g>
+        <g class="pQ"><path class="p-khimar" d="M56 10 C42 11 35 22 35 36 C34 46 30 54 28 68 L20 150 L18 222 L96 222 L92 150 L84 66 C82 52 80 44 79 34 C78 20 70 10 56 10 Z"/><path class="p-skin" d="M50 24 C42 25 38 31 38 39 C38 46 42 51 48 53 C53 54 58 53 61 51 L61 30 C59 26 55 24 50 24 Z"/><path class="p-detl" d="M61 28 C56 25 49 24 44 27"/><path class="p-det" d="M42 39 C44 40 46 40 48 39"/><path class="p-det" d="M41 35 C43 34 46 34 48 35"/><path class="p-khimard" d="M79 34 C81 60 86 120 90 210 L84 210 C81 120 78 60 76 40 Z"/></g>
+        <g class="pR"><path class="p-khimar" d="M54 126 L48 222 L94 222 L88 150 C86 138 84 130 80 124 C74 118 60 118 54 126 Z"/><path class="p-khimar" d="M64 112 C55 105 36 104 24 110 C15 114 14 123 21 129 C25 132 30 133 34 133 L36 165 L52 165 L54 132 C62 132 70 126 68 118 C67 115 66 113 64 112 Z"/><path class="p-skin" d="M24 100 C16 102 12 110 15 118 C17 124 23 126 29 124 C34 122 37 116 35 109 C33 102 31 99 24 100 Z"/><path class="p-detl" d="M20 100 C24 97 30 98 33 102"/><path class="p-det" d="M17 114 C19 115 21 115 22 113"/><path class="p-khimard" d="M52 134 L50 165 L45 165 L47 133 Z"/></g>
+        <g class="pS"><path class="p-khimar" d="M22 206 C34 197 50 184 60 172 C65 166 69 164 72 170 C77 182 82 200 86 214 L90 222 L50 222 C46 214 34 209 24 207 Z"/><path class="p-khimar" d="M14 211 C22 206 42 206 52 211 L52 221 L14 221 Z"/><path class="p-skin" d="M22 196 C14 197 10 205 13 212 C16 217 25 218 33 215 C38 213 40 207 37 202 C34 197 29 195 22 196 Z"/><path class="p-detl" d="M20 194 C25 192 31 194 34 199"/><path class="p-det" d="M17 205 C19 206 22 206 24 205"/><path class="p-khimard" d="M72 172 C77 188 82 204 86 214 L82 216 C78 202 73 186 69 174 Z"/></g>
       </g>
-      <!-- man, leading in front -->
-      <g transform="translate(158,149.8) scale(0.62)">
-        <path class="prayer-fig prayer-man" d="M56 10 C40 10 38 30 44 40 L42 54 L34 68 L40 118 L42 210 L76 210 L74 118 L72 54 L66 44 C74 32 72 10 56 10 Z"/>
+      <!-- man: leading in front -->
+      <g transform="translate(44,4) scale(0.92)">
+        <g class="pm">
+    <rect class="p-mat" x="2" y="220" width="116" height="10" rx="1"/>
+    <rect class="p-mat2" x="8" y="222" width="104" height="6"/>
+    <g class="p-fringe"><line x1="5" y1="230" x2="5" y2="234"/><line x1="10" y1="230" x2="10" y2="234"/><line x1="15" y1="230" x2="15" y2="234"/><line x1="20" y1="230" x2="20" y2="234"/><line x1="25" y1="230" x2="25" y2="234"/><line x1="30" y1="230" x2="30" y2="234"/><line x1="35" y1="230" x2="35" y2="234"/><line x1="40" y1="230" x2="40" y2="234"/><line x1="45" y1="230" x2="45" y2="234"/><line x1="50" y1="230" x2="50" y2="234"/><line x1="55" y1="230" x2="55" y2="234"/><line x1="60" y1="230" x2="60" y2="234"/><line x1="65" y1="230" x2="65" y2="234"/><line x1="70" y1="230" x2="70" y2="234"/><line x1="75" y1="230" x2="75" y2="234"/><line x1="80" y1="230" x2="80" y2="234"/><line x1="85" y1="230" x2="85" y2="234"/><line x1="90" y1="230" x2="90" y2="234"/><line x1="95" y1="230" x2="95" y2="234"/><line x1="100" y1="230" x2="100" y2="234"/><line x1="105" y1="230" x2="105" y2="234"/></g>
+  </g>
+        <g class="pQ"><path class="p-thobe" d="M43 54 C39 64 37 78 37 96 L34 152 L36 220 L80 220 L82 152 L79 96 C79 78 77 64 73 54 C67 47 49 47 43 54 Z"/><path class="p-det" d="M58 62 L56 205"/><path class="p-skin" d="M51 44 L51 55 L64 55 L64 44 Z"/><path class="p-thobe" d="M37 98 L62 98 C66 98 68 102 68 105 C68 108 66 111 62 111 L41 111 C37 111 35 108 35 104 C35 100 35 98 37 98 Z"/><path class="p-skin" d="M41 105 C36 105 34 109 37 112 C40 114 45 113 46 109 C46 106 44 105 41 105 Z"/><path class="p-skin" d="M53 16 C43 17 38 25 38 34 C38 40 41 45 46 47 C50 49 57 49 63 48 L67 46 L68 22 C67 18 60 15 53 16 Z"/><path class="p-beard" d="M45 45 C49 49 58 49 64 47 L67 45 C61 48 51 48 46 44 Z"/><path class="p-det" d="M43 34 C45 35 47 35 49 34"/><path class="p-det" d="M42 30 C44 29 47 29 49 30"/><path class="p-cap" d="M39 24 C41 12 70 12 69 24 C60 20 48 20 39 24 Z"/><path class="p-det" d="M41 22 C50 18 60 18 67 22"/></g>
+        <g class="pR"><path class="p-thobe" d="M55 124 L52 220 L84 220 L81 124 C77 115 59 115 55 124 Z"/><path class="p-thobe" d="M66 112 C57 105 38 104 26 109 C17 112 15 121 21 128 C31 135 54 136 68 130 C75 127 73 118 66 112 Z"/><path class="p-thobe" d="M31 124 C27 132 31 148 41 152 C47 154 53 151 52 146 C51 141 45 138 41 132 C38 128 35 124 31 124 Z"/><path class="p-skin" d="M44 148 C40 148 38 153 42 156 C46 158 51 156 51 152 C51 149 48 148 44 148 Z"/><path class="p-skin" d="M22 106 L29 104 L31 116 L25 119 Z"/><path class="p-skin" d="M22 94 C13 96 9 105 11 113 C12 120 18 123 25 122 C31 121 35 115 34 108 C33 100 30 95 22 94 Z"/><path class="p-beard" d="M12 112 C15 118 24 121 31 118 C27 122 17 122 12 116 Z"/><path class="p-det" d="M15 109 C17 110 19 110 20 108"/><path class="p-cap" d="M13 101 C15 91 31 90 34 101 C28 97 19 97 13 101 Z"/><path class="p-det" d="M15 100 C21 97 28 97 33 100"/></g>
+        <g class="pS"><path class="p-thobe" d="M22 207 C34 198 48 186 58 174 C63 168 67 164 70 168 C74 176 78 192 80 206 L82 220 L54 220 C50 214 40 209 30 208 C27 207 24 207 22 207 Z"/><path class="p-thobe" d="M17 211 C24 207 40 207 47 211 L47 219 L17 219 Z"/><path class="p-skin" d="M20 198 C12 199 8 206 11 213 C14 218 24 219 32 216 C37 214 39 208 36 203 C33 199 27 197 20 198 Z"/><path class="p-beard" d="M12 210 C17 216 28 217 35 213 C31 218 18 218 12 212 Z"/><path class="p-det" d="M16 206 C18 207 21 207 23 206"/><path class="p-cap" d="M15 202 C19 194 33 195 34 203 C28 199 21 199 15 202 Z"/></g>
       </g>
     </svg>
   </div>
