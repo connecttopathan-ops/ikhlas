@@ -1,0 +1,16 @@
+{
+  "hosting": [
+    {
+      "site": "ikhlas-admin",
+      "public": "admin/build/web",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    },
+    {
+      "site": "ikhlas-wali",
+      "public": "wali/build/web",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    }
+  ]
+}
