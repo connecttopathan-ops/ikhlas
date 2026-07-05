@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 /// ============================================================
 /// Ikhlas design tokens — from the approved Visual Spec (Turn 2)
@@ -41,13 +40,15 @@ class AppSpace {
 }
 
 /// Type roles. Fraunces = display serif · Inter = UI · Amiri = Arabic.
+/// All three are bundled as app assets (see pubspec) — no runtime fetch.
 class AppType {
   static TextStyle fraunces(double size,
           {FontWeight weight = FontWeight.w400,
           Color? color,
           double height = 1.1,
           FontStyle style = FontStyle.normal}) =>
-      GoogleFonts.fraunces(
+      TextStyle(
+          fontFamily: 'Fraunces',
           fontSize: size,
           fontWeight: weight,
           height: height,
@@ -60,7 +61,8 @@ class AppType {
           Color? color,
           double height = 1.6,
           double letterSpacing = 0}) =>
-      GoogleFonts.inter(
+      TextStyle(
+          fontFamily: 'Inter',
           fontSize: size,
           fontWeight: weight,
           height: height,
@@ -73,7 +75,7 @@ class AppType {
 
   /// Amiri for Arabic (reverence-critical text).
   static TextStyle amiri(double size, {Color? color}) =>
-      GoogleFonts.amiri(fontSize: size, color: color, height: 1.6);
+      TextStyle(fontFamily: 'Amiri', fontSize: size, color: color, height: 1.6);
 }
 
 class AppTheme {
@@ -81,25 +83,31 @@ class AppTheme {
         useMaterial3: true,
         brightness: Brightness.dark,
         scaffoldBackgroundColor: DarkTokens.bg,
+        fontFamily: 'Inter',
         colorScheme: const ColorScheme.dark(
           surface: DarkTokens.bg,
           primary: DarkTokens.gold,
           onPrimary: DarkTokens.ctaText,
         ),
-        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme)
-            .apply(bodyColor: DarkTokens.ivory, displayColor: DarkTokens.ivory),
+        textTheme: ThemeData.dark().textTheme.apply(
+            fontFamily: 'Inter',
+            bodyColor: DarkTokens.ivory,
+            displayColor: DarkTokens.ivory),
       );
 
   static ThemeData light() => ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
         scaffoldBackgroundColor: LightTokens.bg,
+        fontFamily: 'Inter',
         colorScheme: const ColorScheme.light(
           surface: LightTokens.bg,
           primary: LightTokens.ctaBg,
           onPrimary: LightTokens.ctaText,
         ),
-        textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme)
-            .apply(bodyColor: LightTokens.ink, displayColor: LightTokens.ink),
+        textTheme: ThemeData.light().textTheme.apply(
+            fontFamily: 'Inter',
+            bodyColor: LightTokens.ink,
+            displayColor: LightTokens.ink),
       );
 }

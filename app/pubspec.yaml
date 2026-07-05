@@ -28,9 +28,6 @@ dependencies:
   google_sign_in: ^6.2.1
   sign_in_with_apple: ^6.1.1   # iOS requirement when offering Google login
 
-  # Fonts (Fraunces display + Inter body — loaded via google_fonts)
-  google_fonts: ^6.2.1
-
   # Selfie capture (manual for now; a liveness SDK replaces the capture
   # source in a later phase behind the same verification.selfie shape)
   image_picker: ^1.1.2
@@ -60,9 +57,28 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
-  # Amiri (Arabic) bundled locally for reverence-critical text.
-  # Drop Amiri-Regular.ttf into assets/fonts/ then uncomment:
-  # fonts:
-  #   - family: Amiri
-  #     fonts:
-  #       - asset: assets/fonts/Amiri-Regular.ttf
+  # Fonts bundled locally (no runtime fetch → sharp on first frame, offline,
+  # no dependency on Google's servers). Fraunces = display serif,
+  # Inter = UI, Amiri = Arabic reverence-critical text.
+  fonts:
+    - family: Fraunces
+      fonts:
+        - asset: assets/fonts/Fraunces_400Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Fraunces_600SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Fraunces_400Regular_Italic.ttf
+          weight: 400
+          style: italic
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter_400Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter_500Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter_600SemiBold.ttf
+          weight: 600
+    - family: Amiri
+      fonts:
+        - asset: assets/fonts/Amiri_400Regular.ttf
+          weight: 400
