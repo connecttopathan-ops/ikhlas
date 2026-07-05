@@ -6,14 +6,20 @@ import 'package:flutter/material.dart';
 /// ============================================================
 
 class DarkTokens {
-  static const bg = Color(0xFF0A120C); // deep emerald-black
-  static const ivory = Color(0xFFEFEDDF);
-  static Color muted([double o = .55]) => ivory.withOpacity(o); // .5–.62 band
-  static const gold = Color(0xFFC9A227);
-  static Color hairline([double o = .18]) => gold.withOpacity(o); // .16–.22
-  static const ctaBg = gold;
-  static const ctaText = Color(0xFF0E1811);
-  static Color ctaRing = const Color(0xFF0F1912).withOpacity(.3);
+  // The app now ships in the light 2d "sage ceremonial" palette. These
+  // fields keep their names — screens use them semantically (`ivory` =
+  // primary text, `gold` = accent) — but hold the light-theme values, so
+  // all 16 screens flip to light without per-screen edits. The theme-aware
+  // shared widgets read LightTokens directly (themeMode is light).
+  static const bg = Color(0xFFEFF0E5); // sage-tinted ivory ground
+  static const ivory = Color(0xFF17251B); // deep green ink (primary text)
+  static Color muted([double o = .58]) => ivory.withOpacity(o);
+  static const gold = Color(0xFFA8842B); // darkened gold for contrast on light
+  static Color hairline([double o = .28]) =>
+      const Color(0xFF947420).withOpacity(o);
+  static const ctaBg = Color(0xFF152A1D); // deep green
+  static const ctaText = Color(0xFFD9BC57); // champagne
+  static Color ctaRing = const Color(0xFFC9A227).withOpacity(.4);
 }
 
 class LightTokens {

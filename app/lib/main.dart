@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -9,6 +10,12 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Light 2d theme → dark status-bar icons on the sage ground.
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+  ));
   // Fonts are bundled as assets (see pubspec) — sharp on the first frame,
   // no runtime fetch, works fully offline.
   runApp(const ProviderScope(child: IkhlasApp()));
@@ -23,9 +30,9 @@ class IkhlasApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Ikhlas',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),   // 2d — light sage ceremonial
-      darkTheme: AppTheme.dark(), // 2a–2c — emerald + gold
-      themeMode: ThemeMode.dark,  // dark-first at launch (spec's primary system)
+      theme: AppTheme.light(),   // 2d — light sage ceremonial (whole app)
+      darkTheme: AppTheme.light(), // pinned light — no dark variant at launch
+      themeMode: ThemeMode.light,
       routerConfig: router,
     );
   }

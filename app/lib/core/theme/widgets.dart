@@ -206,7 +206,8 @@ class _NoisePainter extends CustomPainter {
         (_) => Offset(
             rnd.nextDouble() * size.width, rnd.nextDouble() * size.height));
     final paint = Paint()
-      ..color = Colors.white.withValues(alpha: opacity)
+      // Ink grain reads on the light sage ground (white would vanish).
+      ..color = const Color(0xFF17251B).withValues(alpha: opacity)
       ..strokeWidth = 1
       ..strokeCap = StrokeCap.square;
     canvas.drawPoints(ui.PointMode.points, points, paint);
