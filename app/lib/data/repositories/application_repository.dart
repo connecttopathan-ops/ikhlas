@@ -15,6 +15,36 @@ class ApplicationRepository {
   final _db = FirebaseFirestore.instance;
   String get _uid => FirebaseAuth.instance.currentUser!.uid;
 
+  /// Resolves where a just-signed-in member belongs, so a returning user
+  /// is never re-asked for details they already gave. Reads their live
+  /// state and returns the right route:
+  ///   approved/paused → home (or welcome if the profile isn't built yet)
+  ///   under_review    → review-wait
+  ///   soft_rejected   → decision
+  ///   applying        → resume at the first unfinished step
+  ///                     (phone → declaration → questionnaire)
+  Future<String> resolveEntryRoute() async {
+    final snap = await _db.collection('users').doc(_uid).get();
+    final d = snap.data() ?? {};
+    final status = d['status'] as String?;
+    switch (status) {
+      case 'approved':
+      case 'paused':
+        return d['profileComplete'] == true ? '/home' : '/welcome';
+      case 'under_review':
+        return '/review-wait';
+      case 'soft_rejected':
+        return '/decision';
+    }
+    // 'applying' (or a brand-new doc) — resume at the first gap.
+    final hasPhone = (d['phone'] as String?)?.isNotEmpty == true;
+    if (!hasPhone) return '/phone';
+    final hasDeclaration =
+        (d['draft'] as Map<String, dynamic>?)?['intentDeclaration'] != null;
+    if (!hasDeclaration) return '/declaration';
+    return '/questionnaire';
+  }
+
   /// Creates users/{uid} on first login (status: applying — the only
   /// status a client may set, per security rules).
   Future<void> ensureUserDoc({required String email, String? authProvider}) async {

@@ -1,8 +1,10 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
+import '../../data/repositories/application_repository.dart';
 
 /// Splash — the brand logo lockup (14b light) rises and fades in, then the
 /// tagline. Centered rite composition on the sage ground.
@@ -22,9 +24,19 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     // Dark status-bar icons on the light ground.
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
     _stagger.forward();
-    Future.delayed(const Duration(milliseconds: 3000), () {
-      if (mounted) context.go('/landing');
-    });
+    Future.delayed(const Duration(milliseconds: 2600), _handoff);
+  }
+
+  Future<void> _handoff() async {
+    // Already signed in → resume where they left off; otherwise the
+    // application landing. (No landing/login bounce for returning members.)
+    String route = '/landing';
+    if (FirebaseAuth.instance.currentUser != null) {
+      try {
+        route = await ApplicationRepository().resolveEntryRoute();
+      } catch (_) {}
+    }
+    if (mounted) context.go(route);
   }
 
   @override

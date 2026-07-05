@@ -24,9 +24,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _busy = true);
     try {
       final cred = await GoogleAuth().signIn();
-      await ref.read(applicationRepositoryProvider).ensureUserDoc(
+      final repo = ref.read(applicationRepositoryProvider);
+      await repo.ensureUserDoc(
           email: cred.user?.email ?? '', authProvider: 'google');
-      if (mounted) context.go('/phone');
+      // Resume where they left off — never re-ask for a phone/details a
+      // returning member already provided.
+      final route = await repo.resolveEntryRoute();
+      if (mounted) context.go(route);
     } on AuthCancelled {
       // user backed out — no error surface needed
     } on FirebaseAuthException catch (e) {
