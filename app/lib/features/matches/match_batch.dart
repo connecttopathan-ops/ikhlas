@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
 import '../../providers/application_provider.dart';
+import 'match_detail_screen.dart';
 import 'member_photo.dart';
 
 /// Today's curated batch (PRD §4.2) — deen-first profile cards, exactly
@@ -132,7 +133,12 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
         ? null
         : (prompts.first as Map)['answer'] as String?;
 
-    return Container(
+    return InkWell(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => MatchDetailScreen(
+              entryId: widget.doc.id, entry: e))),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -237,7 +243,15 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
                       : 'Passed, respectfully.',
                   style: AppType.inter(12.5, color: DarkTokens.muted())),
             ]),
+          const SizedBox(height: 10),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Text('Tap to view full profile',
+                style: AppType.inter(11.5, color: DarkTokens.muted(.5))),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right, size: 14, color: DarkTokens.muted(.5)),
+          ]),
         ],
+      ),
       ),
     );
   }
