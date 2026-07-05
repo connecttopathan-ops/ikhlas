@@ -116,61 +116,120 @@ class Hairline extends StatelessWidget {
 }
 
 /// ============================================================
-/// Girih line-art: concentric circles + rotated squares.
-/// stroke #C9A227 @ 0.55w. `progress` (0→1) animates self-drawing.
+/// Brand marks (approved logo spec — 14a dark / 14b light).
+/// The signature detail is the gold lozenge (a square rotated 45°) used
+/// as the dotless-ı tittle; it recurs in the wordmark and the app icon.
 /// ============================================================
-class GirihMark extends StatelessWidget {
-  final double size;
-  final double opacity; // spec: 5–11% as background motif; ~100% as the splash mark
-  final double progress;
-  const GirihMark({super.key, required this.size, this.opacity = 1, this.progress = 1});
 
-  @override
-  Widget build(BuildContext context) => Opacity(
-        opacity: opacity,
-        child: CustomPaint(
-            size: Size.square(size), painter: _GirihPainter(progress: progress)),
-      );
+/// Colour set for the two logo themes.
+class _LogoColors {
+  final Color word, lozenge, caption, line;
+  const _LogoColors(this.word, this.lozenge, this.caption, this.line);
+  static const dark = _LogoColors( // 14a
+      Color(0xFFEFEDDF), Color(0xFFD9BC57), Color(0xFFD9BC57), Color(0x73D9BC57));
+  static const light = _LogoColors( // 14b
+      Color(0xFF17251B), Color(0xFFA8842B), Color(0xFF8F711F), Color(0x80947420));
 }
 
-class _GirihPainter extends CustomPainter {
-  final double progress;
-  _GirihPainter({required this.progress});
+/// The full wordmark lockup: `ıkhlaas` (dotless ı + double-a) in Fraunces
+/// with the lozenge tittle, and the Arabic `إخلاص` caption in Amiri flanked
+/// by hairlines. `size` is the wordmark font-size (spec reference: 70).
+class IkhlasLogo extends StatelessWidget {
+  final double size;
+  final bool? dark; // null → follow theme brightness
+  const IkhlasLogo({super.key, this.size = 70, this.dark});
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = DarkTokens.gold
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.55;
-    final c = size.center(Offset.zero);
-    final r = size.width / 2;
+  Widget build(BuildContext context) {
+    final isDark = dark ?? Theme.of(context).brightness == Brightness.dark;
+    final c = isDark ? _LogoColors.dark : _LogoColors.light;
+    final k = size / 70; // scale from the 70px reference
 
-    // Concentric circles (arc-draw with progress)
-    for (final f in [1.0, 0.82, 0.58]) {
-      canvas.drawArc(Rect.fromCircle(center: c, radius: r * f * 0.96),
-          -math.pi / 2, 2 * math.pi * progress.clamp(0, 1), false, paint);
-    }
-    // Two rotated squares (0° and 45°) — draw edges up to progress
-    for (final rot in [0.0, math.pi / 4]) {
-      final path = Path();
-      for (int i = 0; i < 4; i++) {
-        final a1 = rot + i * math.pi / 2 + math.pi / 4;
-        final a2 = rot + (i + 1) * math.pi / 2 + math.pi / 4;
-        final p1 = c + Offset(math.cos(a1), math.sin(a1)) * r * 0.7;
-        final p2 = c + Offset(math.cos(a2), math.sin(a2)) * r * 0.7;
-        if (i == 0) path.moveTo(p1.dx, p1.dy);
-        path.lineTo(p2.dx, p2.dy);
-      }
-      final metrics = path.computeMetrics().toList();
-      for (final m in metrics) {
-        canvas.drawPath(m.extractPath(0, m.length * progress.clamp(0, 1)), paint);
-      }
-    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Wordmark with the lozenge tittle centred on the ı stem.
+        Stack(clipBehavior: Clip.none, children: [
+          Text('ıkhlaas',
+              style: TextStyle(
+                fontFamily: 'Fraunces',
+                fontSize: size,
+                height: 1.0,
+                letterSpacing: -0.018 * size,
+                // Bundled Fraunces is 400/600; 400 is the nearest to the
+                // spec's 390 (dark) / 410 (light).
+                fontWeight: FontWeight.w400,
+                color: c.word,
+              )),
+          Positioned(
+            left: 2 * k,
+            top: 21 * k,
+            child: Transform.rotate(
+              angle: math.pi / 4,
+              child: Container(width: 11 * k, height: 11 * k, color: c.lozenge),
+            ),
+          ),
+        ]),
+        SizedBox(height: 1 * k),
+        // Caption rule: line — إخلاص — line
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 20 * k, height: 1, color: c.line),
+          SizedBox(width: 10 * k),
+          Text('إخلاص',
+              textDirection: TextDirection.rtl,
+              style: TextStyle(
+                  fontFamily: 'Amiri',
+                  fontSize: 18 * k,
+                  height: 1,
+                  color: c.caption)),
+          SizedBox(width: 10 * k),
+          Container(width: 20 * k, height: 1, color: c.line),
+        ]),
+      ],
+    );
   }
+}
+
+/// The ı-monogram — the dotless `ı` in Fraunces with the gold lozenge
+/// tittle. The brand's compact icon element, used as a watermark and in
+/// empty/resting states. (Named GirihMark for source compatibility with
+/// existing call sites; `progress` is accepted but unused.)
+class GirihMark extends StatelessWidget {
+  final double size;
+  final double opacity;
+  final double progress;
+  const GirihMark(
+      {super.key, required this.size, this.opacity = 1, this.progress = 1});
 
   @override
-  bool shouldRepaint(_GirihPainter old) => old.progress != progress;
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final c = isDark ? _LogoColors.dark : _LogoColors.light;
+    return Opacity(
+      opacity: opacity,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Stack(alignment: Alignment.center, children: [
+          Text('ı',
+              style: TextStyle(
+                  fontFamily: 'Fraunces',
+                  fontSize: size * 0.86,
+                  height: 1,
+                  color: c.word.withOpacity(isDark ? 1 : .9),
+                  fontWeight: FontWeight.w400)),
+          Positioned(
+            top: size * 0.11,
+            child: Transform.rotate(
+              angle: math.pi / 4,
+              child: Container(
+                  width: size * 0.16, height: size * 0.16, color: c.lozenge),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
 /// ============================================================

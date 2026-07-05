@@ -4,9 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
 
-/// 2a — Splash. Centered rite composition on emerald.
-/// Motion: girih line draws itself; wordmark + tagline rise/fade,
-/// staggered 300–450ms. Light status bar.
+/// Splash — the brand logo lockup (14b light) rises and fades in, then the
+/// tagline. Centered rite composition on the sage ground.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
   @override
@@ -14,37 +13,35 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
-  late final AnimationController _girih =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
   late final AnimationController _stagger =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
 
   @override
   void initState() {
     super.initState();
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
-    _girih.forward().whenComplete(() => _stagger.forward());
-    // Hand off to landing after the rite completes.
-    Future.delayed(const Duration(milliseconds: 3200), () {
+    // Dark status-bar icons on the light ground.
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
+    _stagger.forward();
+    Future.delayed(const Duration(milliseconds: 3000), () {
       if (mounted) context.go('/landing');
     });
   }
 
   @override
   void dispose() {
-    _girih.dispose();
     _stagger.dispose();
     super.dispose();
   }
 
-  Widget _rise(Animation<double> parent, double from, double to, Widget child) {
+  Widget _rise(double from, double to, Widget child) {
     final anim = CurvedAnimation(
-        parent: parent, curve: Interval(from, to, curve: Curves.easeOutCubic));
+        parent: _stagger, curve: Interval(from, to, curve: Curves.easeOutCubic));
     return AnimatedBuilder(
       animation: anim,
       builder: (_, __) => Opacity(
         opacity: anim.value,
-        child: Transform.translate(offset: Offset(0, 14 * (1 - anim.value)), child: child),
+        child: Transform.translate(
+            offset: Offset(0, 14 * (1 - anim.value)), child: child),
       ),
     );
   }
@@ -56,22 +53,12 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedBuilder(
-              animation: _girih,
-              builder: (_, __) => GirihMark(size: 96, progress: _girih.value),
-            ),
-            const SizedBox(height: 28),
-            _rise(_stagger, 0.0, 0.5,
-                Text('إخلاص', style: AppType.amiri(17, color: DarkTokens.gold))),
-            const SizedBox(height: 8),
-            _rise(_stagger, 0.15, 0.7,
-                Text('ikhlas',
-                    style: AppType.fraunces(34, color: DarkTokens.ivory))),
-            const SizedBox(height: 12),
-            _rise(_stagger, 0.35, 1.0,
+            _rise(0.0, 0.7, const IkhlasLogo(size: 56)),
+            const SizedBox(height: 22),
+            _rise(0.4, 1.0,
                 Text('Where nikah begins with deen',
                     style: AppType.fraunces(15,
-                        color: DarkTokens.muted(.62), style: FontStyle.italic))),
+                        color: DarkTokens.muted(.7), style: FontStyle.italic))),
           ],
         ),
       ),
