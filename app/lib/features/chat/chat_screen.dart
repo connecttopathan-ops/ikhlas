@@ -23,6 +23,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _input = TextEditingController();
   bool _sending = false;
 
+  // Streams created once per screen — recreating them on every rebuild
+  // resubscribes Firestore and makes the transcript flicker.
+  late final _repo = ref.read(chatRepositoryProvider);
+  late final _convStream = _repo.conversationStream(widget.convId);
+  late final _msgStream = _repo.messagesStream(widget.convId);
+  final _scroll = ScrollController();
+  int _lastCount = 0;
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    _input.dispose();
+    super.dispose();
+  }
+
   Future<void> _send() async {
     final text = _input.text.trim();
     if (text.isEmpty) return;
@@ -156,11 +171,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.read(chatRepositoryProvider);
     final me = FirebaseAuth.instance.currentUser!.uid;
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: repo.conversationStream(widget.convId),
+      stream: _convStream,
       builder: (context, convSnap) {
         final conv = convSnap.data?.data();
         if (conv == null) {
@@ -344,10 +358,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   Widget _messages(String me) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: ref.read(chatRepositoryProvider).messagesStream(widget.convId),
+      stream: _msgStream,
       builder: (context, snap) {
         final msgs = snap.data?.docs ?? [];
+        // Keep the latest message in view as the thread grows.
+        if (msgs.length != _lastCount) {
+          _lastCount = msgs.length;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_scroll.hasClients) {
+              _scroll.animateTo(_scroll.position.maxScrollExtent,
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOut);
+            }
+          });
+        }
         return ListView.builder(
+          controller: _scroll,
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
           itemCount: msgs.length,
           itemBuilder: (_, i) {

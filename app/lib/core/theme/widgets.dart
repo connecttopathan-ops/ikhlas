@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
@@ -173,37 +174,46 @@ class _GirihPainter extends CustomPainter {
 }
 
 /// ============================================================
-/// Noise overlay ~3–3.5% opacity (approximates the spec's fractal-noise SVG
-/// with seeded stochastic grain — visually equivalent at this opacity,
-/// cheap to render).
+/// Noise overlay ~3–3.5% grain (approximates the spec's fractal-noise SVG).
+/// Rendered as a single drawPoints batch, alpha folded into the point
+/// colour (so no full-screen Opacity saveLayer), and cached by a
+/// RepaintBoundary so it rasterises once and is reused as a texture.
 /// ============================================================
 class NoiseOverlay extends StatelessWidget {
   final double opacity;
   const NoiseOverlay({super.key, this.opacity = .032});
   @override
   Widget build(BuildContext context) => IgnorePointer(
-        child: Opacity(
-            opacity: opacity,
-            child: CustomPaint(painter: _NoisePainter(), size: Size.infinite)),
+        child: RepaintBoundary(
+          child: CustomPaint(
+              painter: _NoisePainter(opacity), size: Size.infinite),
+        ),
       );
 }
 
 class _NoisePainter extends CustomPainter {
+  final double opacity;
+  _NoisePainter(this.opacity);
+
   @override
   void paint(Canvas canvas, Size size) {
     final rnd = math.Random(7); // fixed seed → stable grain
-    final paint = Paint()..color = Colors.white;
-    final count = (size.width * size.height / 55).round();
-    for (int i = 0; i < count; i++) {
-      canvas.drawRect(
-          Rect.fromLTWH(rnd.nextDouble() * size.width,
-              rnd.nextDouble() * size.height, 1, 1),
-          paint..color = Colors.white.withOpacity(rnd.nextDouble()));
-    }
+    // ~1 grain per 900px² (was ~1 per 55px² = ~15× fewer points) with the
+    // 3.2% alpha folded in, so the whole overlay is one cheap point batch.
+    final count = (size.width * size.height / 900).round();
+    final points = List<Offset>.generate(
+        count,
+        (_) => Offset(
+            rnd.nextDouble() * size.width, rnd.nextDouble() * size.height));
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: opacity)
+      ..strokeWidth = 1
+      ..strokeCap = StrokeCap.square;
+    canvas.drawPoints(ui.PointMode.points, points, paint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _NoisePainter old) => old.opacity != opacity;
 }
 
 /// Scaffold wrapper: background + noise, spec screen margin.
