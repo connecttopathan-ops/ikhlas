@@ -23,7 +23,7 @@ class AdminApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Ikhlas — Review',
+      title: 'Ikhlaas — Review',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -75,7 +75,7 @@ class _SignInScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Centered(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text('Ikhlas', style: T.fraunces(34, color: T.gold)),
+        Text('Ikhlaas', style: T.fraunces(34, color: T.gold)),
         const SizedBox(height: 6),
         Text('Application review', style: T.inter(14, color: T.muted)),
         const SizedBox(height: 32),

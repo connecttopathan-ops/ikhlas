@@ -1,6 +1,6 @@
 {
-    "name": "ikhlas_admin",
-    "short_name": "ikhlas_admin",
+    "name": "Ikhlaas",
+    "short_name": "Ikhlaas",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

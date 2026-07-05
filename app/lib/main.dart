@@ -28,7 +28,7 @@ class IkhlasApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
-      title: 'Ikhlas',
+      title: 'Ikhlaas',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),   // 2d — light sage ceremonial (whole app)
       darkTheme: AppTheme.light(), // pinned light — no dark variant at launch

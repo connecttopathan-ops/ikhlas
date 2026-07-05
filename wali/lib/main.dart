@@ -22,7 +22,7 @@ class WaliApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Ikhlas — Wali',
+      title: 'Ikhlaas — Wali',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -96,7 +96,7 @@ class _GateState extends State<_Gate> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Ikhlas', style: T.fraunces(34, color: T.gold)),
+                Text('Ikhlaas', style: T.fraunces(34, color: T.gold)),
                 const SizedBox(height: 6),
                 Text('Guardian portal', style: T.inter(15, color: T.muted)),
                 const SizedBox(height: 28),
@@ -105,7 +105,7 @@ class _GateState extends State<_Gate> {
                       ? 'Please open the link from the SMS invitation you '
                           'received.'
                       : 'You have been invited to oversee an application on '
-                          'Ikhlas, an app for Muslims seeking nikah. Enter the '
+                          'Ikhlaas, an app for Muslims seeking nikah. Enter the '
                           '6-digit code sent to your phone.',
                   style: T.inter(14, color: T.ivory, height: 1.7),
                 ),

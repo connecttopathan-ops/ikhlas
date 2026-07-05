@@ -22,7 +22,7 @@ class _DeclarationScreenState extends ConsumerState<DeclarationScreen> {
   static const _affirmations = [
     'I am seeking nikah, and I intend to marry within a reasonable timeframe.',
     'I am not currently married.',
-    'I understand Ikhlas is not for casual chatting or friendship.',
+    'I understand Ikhlaas is not for casual chatting or friendship.',
   ];
 
   bool get _complete =>
@@ -81,7 +81,7 @@ class _DeclarationScreenState extends ConsumerState<DeclarationScreen> {
             ],
             const SizedBox(height: 24),
             Text(
-              'Ikhlas means sincerity. This declaration is between you and Allah — '
+              'Ikhlaas means sincerity. This declaration is between you and Allah — '
               'and it is the standard we hold every member to.',
               style: AppType.inter(12.5, color: DarkTokens.muted(), height: 1.6),
             ),

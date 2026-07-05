@@ -367,7 +367,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         totalSteps: _totalSteps,
         eyebrow: 'Section E · Creed & finance',
         title: 'Affirmations',
-        intro: 'These reflect the standard of the Ikhlas pool. '
+        intro: 'These reflect the standard of the Ikhlaas pool. '
             'Answer truthfully before Allah.',
         children: [
           const QuestionLabel(

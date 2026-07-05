@@ -36,7 +36,7 @@ class WaliPortal extends StatelessWidget {
             padding: const EdgeInsets.all(28),
             children: [
               const SizedBox(height: 12),
-              Text('Ikhlas', style: T.fraunces(30, color: T.gold)),
+              Text('Ikhlaas', style: T.fraunces(30, color: T.gold)),
               const SizedBox(height: 4),
               Text('Your ward’s conversations',
                   style: T.inter(15, color: T.muted)),

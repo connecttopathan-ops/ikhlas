@@ -22,7 +22,7 @@ class ApprovedScreen extends StatelessWidget {
             Text('أَهْلًا وَسَهْلًا',
                 style: AppType.amiri(16, color: DarkTokens.gold)),
             const SizedBox(height: 8),
-            Text('Welcome to Ikhlas',
+            Text('Welcome to Ikhlaas',
                 textAlign: TextAlign.center,
                 style: AppType.fraunces(30, color: DarkTokens.ivory)),
             const SizedBox(height: 16),
@@ -70,7 +70,7 @@ class SoftRejectedScreen extends StatelessWidget {
             const SizedBox(height: 18),
             Text(
               'JazakAllah khair for your honesty — it is the quality we '
-              'value most. Based on your answers, Ikhlas may not be the '
+              'value most. Based on your answers, Ikhlaas may not be the '
               'right place for you at this moment.\n\n'
               'That is not a judgement of you; it is a reflection of how '
               'strictly we guard the seriousness of the pool. When your '

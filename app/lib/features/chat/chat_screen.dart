@@ -478,7 +478,7 @@ class _AdabGateState extends ConsumerState<_AdabGate> {
   static const _adab = [
     'Speak with the intention of nikah — this is not casual conversation.',
     'Maintain haya (modesty) in every message, as if a guardian is present.',
-    'No contact details or moving off Ikhlas before the Family Stage.',
+    'No contact details or moving off Ikhlaas before the Family Stage.',
     'If it is not a match, end with dua — never ghosting.',
   ];
 

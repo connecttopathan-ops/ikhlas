@@ -38,14 +38,14 @@ class _LandingDark2b extends StatelessWidget {
                       text: 'i',
                       style: AppType.fraunces(21, color: DarkTokens.gold)),
                   TextSpan(
-                      text: 'khlas',
+                      text: 'khlaas',
                       style: AppType.fraunces(21, color: DarkTokens.ivory)),
                 ])),
                 const Spacer(),
                 Text('MEMBERSHIP BY APPLICATION',
                     style: AppType.eyebrow(DarkTokens.gold)),
                 const SizedBox(height: 14),
-                Text('Ikhlas is for Muslims serious about nikah.',
+                Text('Ikhlaas is for Muslims serious about nikah.',
                     style: AppType.fraunces(39,
                         color: DarkTokens.ivory, height: 1.09)),
                 const SizedBox(height: 12),
@@ -96,13 +96,9 @@ class _LandingLight2d extends StatelessWidget {
         child: Column(
           children: [
             const Spacer(flex: 2),
-            Text('إخلاص', style: AppType.amiri(17, color: LightTokens.goldArabic)),
-            const SizedBox(height: 10),
-            Text('ikhlas', style: AppType.fraunces(27, color: LightTokens.ink)),
-            const SizedBox(height: 18),
-            const Hairline(width: 40),
+            const IkhlasLogo(size: 34),
             const SizedBox(height: 28),
-            Text('Ikhlas is for Muslims serious about nikah.',
+            Text('Ikhlaas is for Muslims serious about nikah.',
                 textAlign: TextAlign.center,
                 style:
                     AppType.fraunces(36, color: LightTokens.ink, height: 1.12)),

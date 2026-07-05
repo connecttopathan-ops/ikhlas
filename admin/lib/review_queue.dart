@@ -22,7 +22,7 @@ class ReviewQueueScreen extends StatelessWidget {
         appBar: AppBar(
           backgroundColor: T.bg,
           title: Row(children: [
-            Text('Ikhlas', style: T.fraunces(22, color: T.gold)),
+            Text('Ikhlaas', style: T.fraunces(22, color: T.gold)),
             const SizedBox(width: 12),
             Text('Review', style: T.inter(14, color: T.muted)),
           ]),

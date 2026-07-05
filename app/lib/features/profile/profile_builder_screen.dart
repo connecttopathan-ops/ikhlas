@@ -232,7 +232,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
             options: const [
               Choice('blur_until_match', 'Blurred until we match',
                   note: 'Matches see a soft silhouette; photos reveal on '
-                      'mutual interest. The Ikhlas default.'),
+                      'mutual interest. The Ikhlaas default.'),
               Choice('visible', 'Visible to my daily matches',
                   note: 'Only people in your curated batch — never a public '
                       'gallery.'),

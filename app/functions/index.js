@@ -104,7 +104,7 @@ exports.notifyDecision = onDocumentUpdated(
 
     const copy = {
       approved: {
-        title: 'Welcome to Ikhlas',
+        title: 'Welcome to Ikhlaas',
         body:
           'Alhamdulillah — your application has been accepted. ' +
           'Open the app to complete your profile.',
@@ -586,7 +586,7 @@ exports.sendMessage = onCall({ region: REGION }, async (request) => {
   if (containsContactInfo(body)) {
     throw new HttpsError(
       'invalid-argument',
-      'Sharing contact details or moving off Ikhlas is not allowed before ' +
+      'Sharing contact details or moving off Ikhlaas is not allowed before ' +
         'the Family Stage. Please keep the conversation here.'
     );
   }
@@ -608,7 +608,7 @@ exports.sendMessage = onCall({ region: REGION }, async (request) => {
     await getMessaging()
       .sendEachForMulticast({
         tokens,
-        notification: { title: 'New message', body: 'You have a new message on Ikhlas.' },
+        notification: { title: 'New message', body: 'You have a new message on Ikhlaas.' },
       })
       .catch(() => {});
   }
@@ -898,8 +898,8 @@ exports.moderateReport = onCall({ region: REGION }, async (request) => {
 
   if (action === 'warn') {
     await userRef.update({ strikes });
-    await pushTo(reportedUid, 'A note from Ikhlas',
-      'A concern was raised about your conduct. Please uphold the adab of Ikhlas.');
+    await pushTo(reportedUid, 'A note from Ikhlaas',
+      'A concern was raised about your conduct. Please uphold the adab of Ikhlaas.');
   } else if (action === 'suspend') {
     const until = Date.now() + 7 * 24 * 3600 * 1000;
     await userRef.update({

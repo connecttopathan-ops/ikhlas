@@ -63,7 +63,7 @@ class _ReviewWaitScreenState extends ConsumerState<ReviewWaitScreen>
             const SizedBox(height: 16),
             Text(
               'Your application is with our review team. Every member of '
-              'Ikhlas passes through this gate — it is what keeps the pool '
+              'Ikhlaas passes through this gate — it is what keeps the pool '
               'serious.',
               textAlign: TextAlign.center,
               style: AppType.inter(14, color: DarkTokens.muted(.62), height: 1.7),
