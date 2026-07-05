@@ -13,7 +13,7 @@
   --bg:#F4EFE3; --bg2:#EDE4D2; --bg3:#E6DAC3; --surface:#F0E8D8; --ink:#20281F; --ink-warm:#20281F;
   --gold:#B4923A; --gold-lum:#DFB85C; --gold-link:#96762C; --green:#356048;
   --cta:#1B3A27; --cta-text:#EAC96E; --hair:rgba(170,135,50,.5);
-  --champagne:#EAC96E;
+  --champagne:#EAC96E; --gold-deep:#6F5620;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -129,10 +129,30 @@ section.block{position:relative; padding:130px 0; z-index:2}
 .step p{font-size:14.5px; color:rgba(23,37,27,.58); margin-top:6px; line-height:1.65}
 
 /* sacred divider band */
-.band{position:relative; padding:90px 32px; text-align:center; z-index:2;
+.band{position:relative; padding:118px 32px; text-align:center; z-index:2; overflow:hidden;
   border-top:1px solid rgba(148,116,32,.14); border-bottom:1px solid rgba(148,116,32,.14)}
-.band .amiri{font-family:Amiri,serif; font-size:25px; color:var(--gold); line-height:2.05; max-width:22ch; margin:0 auto; direction:rtl}
-.band .en{font-size:13px; color:rgba(23,37,27,.5); margin-top:20px; font-style:italic; max-width:46ch; margin-left:auto; margin-right:auto; line-height:1.7}
+.band .amiri{position:relative; z-index:1; font-family:Amiri,serif; font-size:25px; color:var(--gold); line-height:2.05; max-width:22ch; margin:0 auto; direction:rtl}
+.band .en{position:relative; z-index:1; font-size:13px; color:rgba(23,37,27,.5); margin-top:20px; font-style:italic; max-width:46ch; margin-left:auto; margin-right:auto; line-height:1.7}
+
+/* ── Prayer silhouette scene: husband leading wife in salah, behind the verse ── */
+.prayer-scene{position:absolute; inset:0; z-index:0; overflow:hidden; pointer-events:none}
+.prayer-scene svg{position:absolute; inset:0; width:100%; height:100%}
+.prayer-fig{fill:var(--gold-deep); opacity:.4}
+.prayer-shadow{fill:var(--gold-deep); opacity:.09}
+@keyframes manCycle{
+  0%,16%   {d:path("M56 10 C40 10 38 30 44 40 L42 54 L34 68 L40 118 L42 210 L76 210 L74 118 L72 54 L66 44 C74 32 72 10 56 10 Z")}
+  32%,44%  {d:path("M8 96 C9 110 20 114 26 110 L32 108 L44 120 L54 132 L54 210 L76 210 L76 132 L64 112 L32 94 C24 88 14 86 8 96 Z")}
+  58%,72%  {d:path("M24 180 C11 182 9 201 16 206 L21 208 L12 210 L50 200 L60 210 L84 210 L80 164 L60 152 L34 174 C31 179 27 178 24 180 Z")}
+  86%,100% {d:path("M56 10 C40 10 38 30 44 40 L42 54 L34 68 L40 118 L42 210 L76 210 L74 118 L72 54 L66 44 C74 32 72 10 56 10 Z")}
+}
+@keyframes womanCycle{
+  0%,16%   {d:path("M58 9 C41 9 38 30 44 42 L34 72 L28 150 L24 210 L90 210 L86 150 L74 70 L70 44 C78 30 74 9 58 9 Z")}
+  32%,44%  {d:path("M8 88 C9 104 20 110 26 106 L26 156 L52 150 L50 210 L92 210 L88 150 L70 112 L32 90 C24 84 14 82 8 88 Z")}
+  58%,72%  {d:path("M26 180 C11 183 10 201 18 205 L12 210 L58 198 L58 210 L98 210 L86 166 L66 154 L38 176 C31 181 28 180 26 180 Z")}
+  86%,100% {d:path("M58 9 C41 9 38 30 44 42 L34 72 L28 150 L24 210 L90 210 L86 150 L74 70 L70 44 C78 30 74 9 58 9 Z")}
+}
+.prayer-man{animation:manCycle 11s ease-in-out infinite}
+.prayer-woman{animation:womanCycle 11s ease-in-out infinite}
 
 /* WAITLIST */
 .waitlist{position:relative; background:var(--surface); padding:110px 0; z-index:2}
@@ -274,6 +294,28 @@ footer .copy{margin-top:24px; font-size:12px; color:rgba(23,37,27,.4)}
 </div>
 
 <div class="band">
+  <div class="prayer-scene" aria-hidden="true">
+    <svg viewBox="0 0 440 300" preserveAspectRatio="xMidYMax meet">
+      <defs>
+        <linearGradient id="prayerFloor" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#B4923A" stop-opacity="0"/>
+          <stop offset=".5" stop-color="#B4923A" stop-opacity=".5"/>
+          <stop offset="1" stop-color="#B4923A" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <ellipse class="prayer-shadow" cx="192" cy="282" rx="52" ry="4.5"/>
+      <ellipse class="prayer-shadow" cx="248" cy="282" rx="46" ry="4"/>
+      <rect x="130" y="279.4" width="200" height="1.3" fill="url(#prayerFloor)"/>
+      <!-- woman, a step behind (drawn first so the man overlaps in front) -->
+      <g transform="translate(213,158.2) scale(0.58)">
+        <path class="prayer-fig prayer-woman" d="M58 9 C41 9 38 30 44 42 L34 72 L28 150 L24 210 L90 210 L86 150 L74 70 L70 44 C78 30 74 9 58 9 Z"/>
+      </g>
+      <!-- man, leading in front -->
+      <g transform="translate(158,149.8) scale(0.62)">
+        <path class="prayer-fig prayer-man" d="M56 10 C40 10 38 30 44 40 L42 54 L34 68 L40 118 L42 210 L76 210 L74 118 L72 54 L66 44 C74 32 72 10 56 10 Z"/>
+      </g>
+    </svg>
+  </div>
   <div class="amiri">وَمِنْ آيَاتِهِ أَنْ خَلَقَ لَكُم مِّنْ أَنفُسِكُمْ أَزْوَاجًا لِّتَسْكُنُوا إِلَيْهَا وَجَعَلَ بَيْنَكُم مَّوَدَّةً وَرَحْمَةً</div>
   <div class="en">"And among His signs is that He created for you spouses from among yourselves, that you may find tranquility in them; and He placed between you affection and mercy." — Ar-Rum 21</div>
 </div>
