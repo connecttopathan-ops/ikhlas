@@ -145,31 +145,47 @@ class IkhlasLogo extends StatelessWidget {
     final c = isDark ? _LogoColors.dark : _LogoColors.light;
     final k = size / 70; // scale from the 70px reference
 
+    // Bundled Fraunces is 400/600; 400 is the nearest to the spec's
+    // 390 (dark) / 410 (light).
+    final wordStyle = TextStyle(
+      fontFamily: 'Fraunces',
+      fontSize: size,
+      height: 1.0,
+      letterSpacing: -0.018 * size,
+      fontWeight: FontWeight.w400,
+      color: c.word,
+    );
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Wordmark with the lozenge tittle centred on the ı stem.
-        Stack(clipBehavior: Clip.none, children: [
-          Text('ıkhlaas',
-              style: TextStyle(
-                fontFamily: 'Fraunces',
-                fontSize: size,
-                height: 1.0,
-                letterSpacing: -0.018 * size,
-                // Bundled Fraunces is 400/600; 400 is the nearest to the
-                // spec's 390 (dark) / 410 (light).
-                fontWeight: FontWeight.w400,
-                color: c.word,
-              )),
-          Positioned(
-            left: 2 * k,
-            top: 21 * k,
-            child: Transform.rotate(
-              angle: math.pi / 4,
-              child: Container(width: 11 * k, height: 11 * k, color: c.lozenge),
+        // Wordmark. The lozenge is centred over the leading dotless-ı's own
+        // box (not a pixel offset), so it self-aligns at any size/weight
+        // (handoff v1.1: never hard-code the offset).
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              alignment: Alignment.topCenter,
+              clipBehavior: Clip.none,
+              children: [
+                Text('ı', style: wordStyle),
+                Positioned(
+                  top: 0.15 * size,
+                  child: Transform.rotate(
+                    angle: math.pi / 4,
+                    child: Container(
+                        width: 0.157 * size,
+                        height: 0.157 * size,
+                        color: c.lozenge),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ]),
+            Text('khlaas', style: wordStyle),
+          ],
+        ),
         SizedBox(height: 1 * k),
         // Caption rule: line — إخلاص — line
         Row(mainAxisSize: MainAxisSize.min, children: [
