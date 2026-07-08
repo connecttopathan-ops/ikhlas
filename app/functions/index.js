@@ -412,11 +412,13 @@ exports.onEntryAction = onDocumentUpdated(
       return; // conversation opens once a slot frees (re-checked on next action)
     }
 
-    // Wali visibility: if either participant set an observing Wali, the
-    // conversation shows the transparency badge to both.
-    const [ua, ub] = await Promise.all([
+    // Wali visibility + denormalised profile snapshots so the chat can show
+    // each match's name/profile (a member can't read the other's users doc).
+    const [ua, ub, appA, appB] = await Promise.all([
       db.doc(`users/${uid}`).get(),
       db.doc(`users/${otherUid}`).get(),
+      db.doc(`applications/${uid}`).get(),
+      db.doc(`applications/${otherUid}`).get(),
     ]);
     const observing =
       ua.get('wali')?.permissionLevel === 'observe' ||
@@ -430,6 +432,12 @@ exports.onEntryAction = onDocumentUpdated(
       ],
       adabAcknowledged: {},
       waliObserving: observing,
+      profiles: {
+        [uid]: chatProfile(ua, appA),
+        [otherUid]: chatProfile(ub, appB),
+      },
+      photoReveal: {},
+      photoRevealRequests: {},
       createdAt: FieldValue.serverTimestamp(),
       lastMessageAt: null,
     });
@@ -1010,3 +1018,56 @@ async function notifyWalisOf(uids, title, body) {
     }
   }
 }
+
+/** Compact profile snapshot stored on a conversation so each participant
+ *  can render the other's name/profile without reading their users doc. */
+function chatProfile(userSnap, appSnap) {
+  const u = userSnap.data() || {};
+  const p = u.profile || {};
+  const a = (appSnap.exists && appSnap.get('answers')) || {};
+  let age = null;
+  const dob = u.dob?.toDate ? u.dob.toDate() : null;
+  if (dob) {
+    const now = new Date();
+    age = now.getFullYear() - dob.getFullYear();
+    if (now.getMonth() < dob.getMonth() ||
+        (now.getMonth() === dob.getMonth() && now.getDate() < dob.getDate())) age--;
+  }
+  return {
+    displayName: p.displayName || 'Member',
+    age,
+    city: p.city || null,
+    country: p.country || null,
+    profession: p.profession || null,
+    education: p.education || null,
+    maritalStatus: p.maritalStatus || null,
+    languages: p.languages || [],
+    madhhab: p.madhhab || null,
+    revert: p.revert === true,
+    prayer: a.prayer || null,
+    timeframe: a.timeframe || null,
+    ribaDisclosureBadge: u.ribaDisclosureBadge === true,
+    bioPrompts: p.bioPrompts || [],
+    whyNow: a.shortAnswers?.whyNow || null,
+    deenRelationship: a.shortAnswers?.deenRelationship || null,
+    photoPrivacy: u.photoPrivacy || 'blur_until_match',
+    hasPhotos: (u.photos || []).length > 0,
+  };
+}
+
+/** A member asks to see the other's private (request_only) photos. */
+exports.requestPhotoReveal = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const convId = request.data?.convId;
+  const ref = db.doc(`conversations/${convId}`);
+  const snap = await ref.get();
+  if (!snap.exists || !snap.get('participants').includes(uid)) {
+    throw new HttpsError('permission-denied', 'Not your conversation.');
+  }
+  await ref.update({ [`photoRevealRequests.${uid}`]: true });
+  const other = snap.get('participants').find((p) => p !== uid);
+  const name = snap.get('profiles')?.[uid]?.displayName || 'Your match';
+  await pushTo(other, 'A photo request',
+    `${name} has asked to see your photos. Open the conversation to decide.`);
+  return { ok: true };
+});

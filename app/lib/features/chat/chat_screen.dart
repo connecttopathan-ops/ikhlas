@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
+import 'chat_profile_screen.dart';
 import 'conversations_screen.dart';
 
 /// A single guarded conversation: adab gate before the first message,
@@ -218,15 +219,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             .firstWhere((p) => p != me, orElse: () => '') as String;
         final fs = (conv['familyStage'] as Map?) ?? {};
         final familyExchange = conv['familyExchange'] as Map?;
+        final profiles = (conv['profiles'] as Map?) ?? const {};
+        final otherProfile =
+            (profiles[other] as Map?)?.cast<String, dynamic>();
+        final myProfile = (profiles[me] as Map?)?.cast<String, dynamic>();
+        final photoReveal = (conv['photoReveal'] as Map?) ?? const {};
+        final photoRevealRequests =
+            (conv['photoRevealRequests'] as Map?) ?? const {};
+        final revealBar = _photoRevealBar(
+          me: me,
+          other: other,
+          otherProfile: otherProfile,
+          myProfile: myProfile,
+          photoReveal: photoReveal,
+          photoRevealRequests: photoRevealRequests,
+        );
 
         return IkhlasScaffold(
           safeArea: true,
           child: Column(children: [
-            _header(context, stage, closed, other),
+            _header(context, stage, closed, other, otherProfile),
             if (waliVisible) _waliBadge(),
             if (needsAdab)
               Expanded(child: _AdabGate(convId: widget.convId))
             else ...[
+              if (revealBar != null && !closed) revealBar,
               Expanded(child: _messages(me)),
               if (familyExchange != null)
                 _familyPanel(familyExchange, me, other)
@@ -254,7 +271,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     'closed_blocked': 'Blocked',
   };
 
-  Widget _header(BuildContext context, String stage, bool closed, String other) =>
+  void _openProfile(String other, Map<String, dynamic>? profile) {
+    if (profile == null) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => ChatProfileScreen(ownerUid: other, profile: profile),
+    ));
+  }
+
+  Widget _header(BuildContext context, String stage, bool closed, String other,
+          Map<String, dynamic>? otherProfile) =>
       Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 4, 4),
         child: Row(children: [
@@ -263,9 +288,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             icon: Icon(Icons.arrow_back, size: 22, color: DarkTokens.muted(.7)),
           ),
           Expanded(
-            child: Text(_stageTitle[stage] ?? stage,
-                style: AppType.inter(14, weight: FontWeight.w500,
-                    color: DarkTokens.ivory)),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: otherProfile == null
+                  ? null
+                  : () => _openProfile(other, otherProfile),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(children: [
+                    Flexible(
+                      child: Text(
+                          otherProfile?['displayName'] as String? ??
+                              'Your match',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppType.inter(15,
+                              weight: FontWeight.w600,
+                              color: DarkTokens.ivory)),
+                    ),
+                    if (otherProfile != null) ...[
+                      const SizedBox(width: 5),
+                      Icon(Icons.chevron_right,
+                          size: 16, color: DarkTokens.muted(.6)),
+                    ],
+                  ]),
+                  Text(_stageTitle[stage] ?? stage,
+                      style: AppType.inter(11.5, color: DarkTokens.muted(.7))),
+                ],
+              ),
+            ),
           ),
           PopupMenuButton<String>(
             color: DarkTokens.bg,
@@ -389,6 +442,124 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ]),
       );
 
+  /// Shows a banner when photo reveal is pending — either they've asked to
+  /// see your (request_only) photos and you can grant, or their photos are
+  /// request_only and you can ask. Returns null when nothing is pending.
+  Widget? _photoRevealBar({
+    required String me,
+    required String other,
+    required Map<String, dynamic>? otherProfile,
+    required Map<String, dynamic>? myProfile,
+    required Map photoReveal,
+    required Map photoRevealRequests,
+  }) {
+    // 1. They asked to see MY photos and I haven't revealed yet → grant.
+    final iAmRequestOnly = myProfile?['photoPrivacy'] == 'request_only';
+    if (iAmRequestOnly &&
+        myProfile?['hasPhotos'] == true &&
+        photoRevealRequests[other] == true &&
+        photoReveal[me] != true) {
+      return _revealBanner(
+        'They have asked to see your photos.',
+        cta: 'Reveal my photos',
+        onTap: () => _run(
+            () => ref.read(chatRepositoryProvider).grantPhotoReveal(widget.convId),
+            errorMsg: 'Could not reveal. Please try again.'),
+      );
+    }
+    // 2. Their photos are request_only and not yet revealed → ask / waiting.
+    final theyRequestOnly = otherProfile?['photoPrivacy'] == 'request_only';
+    if (theyRequestOnly &&
+        otherProfile?['hasPhotos'] == true &&
+        photoReveal[other] != true) {
+      if (photoRevealRequests[me] == true) {
+        return _revealBanner(
+          'Photo request sent — you will see them if they agree.',
+          cta: null,
+        );
+      }
+      return _revealBanner(
+        'Their photos are private.',
+        cta: 'Request to see',
+        onTap: () async {
+          final ok = await _run(
+              () => ref.read(chatRepositoryProvider)
+                  .requestPhotoReveal(widget.convId),
+              errorMsg: 'Could not send the request. Please try again.');
+          if (ok && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text('Photo request sent.',
+                    style: AppType.inter(13))));
+          }
+        },
+      );
+    }
+    return null;
+  }
+
+  Widget _revealBanner(String label, {String? cta, VoidCallback? onTap}) =>
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(20, 10, 12, 10),
+        decoration: BoxDecoration(
+          color: DarkTokens.gold.withOpacity(.06),
+          border: Border(bottom: BorderSide(color: DarkTokens.hairline(.3))),
+        ),
+        child: Row(children: [
+          Icon(Icons.photo_camera_back_outlined,
+              size: 17, color: DarkTokens.gold),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(label,
+                style: AppType.inter(12.5, color: DarkTokens.muted(.85))),
+          ),
+          if (cta != null)
+            TextButton(
+              onPressed: onTap,
+              child: Text(cta,
+                  style: AppType.inter(13,
+                      weight: FontWeight.w600, color: DarkTokens.gold)),
+            ),
+        ]),
+      );
+
+  static const _months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+
+  String _dayLabel(DateTime d) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final that = DateTime(d.year, d.month, d.day);
+    final diff = today.difference(that).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    return '${d.day} ${_months[d.month - 1]}'
+        '${d.year == now.year ? '' : ' ${d.year}'}';
+  }
+
+  String _timeLabel(DateTime d) {
+    final h = d.hour == 0 ? 12 : (d.hour > 12 ? d.hour - 12 : d.hour);
+    final m = d.minute.toString().padLeft(2, '0');
+    return '$h:$m ${d.hour < 12 ? 'AM' : 'PM'}';
+  }
+
+  Widget _dateDivider(DateTime day) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: DarkTokens.ivory.withOpacity(.04),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(_dayLabel(day),
+                style: AppType.inter(11, color: DarkTokens.muted(.7))),
+          ),
+        ),
+      );
+
   Widget _messages(String me) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _msgStream,
@@ -405,47 +576,74 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             }
           });
         }
+        // Flatten into a display list with date dividers between days.
+        final items = <Widget>[];
+        DateTime? lastDay;
+        for (final doc in msgs) {
+          final m = doc.data();
+          final at = m['at'];
+          final dt = at is Timestamp ? at.toDate() : null;
+          if (dt != null) {
+            final day = DateTime(dt.year, dt.month, dt.day);
+            if (lastDay == null || day != lastDay) {
+              items.add(_dateDivider(day));
+              lastDay = day;
+            }
+          }
+          items.add(_bubble(m, me, dt));
+        }
         return ListView.builder(
           controller: _scroll,
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-          itemCount: msgs.length,
-          itemBuilder: (_, i) {
-            final m = msgs[i].data();
-            if (m['system'] == true) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                child: Center(
-                  child: Text(m['text'] ?? '',
-                      textAlign: TextAlign.center,
-                      style: AppType.fraunces(14,
-                          color: DarkTokens.muted(.75),
-                          style: FontStyle.italic)),
-                ),
-              );
-            }
-            final mine = m['from'] == me;
-            return Align(
-              alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * .72),
-                decoration: BoxDecoration(
-                  color: mine
-                      ? DarkTokens.gold.withOpacity(.14)
-                      : DarkTokens.ivory.withOpacity(.05),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: DarkTokens.hairline(.3)),
-                ),
-                child: Text(m['text'] ?? '',
-                    style: AppType.inter(14, color: DarkTokens.ivory)),
-              ),
-            );
-          },
+          itemCount: items.length,
+          itemBuilder: (_, i) => items[i],
         );
       },
+    );
+  }
+
+  Widget _bubble(Map<String, dynamic> m, String me, DateTime? dt) {
+    if (m['system'] == true) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Center(
+          child: Text(m['text'] ?? '',
+              textAlign: TextAlign.center,
+              style: AppType.fraunces(14,
+                  color: DarkTokens.muted(.75), style: FontStyle.italic)),
+        ),
+      );
+    }
+    final mine = m['from'] == me;
+    return Column(
+      crossAxisAlignment:
+          mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Align(
+          alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * .72),
+            decoration: BoxDecoration(
+              color: mine
+                  ? DarkTokens.gold.withOpacity(.14)
+                  : DarkTokens.ivory.withOpacity(.05),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: DarkTokens.hairline(.3)),
+            ),
+            child: Text(m['text'] ?? '',
+                style: AppType.inter(14, color: DarkTokens.ivory)),
+          ),
+        ),
+        if (dt != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 3, bottom: 2, left: 2, right: 2),
+            child: Text(_timeLabel(dt),
+                style: AppType.inter(10, color: DarkTokens.muted(.55))),
+          ),
+      ],
     );
   }
 

@@ -11,6 +11,7 @@ import '../../features/gate/questionnaire/questionnaire_screen.dart';
 import '../../features/gate/review_wait_screen.dart';
 import '../../features/gate/decision_screens.dart';
 import '../../features/profile/profile_builder_screen.dart';
+import '../../features/profile/edit_profile_screen.dart';
 import '../../features/profile/home_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/chat/conversations_screen.dart';
@@ -44,7 +45,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         case 'paused':
           if (profileComplete) {
             final allowed = {'/home', '/settings', '/profile-builder',
-              '/conversations'};
+              '/edit-profile', '/conversations'};
             if (allowed.contains(loc) || loc.startsWith('/chat/')) return null;
             return '/home';
           }
@@ -77,6 +78,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/welcome', builder: (_, __) => const ApprovedScreen()),
       GoRoute(path: '/decision', builder: (_, __) => const SoftRejectedScreen()),
       GoRoute(path: '/profile-builder', builder: (_, __) => const ProfileBuilderScreen()),
+      GoRoute(path: '/edit-profile', builder: (_, __) => const EditProfileScreen()),
       GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
       GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
       GoRoute(path: '/conversations', builder: (_, __) => const ConversationsScreen()),

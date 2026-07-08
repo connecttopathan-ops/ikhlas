@@ -43,6 +43,10 @@ class ChatRepository {
       .httpsCallable('grantPhotoReveal')
       .call({'convId': convId, 'revoke': revoke});
 
+  /// Ask the other member (request_only privacy) to reveal their photos.
+  Future<void> requestPhotoReveal(String convId) =>
+      _fns.httpsCallable('requestPhotoReveal').call({'convId': convId});
+
   // ---- Family Stage ----
   Future<void> requestFamilyStage(String convId) =>
       _fns.httpsCallable('requestFamilyStage').call({'convId': convId});

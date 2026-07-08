@@ -101,6 +101,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ]),
             const SizedBox(height: 32),
             _row(
+              title: 'Edit my profile',
+              subtitle: 'Photos, privacy, your prompts, preferences and Wali.',
+              onTap: _busy ? null : () => context.push('/edit-profile'),
+            ),
+            const Hairline(),
+            _row(
               title: paused ? 'Resume my profile' : 'Pause my profile',
               subtitle: paused
                   ? 'Return to the pool and daily matching.'
