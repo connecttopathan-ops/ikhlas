@@ -71,6 +71,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
   }
 
+  /// Runs a callable with error feedback — destructive/irreversible actions
+  /// must never fail silently. Returns true on success.
+  Future<bool> _run(Future<void> Function() action, {String? errorMsg}) async {
+    try {
+      await action();
+      return true;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(errorMsg ?? 'Something went wrong. Please try again.',
+                style: AppType.inter(13))));
+      }
+      return false;
+    }
+  }
+
   static const _reportReasons = {
     'not_serious': 'Not serious about marriage',
     'already_married': 'Already married (undisclosed)',
@@ -101,9 +117,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
     );
     if (reason == null) return;
-    await ref.read(chatRepositoryProvider).reportUser(otherUid, reason,
-        convId: widget.convId);
-    if (mounted) {
+    final ok = await _run(
+        () => ref.read(chatRepositoryProvider).reportUser(otherUid, reason,
+            convId: widget.convId),
+        errorMsg: 'Could not submit the report. Please try again.');
+    if (ok && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
               'Reported. Our team reviews within 24 hours; this conversation '
@@ -136,8 +154,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
     );
     if (ok == true) {
-      await ref.read(chatRepositoryProvider).blockUser(otherUid);
-      if (mounted) context.go('/conversations');
+      final done = await _run(
+          () => ref.read(chatRepositoryProvider).blockUser(otherUid),
+          errorMsg: 'Could not block. Please try again.');
+      if (done && mounted) context.go('/conversations');
     }
   }
 
@@ -165,13 +185,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
     );
     if (ok == true) {
-      await ref.read(chatRepositoryProvider).endWithDua(widget.convId);
+      await _run(() => ref.read(chatRepositoryProvider).endWithDua(widget.convId),
+          errorMsg: 'Could not end the conversation. Please try again.');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final me = FirebaseAuth.instance.currentUser!.uid;
+    final user = FirebaseAuth.instance.currentUser;
+    // Auth dropped (sign-out/token revoke) — the router redirect is about to
+    // take over; don't crash on a stale build.
+    if (user == null) {
+      return const IkhlasScaffold(child: SizedBox.shrink());
+    }
+    final me = user.uid;
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: _convStream,
@@ -275,7 +302,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       return _bar(
         'Ready to involve families?',
         'Involve families',
-        () => ref.read(chatRepositoryProvider).requestFamilyStage(widget.convId),
+        () => _run(
+            () => ref.read(chatRepositoryProvider)
+                .requestFamilyStage(widget.convId),
+            errorMsg: 'Could not send the request. Please try again.'),
       );
     }
     if (requestedBy == me) {
@@ -289,7 +319,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     return _bar(
       'They asked to involve families.',
       'Agree & exchange guardians',
-      () => ref.read(chatRepositoryProvider).confirmFamilyStage(widget.convId),
+      () => _run(
+          () => ref.read(chatRepositoryProvider)
+              .confirmFamilyStage(widget.convId),
+          errorMsg: 'Could not confirm. Please try again.'),
     );
   }
 
@@ -522,9 +555,19 @@ class _AdabGateState extends ConsumerState<_AdabGate> {
                 ? null
                 : () async {
                     setState(() => _busy = true);
-                    await ref
-                        .read(chatRepositoryProvider)
-                        .acknowledgeAdab(widget.convId);
+                    try {
+                      await ref
+                          .read(chatRepositoryProvider)
+                          .acknowledgeAdab(widget.convId);
+                      // On success the conversation stream replaces this gate.
+                    } catch (_) {
+                      if (mounted) {
+                        setState(() => _busy = false);
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            content: Text('Could not continue. Please try again.',
+                                style: AppType.inter(13))));
+                      }
+                    }
                   },
           ),
           const SizedBox(height: 20),

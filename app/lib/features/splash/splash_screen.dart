@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
@@ -21,8 +20,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   @override
   void initState() {
     super.initState();
-    // Dark status-bar icons on the light ground.
-    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.dark);
+    // Status-bar style is set correctly (dark icons on the light ground)
+    // once in main.dart — don't override it here.
     _stagger.forward();
     Future.delayed(const Duration(milliseconds: 2600), _handoff);
   }

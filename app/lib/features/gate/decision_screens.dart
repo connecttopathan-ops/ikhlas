@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
@@ -91,6 +92,16 @@ class SoftRejectedScreen extends StatelessWidget {
               ),
             ]),
             const Spacer(flex: 3),
+            Center(
+              child: QuietLink(
+                linkText: 'Sign out',
+                onTap: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) context.go('/landing');
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
           ],
         ),
       ),

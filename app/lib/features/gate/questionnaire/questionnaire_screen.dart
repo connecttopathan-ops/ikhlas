@@ -71,12 +71,14 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
 
   Future<void> _pickDob() async {
     final now = DateTime.now();
+    // 18+ is a hard gate — the picker can't select a younger birthdate.
+    final eighteen = DateTime(now.year - 18, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
       initialDate: _a.dob ?? DateTime(now.year - 25, now.month, now.day),
       firstDate: DateTime(now.year - 80),
-      lastDate: now,
-      helpText: 'Date of birth',
+      lastDate: eighteen,
+      helpText: 'Date of birth (18+)',
     );
     if (picked != null) setState(() => _a.dob = picked);
   }

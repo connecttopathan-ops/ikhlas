@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/widgets.dart';
 import 'questionnaire_models.dart';
@@ -215,6 +216,9 @@ class UnderlineField extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final TextInputType? keyboardType;
   final int maxLines;
+  final int? maxLength;
+  final List<TextInputFormatter>? inputFormatters;
+  final String? prefix;
   const UnderlineField({
     super.key,
     required this.label,
@@ -223,6 +227,9 @@ class UnderlineField extends StatelessWidget {
     this.onChanged,
     this.keyboardType,
     this.maxLines = 1,
+    this.maxLength,
+    this.inputFormatters,
+    this.prefix,
   });
 
   @override
@@ -238,10 +245,15 @@ class UnderlineField extends StatelessWidget {
           onChanged: onChanged,
           keyboardType: keyboardType,
           maxLines: maxLines,
+          maxLength: maxLength,
+          inputFormatters: inputFormatters,
           style: AppType.inter(16, color: DarkTokens.ivory),
           cursorColor: DarkTokens.gold,
           decoration: InputDecoration(
             hintText: hint,
+            counterText: '',
+            prefixText: prefix,
+            prefixStyle: AppType.inter(16, color: DarkTokens.muted()),
             hintStyle: AppType.inter(16, color: DarkTokens.muted(.4)),
             enabledBorder: UnderlineInputBorder(
                 borderSide:

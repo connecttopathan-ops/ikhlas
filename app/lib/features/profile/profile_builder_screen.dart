@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -271,7 +272,16 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
                     borderSide: BorderSide(color: DarkTokens.gold)),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
+            Builder(builder: (_) {
+              final len = _promptCtrls[i].text.trim().length;
+              return Text(
+                  len >= _minPromptChars
+                      ? 'Looks good'
+                      : '${_minPromptChars - len} more characters needed',
+                  style: AppType.inter(11.5, color: DarkTokens.muted()));
+            }),
+            const SizedBox(height: 14),
           ],
         ],
         onNext: _promptsOk ? _next : null,
@@ -359,10 +369,13 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
         ),
         const SizedBox(height: 10),
         UnderlineField(
-            label: 'Wali mobile (+91)',
+            label: 'Wali mobile',
             controller: _waliPhone,
             keyboardType: TextInputType.phone,
+            prefix: '+91  ',
             hint: '98765 43210',
+            maxLength: 10,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             onChanged: (_) => setState(() {})),
         const SizedBox(height: 20),
         if (!_waliEmpty && !_waliValid)

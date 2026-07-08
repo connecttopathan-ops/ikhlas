@@ -121,9 +121,7 @@ class _ConvTile extends StatelessWidget {
     final d = doc.data();
     final stage = d['stage'] as String? ?? 'intro';
     final closed = ConversationsScreen.isClosed(stage);
-    final me = FirebaseAuth.instance.currentUser!.uid;
-    final other = (d['participants'] as List).firstWhere((p) => p != me,
-        orElse: () => '');
+    final me = FirebaseAuth.instance.currentUser?.uid ?? '';
     final adab = (d['adabAcknowledged'] as Map?) ?? {};
     final needsAdab = adab[me] != true;
 
@@ -156,7 +154,9 @@ class _ConvTile extends StatelessWidget {
                   Text(
                       needsAdab && !closed
                           ? 'Tap to begin — adab guidelines first'
-                          : 'Member ${other.toString().substring(0, other.toString().length.clamp(0, 6))}',
+                          : closed
+                              ? 'This conversation has ended'
+                              : 'Your match',
                       style:
                           AppType.inter(12, color: DarkTokens.muted())),
                 ]),

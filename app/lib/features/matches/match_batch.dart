@@ -35,8 +35,13 @@ class _MatchBatchState extends ConsumerState<MatchBatch> {
       await FirebaseFunctions.instanceFor(region: 'asia-south1')
           .httpsCallable('generateMyBatch')
           .call();
-    } catch (_) {
-      // Empty pool or not eligible — the resting copy already covers it.
+    } catch (e) {
+      // An empty pool returns cleanly; a real failure surfaces to the user.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Could not check for matches. Please try again.',
+                style: AppType.inter(13))));
+      }
     } finally {
       if (mounted) setState(() => _requesting = false);
     }
@@ -50,7 +55,7 @@ class _MatchBatchState extends ConsumerState<MatchBatch> {
           child: SizedBox(
               width: 22, height: 22,
               child: CircularProgressIndicator(strokeWidth: 2))),
-      error: (_, __) => _resting(),
+      error: (_, __) => _errorState(),
       data: (snap) {
         if (snap.docs.isEmpty) return _resting();
         final docs = [...snap.docs]
@@ -70,6 +75,23 @@ class _MatchBatchState extends ConsumerState<MatchBatch> {
       },
     );
   }
+
+  Widget _errorState() => Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const GirihMark(size: 64, opacity: .6),
+          const SizedBox(height: 20),
+          Text("Couldn't load your matches",
+              style: AppType.fraunces(20, color: DarkTokens.ivory)),
+          const SizedBox(height: 8),
+          Text('Check your connection and try again.',
+              textAlign: TextAlign.center,
+              style: AppType.inter(13, color: DarkTokens.muted())),
+          const SizedBox(height: 18),
+          QuietLink(
+              linkText: _requesting ? 'Retrying…' : 'Retry',
+              onTap: _requesting ? null : _requestBatch),
+        ]),
+      );
 
   Widget _resting() => Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [

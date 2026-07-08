@@ -115,5 +115,16 @@ class AppTheme {
             fontFamily: 'Inter',
             bodyColor: LightTokens.ink,
             displayColor: LightTokens.ink),
+        // Brand-consistent snackbars: deep-green surface, champagne text —
+        // so every SnackBar reads on the sage ground (not Material's default
+        // dark-grey inverseSurface).
+        snackBarTheme: SnackBarThemeData(
+          backgroundColor: LightTokens.ctaBg,
+          contentTextStyle: const TextStyle(
+              fontFamily: 'Inter', fontSize: 13.5, color: LightTokens.ctaText),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
 }

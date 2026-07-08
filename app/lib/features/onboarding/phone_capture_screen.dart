@@ -41,12 +41,18 @@ class _PhoneCaptureScreenState extends ConsumerState<PhoneCaptureScreen> {
   @override
   Widget build(BuildContext context) {
     return IkhlasScaffold(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpace.screenMargin),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 32),
+      // Scrolls instead of overflowing when the keyboard is up on short devices.
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpace.screenMargin),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 32),
             Text('YOUR APPLICATION', style: AppType.eyebrow(DarkTokens.gold)),
             const SizedBox(height: 14),
             Text('Your mobile number',
@@ -98,13 +104,17 @@ class _PhoneCaptureScreenState extends ConsumerState<PhoneCaptureScreen> {
               Text('Enter a valid 10-digit Indian mobile number.',
                   style: AppType.inter(12.5, color: DarkTokens.muted())),
             ],
-            const Spacer(),
-            PrimaryCta(
-                label: 'Continue',
-                loading: _busy,
-                onPressed: _valid && !_busy ? _save : null),
-            const SizedBox(height: 24),
-          ],
+                    const Spacer(),
+                    PrimaryCta(
+                        label: 'Continue',
+                        loading: _busy,
+                        onPressed: _valid && !_busy ? _save : null),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -7,8 +7,7 @@ import '../../core/theme/widgets.dart';
 import '../../data/auth/auth_service.dart';
 import '../../providers/application_provider.dart';
 
-/// Login — Google + Email OTP. Design follows the dark-emerald system;
-/// awaiting its dedicated spec in the next design batch (per spec "Next:").
+/// Login — Google + Email OTP (email-link sign-in), in the light 2d theme.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
   @override
@@ -137,6 +136,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       'Open it on this device to continue.',
                       style: AppType.inter(14, color: DarkTokens.ivory)),
                 ),
+              ]),
+              const SizedBox(height: 20),
+              Row(children: [
+                QuietLink(
+                    linkText: _busy ? 'Sending…' : 'Resend link',
+                    onTap: _busy ? null : _emailLink),
+                const SizedBox(width: 20),
+                QuietLink(
+                    linkText: 'Use a different email',
+                    onTap: () => setState(() => _linkSent = false)),
               ]),
             ],
             const Spacer(),
