@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/widgets.dart';
 import '../../../providers/application_provider.dart';
+import '../selfie_capture_screen.dart';
 import 'questionnaire_models.dart';
 import 'questionnaire_widgets.dart';
 
@@ -60,11 +61,8 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
   }
 
   Future<void> _captureSelfie() async {
-    final shot = await ImagePicker().pickImage(
-      source: ImageSource.camera,
-      preferredCameraDevice: CameraDevice.front,
-      maxWidth: 1200,
-      imageQuality: 85,
+    final shot = await Navigator.of(context).push<XFile>(
+      MaterialPageRoute(builder: (_) => const SelfieCaptureScreen()),
     );
     if (shot != null) setState(() => _selfie = shot);
   }
@@ -205,14 +203,23 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
           OptionList(
               options: Choices.maritalStatus,
               selected: _a.maritalStatus,
-              onSelect: (v) => setState(() => _a.maritalStatus = v)),
-          const QuestionLabel('Do you have children?'),
-          OptionList(
-              options: Choices.yesNo,
-              selected: _a.hasChildren == null
-                  ? null
-                  : (_a.hasChildren! ? 'yes' : 'no'),
-              onSelect: (v) => setState(() => _a.hasChildren = v == 'yes')),
+              onSelect: (v) => setState(() {
+                    _a.maritalStatus = v;
+                    // Never-married applicants can't have children in this
+                    // pool, so the question is skipped and set to false.
+                    if (v == 'never_married') _a.hasChildren = false;
+                  })),
+          // Children question only applies to divorced/widowed applicants.
+          if (_a.maritalStatus == 'divorced' ||
+              _a.maritalStatus == 'widowed') ...[
+            const QuestionLabel('Do you have children?'),
+            OptionList(
+                options: Choices.yesNo,
+                selected: _a.hasChildren == null
+                    ? null
+                    : (_a.hasChildren! ? 'yes' : 'no'),
+                onSelect: (v) => setState(() => _a.hasChildren = v == 'yes')),
+          ],
           const SizedBox(height: 18),
           InkWell(
             onTap: () => setState(() => _a.revert = !_a.revert),
@@ -319,7 +326,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
             style: AppType.inter(15, color: DarkTokens.ivory, height: 1.65),
             cursorColor: DarkTokens.gold,
             decoration: InputDecoration(
-              hintText: 'Write from the heart — this is read by our review team.',
+              hintText: 'Write from the heart.',
               hintStyle: AppType.inter(14, color: DarkTokens.muted(.4)),
               enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.control),
@@ -338,6 +345,18 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
                 : '${QuestionnaireAnswers.shortAnswerMin - lengthNow} more characters needed',
             style: AppType.inter(12, color: DarkTokens.muted()),
           ),
+          const SizedBox(height: 14),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.info_outline, size: 15, color: DarkTokens.muted(.7)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'This appears on your profile for potential matches to read, '
+                'and is used by our team for review.',
+                style: AppType.inter(12, color: DarkTokens.muted(), height: 1.5),
+              ),
+            ),
+          ]),
         ],
         onNext: complete ? _next : null,
       );
@@ -345,7 +364,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
   Widget _sectionD1() => _shortAnswer(
         step: 6,
         title: 'Why nikah, and why now?',
-        prompt: 'A few sincere sentences. Minimum 150 characters.',
+        prompt: 'A few sincere sentences. Minimum 100 characters.',
         ctrl: _whyNow,
         onChanged: (v) => _a.whyNow = v,
         complete: _a.sectionD1Complete,
@@ -356,7 +375,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         step: 7,
         title: 'Describe your relationship with your deen',
         prompt: 'Where you are, where you are striving to be. '
-            'Minimum 150 characters.',
+            'Minimum 100 characters.',
         ctrl: _deen,
         onChanged: (v) => _a.deenRelationship = v,
         complete: _a.sectionD2Complete,

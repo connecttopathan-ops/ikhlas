@@ -15,7 +15,7 @@
 
 const DEFAULT_RULES = {
   minAge: 18,
-  shortAnswerMinChars: 150,
+  shortAnswerMinChars: 100,
   autoRejectAnswers: {
     timeframe: ['exploring'],
     prayer: ['working', 'rarely'],

@@ -70,11 +70,17 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
 
   void _next() => setState(() => _step++);
 
-  Future<void> _addPhoto() async {
+  Future<void> _addPhotos() async {
     if (_photos.length >= 6) return;
-    final img = await ImagePicker().pickImage(
-        source: ImageSource.gallery, maxWidth: 1600, imageQuality: 88);
-    if (img != null) setState(() => _photos.add(img));
+    final picked = await ImagePicker()
+        .pickMultiImage(maxWidth: 1600, imageQuality: 88);
+    if (picked.isNotEmpty) {
+      setState(() {
+        for (final img in picked) {
+          if (_photos.length < 6) _photos.add(img);
+        }
+      });
+    }
   }
 
   Future<void> _finish({required bool withWali}) async {
@@ -146,8 +152,9 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
         totalSteps: _totalSteps,
         eyebrow: 'Your profile · Photos',
         title: 'Add your photos',
-        intro: 'At least one, up to six. Who sees them is entirely your '
-            'choice — that is the next step.',
+        intro: 'At least one, up to six — you can select several at once. '
+            'Your photos stay private: they are only revealed to a match '
+            'when you choose to. You set that on the next step.',
         children: [
           GridView.count(
             crossAxisCount: 3,
@@ -196,7 +203,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
                 ]),
               if (_photos.length < 6)
                 InkWell(
-                  onTap: _addPhoto,
+                  onTap: _addPhotos,
                   borderRadius: BorderRadius.circular(AppRadius.control),
                   child: Container(
                     decoration: BoxDecoration(

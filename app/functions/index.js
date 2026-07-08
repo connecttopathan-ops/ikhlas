@@ -268,6 +268,10 @@ function entrySnapshot(e) {
     hasPhotos: c.hasPhotos === true,
     photoPrivacy: c.photoPrivacy || 'blur_until_match',
     bioPrompts: c.profile.bioPrompts || [],
+    // Section D answers are shown on the profile to matches (disclosed to
+    // the applicant at entry) as well as used for review.
+    whyNow: c.answers.shortAnswers?.whyNow || null,
+    deenRelationship: c.answers.shortAnswers?.deenRelationship || null,
     compatibility: e.why,           // "You both pray five daily" etc.
     score: e.score,                  // internal; not rendered to users
     action: null,

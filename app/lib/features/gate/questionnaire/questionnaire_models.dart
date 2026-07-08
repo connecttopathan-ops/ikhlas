@@ -36,13 +36,17 @@ class QuestionnaireAnswers {
   String? e2Riba; // affirm | not_affirm
   String? e3RibaPractice; // none | exiting | continuing
 
-  static const int shortAnswerMin = 150;
+  static const int shortAnswerMin = 100;
 
   bool get sectionAComplete =>
       timeframe != null && financiallyReady != null && familyAware != null;
   bool get sectionBComplete => prayer != null;
   bool get sectionC1Complete =>
-      gender != null && dob != null && maritalStatus != null && hasChildren != null;
+      gender != null &&
+      dob != null &&
+      maritalStatus != null &&
+      // Children only required for divorced/widowed; never-married is auto-false.
+      (maritalStatus == 'never_married' || hasChildren != null);
   bool get sectionC2Complete =>
       country.trim().isNotEmpty &&
       city.trim().isNotEmpty &&

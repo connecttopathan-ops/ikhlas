@@ -28,9 +28,12 @@ dependencies:
   google_sign_in: ^6.2.1
   sign_in_with_apple: ^6.1.1   # iOS requirement when offering Google login
 
-  # Selfie capture (manual for now; a liveness SDK replaces the capture
-  # source in a later phase behind the same verification.selfie shape)
+  # Photo selection from the gallery (profile photos)
   image_picker: ^1.1.2
+  # Selfie capture — dedicated front-camera screen (image_picker's front
+  # preference is ignored by many Android devices). A liveness SDK replaces
+  # the capture source later behind the same verification.selfie shape.
+  camera: ^0.11.0+2
 
   # Application fraud signals: device fingerprint + approximate location
   # recorded on the application doc (disclosed to the applicant)
