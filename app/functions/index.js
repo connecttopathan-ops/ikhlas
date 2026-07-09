@@ -8,7 +8,7 @@ const {
   onDocumentUpdated,
 } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { defineSecret } = require('firebase-functions/params');
+const { defineSecret, defineString } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
@@ -18,11 +18,14 @@ const crypto = require('crypto');
 const { evaluateGate } = require('./gate');
 const { sendOtpEmail } = require('./resend');
 
-// Resend transactional-email credentials. Set with:
+// Resend transactional email. The API key is a secret:
 //   firebase functions:secrets:set RESEND_API_KEY
-//   firebase functions:secrets:set RESEND_FROM   (e.g. "Ikhlaas <noreply@ikhlaas.io>")
+// The sender is a plain param (override via functions/.env: RESEND_FROM=…);
+// it must be an address on a domain verified in Resend.
 const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
-const RESEND_FROM = defineSecret('RESEND_FROM');
+const RESEND_FROM = defineString('RESEND_FROM', {
+  default: 'Ikhlaas <noreply@ikhlaas.io>',
+});
 
 initializeApp();
 const db = getFirestore();
@@ -1101,7 +1104,7 @@ const validEmail = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
 
 /** Step 1 — generate a code, store its hash, email it via Resend. */
 exports.sendEmailOtp = onCall(
-  { region: REGION, secrets: [RESEND_API_KEY, RESEND_FROM] },
+  { region: REGION, secrets: [RESEND_API_KEY] },
   async (request) => {
     const email = normalizeEmail(request.data?.email);
     if (!validEmail(email)) {
