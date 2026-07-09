@@ -24,7 +24,7 @@ const { sendOtpEmail } = require('./resend');
 // it must be an address on a domain verified in Resend.
 const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 const RESEND_FROM = defineString('RESEND_FROM', {
-  default: 'Ikhlaas <noreply@ikhlaas.io>',
+  default: 'Ikhlaas <noreply@send.ikhlaas.io>',
 });
 
 initializeApp();
@@ -1148,7 +1148,7 @@ exports.sendEmailOtp = onCall(
     try {
       await sendOtpEmail(
         RESEND_API_KEY.value(),
-        RESEND_FROM.value() || 'Ikhlaas <noreply@ikhlaas.io>',
+        RESEND_FROM.value() || 'Ikhlaas <noreply@send.ikhlaas.io>',
         email,
         pendingCode,
       );
