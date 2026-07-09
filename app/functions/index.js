@@ -8,7 +8,7 @@ const {
   onDocumentUpdated,
 } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const { defineSecret, defineString } = require('firebase-functions/params');
+const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
@@ -20,12 +20,10 @@ const { sendOtpEmail } = require('./resend');
 
 // Resend transactional email. The API key is a secret:
 //   firebase functions:secrets:set RESEND_API_KEY
-// The sender is a plain param (override via functions/.env: RESEND_FROM=…);
-// it must be an address on a domain verified in Resend.
+// The sender must be an address on a domain verified in Resend
+// (send.ikhlaas.io — SPF/DKIM/MX verified).
 const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
-const RESEND_FROM = defineString('RESEND_FROM', {
-  default: 'Ikhlaas <noreply@send.ikhlaas.io>',
-});
+const RESEND_FROM = 'Ikhlaas <noreply@send.ikhlaas.io>';
 
 initializeApp();
 const db = getFirestore();
@@ -1148,7 +1146,7 @@ exports.sendEmailOtp = onCall(
     try {
       await sendOtpEmail(
         RESEND_API_KEY.value(),
-        RESEND_FROM.value() || 'Ikhlaas <noreply@send.ikhlaas.io>',
+        RESEND_FROM,
         email,
         pendingCode,
       );
