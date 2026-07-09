@@ -363,7 +363,19 @@ class _SelfieThumb extends StatelessWidget {
             border: Border.all(color: T.hairline),
           ),
           child: snap.hasData
-              ? Image.network(snap.data!, fit: BoxFit.cover)
+              ? Image.network(
+                  snap.data!,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (c, child, progress) => progress == null
+                      ? child
+                      : Center(
+                          child: Text('…',
+                              style: T.inter(11, color: T.muted))),
+                  errorBuilder: (c, e, s) => Center(
+                      child: Text('selfie\ncould not load',
+                          textAlign: TextAlign.center,
+                          style: T.inter(11, color: T.muted))),
+                )
               : Center(
                   child: Text(snap.hasError ? 'selfie\nunavailable' : '…',
                       textAlign: TextAlign.center,
@@ -393,7 +405,7 @@ class _LocationFact extends StatelessWidget {
               Uri.parse('https://www.google.com/maps?q=$lat,$lng'),
               mode: LaunchMode.externalApplication),
           child: Text(
-            '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}'
+            '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}'
             '${accuracyM != null ? ' (±${accuracyM!.round()}m)' : ''}  ↗',
             style: T.inter(13.5, color: T.gold),
           ),

@@ -256,8 +256,11 @@ class ApplicationRepository {
             perm == LocationPermission.always) {
           final pos = await Geolocator.getCurrentPosition(
             locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.low, // coarse — city-level is enough
-              timeLimit: Duration(seconds: 8),
+              // Precise fix for review (fraud signal). If the OS only has a
+              // coarse permission grant it still returns a lower-accuracy
+              // point; pos.accuracy records the actual radius either way.
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 12),
             ),
           );
           location = {

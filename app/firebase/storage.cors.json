@@ -1,0 +1,17 @@
+[
+  {
+    "origin": [
+      "https://ikhlas-admin.web.app",
+      "https://ikhlas-admin.firebaseapp.com",
+      "https://ikhlaas.co",
+      "https://www.ikhlaas.co",
+      "https://ikhlas-wali.web.app",
+      "https://ikhlas-wali.firebaseapp.com",
+      "http://localhost:5000",
+      "http://localhost"
+    ],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type", "Authorization"],
+    "maxAgeSeconds": 3600
+  }
+]

@@ -2,8 +2,11 @@
     <!-- Firebase Auth/Firestore/Storage need network access in release builds
          (debug/profile manifests already grant it for dev tooling). -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Approximate location recorded with the application (fraud signal;
-         disclosed to the applicant on the verification step). -->
+    <!-- Precise location recorded with the application (fraud signal;
+         disclosed to the applicant on the verification step). FINE gives
+         the reviewer an accurate fix; COARSE is the graceful fallback when
+         the applicant only grants approximate location. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <!-- Decision push notifications (Android 13+ runtime permission). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
