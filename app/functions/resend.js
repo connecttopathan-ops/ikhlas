@@ -3,9 +3,10 @@
  * Node 22 ships a global fetch, so no HTTP dependency is needed.
  */
 
-// Public logo mark (email clients block data: URIs, so it must be a real
-// https URL). Hosted on our Firebase site, served from admin/web/.
-const LOGO_URL = 'https://ikhlas-admin.web.app/ikhlaas-mark.png';
+// Brand assets from the ikhlaas.io site (email clients block data: URIs,
+// so they must be real https URLs). Hosted on our Firebase site from
+// admin/web/. The wordmark is the header lockup; the mark is the round icon.
+const WORDMARK_URL = 'https://ikhlas-admin.web.app/ikhlaas-wordmark.png';
 const CONTACT_EMAIL = 'salaam@ikhlaas.io';
 
 /** Branded HTML for the one-time code email. */
@@ -18,19 +19,11 @@ function otpEmailHtml(code) {
       <tr><td align="center">
         <table role="presentation" width="440" cellpadding="0" cellspacing="0"
                style="background:#ffffff;border:1px solid #DFE0D2;border-radius:14px;padding:40px 36px;">
-          <tr><td align="center" style="padding-bottom:14px;">
-            <img src="${LOGO_URL}" width="60" height="60" alt="Ikhlaas"
-                 style="display:block;border-radius:14px;border:0;outline:none;text-decoration:none;" />
+          <tr><td align="center" style="padding-bottom:6px;">
+            <img src="${WORDMARK_URL}" width="188" height="99" alt="Ikhlaas"
+                 style="display:block;border:0;outline:none;text-decoration:none;" />
           </td></tr>
-          <tr><td align="center" style="padding-bottom:4px;">
-            <div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;color:#17251B;letter-spacing:.5px;">
-              ıkhlaas
-            </div>
-            <div style="font-size:11px;color:#A8842B;letter-spacing:3px;text-transform:uppercase;margin-top:6px;">
-              إخلاص
-            </div>
-          </td></tr>
-          <tr><td align="center" style="padding-top:26px;">
+          <tr><td align="center" style="padding-top:22px;">
             <div style="font-size:15px;color:#4A554E;line-height:1.6;">
               Your sign-in code
             </div>
