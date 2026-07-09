@@ -3,6 +3,11 @@
  * Node 22 ships a global fetch, so no HTTP dependency is needed.
  */
 
+// Public logo mark (email clients block data: URIs, so it must be a real
+// https URL). Hosted on our Firebase site, served from admin/web/.
+const LOGO_URL = 'https://ikhlas-admin.web.app/ikhlaas-mark.png';
+const CONTACT_EMAIL = 'salaam@ikhlaas.io';
+
 /** Branded HTML for the one-time code email. */
 function otpEmailHtml(code) {
   const spaced = code.split('').join('&nbsp;&nbsp;');
@@ -13,11 +18,15 @@ function otpEmailHtml(code) {
       <tr><td align="center">
         <table role="presentation" width="440" cellpadding="0" cellspacing="0"
                style="background:#ffffff;border:1px solid #DFE0D2;border-radius:14px;padding:40px 36px;">
-          <tr><td align="center" style="padding-bottom:6px;">
-            <div style="font-family:Georgia,'Times New Roman',serif;font-size:26px;color:#17251B;letter-spacing:.5px;">
+          <tr><td align="center" style="padding-bottom:14px;">
+            <img src="${LOGO_URL}" width="60" height="60" alt="Ikhlaas"
+                 style="display:block;border-radius:14px;border:0;outline:none;text-decoration:none;" />
+          </td></tr>
+          <tr><td align="center" style="padding-bottom:4px;">
+            <div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;color:#17251B;letter-spacing:.5px;">
               ıkhlaas
             </div>
-            <div style="font-size:12px;color:#A8842B;letter-spacing:3px;text-transform:uppercase;margin-top:6px;">
+            <div style="font-size:11px;color:#A8842B;letter-spacing:3px;text-transform:uppercase;margin-top:6px;">
               إخلاص
             </div>
           </td></tr>
@@ -35,6 +44,12 @@ function otpEmailHtml(code) {
             <div style="font-size:13px;color:#7A857D;line-height:1.6;">
               Enter this code in the app to continue. It expires in 10&nbsp;minutes.
               If you didn't request it, you can safely ignore this email.
+            </div>
+          </td></tr>
+          <tr><td align="center" style="padding-top:24px;">
+            <div style="border-top:1px solid #EDEEE3;padding-top:16px;font-size:12px;color:#9AA396;line-height:1.7;">
+              Need help? Write to us at
+              <a href="mailto:${CONTACT_EMAIL}" style="color:#A8842B;text-decoration:none;">${CONTACT_EMAIL}</a>.
             </div>
           </td></tr>
         </table>
@@ -56,6 +71,12 @@ function otpEmailHtml(code) {
  * @param {string} code    6-digit code.
  */
 async function sendOtpEmail(apiKey, from, to, code) {
+  const text =
+    `Your Ikhlaas sign-in code is ${code}.\n\n` +
+    `Enter it in the app to continue. It expires in 10 minutes.\n` +
+    `If you didn't request it, you can ignore this email.\n\n` +
+    `Need help? Write to us at ${CONTACT_EMAIL}.\n` +
+    `Ikhlaas — nikah, the right way.`;
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -65,8 +86,10 @@ async function sendOtpEmail(apiKey, from, to, code) {
     body: JSON.stringify({
       from,
       to: [to],
+      reply_to: CONTACT_EMAIL,
       subject: `${code} is your Ikhlaas sign-in code`,
       html: otpEmailHtml(code),
+      text,
     }),
   });
   if (!res.ok) {
