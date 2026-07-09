@@ -168,6 +168,10 @@ service cloud.firestore {
       allow read, update, delete: if isModerator();
     }
 
+    // email OTP codes — backend-only (created/verified by callables that
+    // hold the code hashes; a client must never read or write these).
+    match /emailOtps/{key} { allow read, write: if false; }
+
     // blocks, ban registry, wali invites, metrics — backend-only.
     match /blocks/{docId} { allow read, write: if false; }
     match /banRegistry/{key} { allow read, write: if false; }

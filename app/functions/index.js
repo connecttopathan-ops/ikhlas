@@ -8,12 +8,21 @@ const {
   onDocumentUpdated,
 } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 const { getAuth } = require('firebase-admin/auth');
 const { getStorage } = require('firebase-admin/storage');
+const crypto = require('crypto');
 const { evaluateGate } = require('./gate');
+const { sendOtpEmail } = require('./resend');
+
+// Resend transactional-email credentials. Set with:
+//   firebase functions:secrets:set RESEND_API_KEY
+//   firebase functions:secrets:set RESEND_FROM   (e.g. "Ikhlaas <noreply@ikhlaas.io>")
+const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
+const RESEND_FROM = defineSecret('RESEND_FROM');
 
 initializeApp();
 const db = getFirestore();
@@ -1070,4 +1079,119 @@ exports.requestPhotoReveal = onCall({ region: REGION }, async (request) => {
   await pushTo(other, 'A photo request',
     `${name} has asked to see your photos. Open the conversation to decide.`);
   return { ok: true };
+});
+
+// ============================================================
+// Email OTP sign-in (Resend). A public alternative to Google that needs
+// no deep-linking: send a 6-digit code, verify it, mint a custom token.
+// The otp docs live in emailOtps/{sha256(email)} — backend-only (rules
+// deny all client access). Codes are stored hashed with a per-code salt.
+// ============================================================
+const OTP_TTL_MS = 10 * 60 * 1000;      // code lifetime
+const OTP_MAX_ATTEMPTS = 5;             // wrong guesses before invalidation
+const OTP_MAX_SENDS_PER_HOUR = 5;       // per email, anti-abuse
+const OTP_MIN_RESEND_MS = 30 * 1000;    // throttle rapid re-sends
+
+const emailKey = (email) =>
+  crypto.createHash('sha256').update(email).digest('hex');
+const hashCode = (salt, code) =>
+  crypto.createHash('sha256').update(`${salt}:${code}`).digest('hex');
+const normalizeEmail = (raw) => String(raw || '').trim().toLowerCase();
+const validEmail = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
+
+/** Step 1 — generate a code, store its hash, email it via Resend. */
+exports.sendEmailOtp = onCall(
+  { region: REGION, secrets: [RESEND_API_KEY, RESEND_FROM] },
+  async (request) => {
+    const email = normalizeEmail(request.data?.email);
+    if (!validEmail(email)) {
+      throw new HttpsError('invalid-argument', 'Enter a valid email address.');
+    }
+    const ref = db.doc(`emailOtps/${emailKey(email)}`);
+    const now = Date.now();
+    let pendingCode;
+
+    // Rate-limit inside a transaction so parallel sends can't race past it.
+    await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      const d = snap.exists ? snap.data() : {};
+      const windowStart = d.windowStart?.toMillis?.() ?? 0;
+      let sends = d.sends || 0;
+      if (now - windowStart > 3600 * 1000) sends = 0; // new rolling hour
+      const lastSent = d.lastSentAt?.toMillis?.() ?? 0;
+      if (now - lastSent < OTP_MIN_RESEND_MS) {
+        throw new HttpsError(
+          'resource-exhausted', 'Please wait a moment before requesting another code.');
+      }
+      if (sends >= OTP_MAX_SENDS_PER_HOUR) {
+        throw new HttpsError(
+          'resource-exhausted', 'Too many codes requested. Try again later.');
+      }
+      const salt = crypto.randomBytes(16).toString('hex');
+      const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+      pendingCode = code;
+      tx.set(ref, {
+        email,
+        codeHash: hashCode(salt, code),
+        salt,
+        expiresAt: new Date(now + OTP_TTL_MS),
+        attempts: 0,
+        sends: sends + 1,
+        windowStart: sends === 0 ? new Date(now) : (d.windowStart || new Date(now)),
+        lastSentAt: new Date(now),
+      });
+    });
+
+    try {
+      await sendOtpEmail(
+        RESEND_API_KEY.value(),
+        RESEND_FROM.value() || 'Ikhlaas <noreply@ikhlaas.io>',
+        email,
+        pendingCode,
+      );
+    } catch (e) {
+      console.error('Resend send failed:', e.message);
+      throw new HttpsError('internal', 'Could not send the email. Please try again.');
+    }
+    return { ok: true };
+  },
+);
+
+/** Step 2 — verify the code, mint a custom token for signInWithCustomToken. */
+exports.verifyEmailOtp = onCall({ region: REGION }, async (request) => {
+  const email = normalizeEmail(request.data?.email);
+  const code = String(request.data?.code || '').trim();
+  if (!validEmail(email) || !/^\d{6}$/.test(code)) {
+    throw new HttpsError('invalid-argument', 'Enter the 6-digit code.');
+  }
+  const ref = db.doc(`emailOtps/${emailKey(email)}`);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw new HttpsError('not-found', 'No code found — request a new one.');
+  }
+  const d = snap.data();
+  if ((d.expiresAt?.toMillis?.() ?? 0) < Date.now()) {
+    await ref.delete();
+    throw new HttpsError('deadline-exceeded', 'That code expired — request a new one.');
+  }
+  if ((d.attempts || 0) >= OTP_MAX_ATTEMPTS) {
+    await ref.delete();
+    throw new HttpsError('resource-exhausted', 'Too many attempts — request a new code.');
+  }
+  if (hashCode(d.salt, code) !== d.codeHash) {
+    await ref.update({ attempts: FieldValue.increment(1) });
+    throw new HttpsError('permission-denied', 'Incorrect code. Please try again.');
+  }
+
+  // Correct — burn the code and mint a session for this email.
+  await ref.delete();
+  const auth = getAuth();
+  let uid;
+  try {
+    uid = (await auth.getUserByEmail(email)).uid;
+  } catch (_) {
+    uid = (await auth.createUser({ email, emailVerified: true })).uid;
+  }
+  const token = await auth.createCustomToken(uid);
+  return { token };
 });

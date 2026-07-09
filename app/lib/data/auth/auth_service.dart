@@ -1,10 +1,11 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 /// ============================================================
 /// AuthProvider abstraction — the swappable seam.
-/// Phase 1: Google + Email OTP. Phase 2: Phone OTP joins behind the
-/// SAME interface (config change, not a rewrite). Apple joins for iOS.
+/// Phase 1: Google + Email OTP (6-digit code via Resend). Phase 2: Phone
+/// OTP joins behind the SAME pattern. Apple joins for iOS.
 /// ============================================================
 abstract class IkhlasAuthProvider {
   Future<UserCredential> signIn();
@@ -24,27 +25,27 @@ class GoogleAuth implements IkhlasAuthProvider {
   }
 }
 
-/// Email OTP via Firebase email-link sign-in.
-/// Two-step: sendCode(email) → completeSignIn(email, link).
+/// Email OTP: a 6-digit code emailed via Resend (Cloud Functions), then
+/// exchanged for a Firebase custom token. Needs no deep-linking, so it
+/// works the moment the app is installed — unlike email-link sign-in.
+/// Two-step: sendCode(email) → verifyCode(email, code).
 class EmailOtpAuth {
-  static final _acs = ActionCodeSettings(
-    url: 'https://ikhlaas.io/auth', // must be an authorized domain in Firebase
-    handleCodeInApp: true,
-    androidPackageName: 'io.ikhlaas.app',
-    androidInstallApp: true,
-    androidMinimumVersion: '21',
-    iOSBundleId: 'io.ikhlaas.app',
-  );
+  final _fns = FirebaseFunctions.instanceFor(region: 'asia-south1');
 
-  Future<void> sendCode(String email) => FirebaseAuth.instance
-      .sendSignInLinkToEmail(email: email, actionCodeSettings: _acs);
+  /// Emails a fresh code. Throws FirebaseFunctionsException (with a
+  /// human-readable `.message`) on rate-limit / send failure.
+  Future<void> sendCode(String email) =>
+      _fns.httpsCallable('sendEmailOtp').call({'email': email});
 
-  Future<UserCredential> completeSignIn(String email, String emailLink) =>
-      FirebaseAuth.instance
-          .signInWithEmailLink(email: email, emailLink: emailLink);
-
-  bool isSignInLink(String link) =>
-      FirebaseAuth.instance.isSignInWithEmailLink(link);
+  /// Verifies the code and signs in. Throws FirebaseFunctionsException
+  /// (`.message`) on a wrong/expired code.
+  Future<UserCredential> verifyCode(String email, String code) async {
+    final res = await _fns
+        .httpsCallable('verifyEmailOtp')
+        .call({'email': email, 'code': code});
+    final token = (res.data as Map)['token'] as String;
+    return FirebaseAuth.instance.signInWithCustomToken(token);
+  }
 }
 
 class AuthCancelled implements Exception {}

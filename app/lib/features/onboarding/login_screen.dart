@@ -1,5 +1,7 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
@@ -7,7 +9,7 @@ import '../../core/theme/widgets.dart';
 import '../../data/auth/auth_service.dart';
 import '../../providers/application_provider.dart';
 
-/// Login — Google + Email OTP (email-link sign-in), in the light 2d theme.
+/// Login — Google + Email OTP (6-digit code via Resend), in the light 2d theme.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
   @override
@@ -16,20 +18,30 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailCtrl = TextEditingController();
+  final _codeCtrl = TextEditingController();
   bool _busy = false;
-  bool _linkSent = false;
+  bool _codeSent = false;
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _codeCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Shared post-sign-in routing — resume where the member left off.
+  Future<void> _enter(String email, String provider) async {
+    final repo = ref.read(applicationRepositoryProvider);
+    await repo.ensureUserDoc(email: email, authProvider: provider);
+    final route = await repo.resolveEntryRoute();
+    if (mounted) context.go(route);
+  }
 
   Future<void> _google() async {
     setState(() => _busy = true);
     try {
       final cred = await GoogleAuth().signIn();
-      final repo = ref.read(applicationRepositoryProvider);
-      await repo.ensureUserDoc(
-          email: cred.user?.email ?? '', authProvider: 'google');
-      // Resume where they left off — never re-ask for a phone/details a
-      // returning member already provided.
-      final route = await repo.resolveEntryRoute();
-      if (mounted) context.go(route);
+      await _enter(cred.user?.email ?? '', 'google');
     } on AuthCancelled {
       // user backed out — no error surface needed
     } on FirebaseAuthException catch (e) {
@@ -39,7 +51,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  Future<void> _emailLink() async {
+  Future<void> _sendCode() async {
     final email = _emailCtrl.text.trim();
     if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
       _err('Enter a valid email address.');
@@ -48,9 +60,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _busy = true);
     try {
       await EmailOtpAuth().sendCode(email);
-      setState(() => _linkSent = true);
-    } on FirebaseAuthException catch (e) {
-      _err('Could not send the link (${e.code}).');
+      _codeCtrl.clear();
+      setState(() => _codeSent = true);
+    } on FirebaseFunctionsException catch (e) {
+      _err(e.message ?? 'Could not send the code. Please try again.');
+    } catch (_) {
+      _err('Could not send the code. Please try again.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _verifyCode() async {
+    final email = _emailCtrl.text.trim();
+    final code = _codeCtrl.text.trim();
+    if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+      _err('Enter the 6-digit code.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      await EmailOtpAuth().verifyCode(email, code);
+      await _enter(email, 'email');
+    } on FirebaseFunctionsException catch (e) {
+      _err(e.message ?? 'That code did not work. Please try again.');
+    } catch (_) {
+      _err('That code did not work. Please try again.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -103,7 +138,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const Expanded(child: Hairline()),
             ]),
             const SizedBox(height: 28),
-            if (!_linkSent) ...[
+            if (!_codeSent) ...[
               Text('EMAIL', style: AppType.eyebrow(DarkTokens.gold.withOpacity(.8))),
               const SizedBox(height: 4),
               TextField(
@@ -111,6 +146,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 keyboardType: TextInputType.emailAddress,
                 style: AppType.inter(16, color: DarkTokens.ivory),
                 cursorColor: DarkTokens.gold,
+                onSubmitted: (_) => _busy ? null : _sendCode(),
                 decoration: InputDecoration(
                   hintText: 'you@example.com',
                   hintStyle: AppType.inter(16, color: DarkTokens.muted(.4)),
@@ -123,29 +159,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 28),
               PrimaryCta(
-                  label: 'Send sign-in link',
+                  label: 'Email me a code',
                   loading: _busy,
-                  onPressed: _busy ? null : _emailLink),
+                  onPressed: _busy ? null : _sendCode),
             ] else ...[
               Row(children: [
                 const DiamondBullet(),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                      'A sign-in link is on its way to ${_emailCtrl.text.trim()}. '
-                      'Open it on this device to continue.',
+                      'We sent a 6-digit code to ${_emailCtrl.text.trim()}. '
+                      'Enter it below to continue.',
                       style: AppType.inter(14, color: DarkTokens.ivory)),
                 ),
               ]),
+              const SizedBox(height: 24),
+              Text('CODE', style: AppType.eyebrow(DarkTokens.gold.withOpacity(.8))),
+              const SizedBox(height: 4),
+              TextField(
+                controller: _codeCtrl,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                maxLength: 6,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: AppType.inter(24, color: DarkTokens.ivory)
+                    .copyWith(letterSpacing: 10),
+                cursorColor: DarkTokens.gold,
+                onChanged: (v) {
+                  if (v.length == 6 && !_busy) _verifyCode();
+                },
+                decoration: InputDecoration(
+                  counterText: '',
+                  hintText: '••••••',
+                  hintStyle: AppType.inter(24, color: DarkTokens.muted(.3))
+                      .copyWith(letterSpacing: 10),
+                  enabledBorder: UnderlineInputBorder(
+                      borderSide:
+                          BorderSide(color: DarkTokens.gold.withOpacity(.65))),
+                  focusedBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: DarkTokens.gold)),
+                ),
+              ),
+              const SizedBox(height: 24),
+              PrimaryCta(
+                  label: 'Verify & continue',
+                  loading: _busy,
+                  onPressed: _busy ? null : _verifyCode),
               const SizedBox(height: 20),
               Row(children: [
                 QuietLink(
-                    linkText: _busy ? 'Sending…' : 'Resend link',
-                    onTap: _busy ? null : _emailLink),
+                    linkText: _busy ? 'Sending…' : 'Resend code',
+                    onTap: _busy ? null : _sendCode),
                 const SizedBox(width: 20),
                 QuietLink(
                     linkText: 'Use a different email',
-                    onTap: () => setState(() => _linkSent = false)),
+                    onTap: () => setState(() => _codeSent = false)),
               ]),
             ],
             const Spacer(),
