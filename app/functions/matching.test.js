@@ -125,3 +125,68 @@ test('compatibility highlights are human sentences, max 3', () => {
   assert.ok(why.length > 0 && why.length <= 3);
   assert.ok(why.some((w) => w.includes('five daily')));
 });
+
+// ---- PRD v1.2: bands, divergence, exposure cap, hygiene, diaspora ----
+
+test('every pair carries exactly one honest divergence string', () => {
+  const { divergence } = scorePair(HIM, HER, NOW);
+  assert.equal(typeof divergence, 'string');
+  assert.ok(divergence.length > 0);
+});
+
+test('a strongly aligned pair gets a band and is shown', () => {
+  const batch = buildBatch(HIM, [HER], { now: NOW });
+  assert.equal(batch.length, 1);
+  assert.ok(['strong', 'good', 'some'].includes(batch[0].band));
+});
+
+test('below-threshold pairs are never shown (band null → filtered)', () => {
+  const lowHer = user('low', {
+    gender: 'female',
+    dob: '2000-05-01',
+    lastActiveAt: '2026-06-25T00:00:00Z', // >7d: no freshness boost; <30d: not stale
+    profile: { city: 'Delhi', languages: ['Tamil'], willingToRelocate: false },
+    // 'exploring' isn't in the timeframe order → no timeframe score; no shared
+    // language; different city → total stays below the "some" threshold.
+    answers: { prayer: 'working', timeframe: 'exploring' },
+  });
+  const batch = buildBatch(HIM, [lowHer], { now: NOW });
+  assert.equal(batch.length, 0);
+});
+
+test('exposure cap removes a profile once it has filled its daily quota', () => {
+  const atCap = buildBatch(HIM, [HER], {
+    now: NOW,
+    exposure: new Map([['her', 15]]),
+  });
+  assert.equal(atCap.length, 0);
+  const underCap = buildBatch(HIM, [HER], {
+    now: NOW,
+    exposure: new Map([['her', 14]]),
+  });
+  assert.equal(underCap.length, 1);
+});
+
+test('inactive >30 days drops out of circulation', () => {
+  const staleHer = user('stale', {
+    gender: 'female',
+    dob: '2000-05-01',
+    lastActiveAt: '2026-05-01T00:00:00Z', // >30d before NOW (2026-07-05)
+  });
+  assert.equal(buildBatch(HIM, [staleHer], { now: NOW }).length, 0);
+});
+
+test('country is open by default but a hard filter when the user opts out', () => {
+  const abroadHer = user('abroad', {
+    gender: 'female',
+    dob: '2000-05-01',
+    profile: { country: 'UAE', city: 'Dubai' },
+  });
+  // Default (openToSpouseAbroad unset) → diaspora match allowed.
+  assert.ok(hardFilterPass(HIM, abroadHer, NOW));
+  // Opted out → different country is rejected.
+  const himClosed = user('himClosed', {
+    preferences: { openToSpouseAbroad: false },
+  });
+  assert.ok(!hardFilterPass(himClosed, abroadHer, NOW));
+});

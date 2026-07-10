@@ -207,7 +207,19 @@ exports.deleteAccount = onCall({ region: REGION }, async (request) => {
 // Phase 2 — Matching engine (PRD §4.2: curated daily batch, not swiping)
 // ============================================================
 const { onSchedule } = require('firebase-functions/v2/scheduler');
-const { buildBatch, istDateString } = require('./matching');
+const { buildBatch, istDateString, DEFAULT_CFG } = require('./matching');
+
+/** Tunable matching config (config/scoringWeights) — no app release needed. */
+async function loadScoringCfg() {
+  const snap = await db.doc('config/scoringWeights').get();
+  const d = snap.exists ? snap.data() : {};
+  return {
+    exposureCapPerDay: d.exposureCapPerDay ?? DEFAULT_CFG.exposureCapPerDay,
+    bandStrong: d.bandStrong ?? DEFAULT_CFG.bandStrong,
+    bandGood: d.bandGood ?? DEFAULT_CFG.bandGood,
+    bandSome: d.bandSome ?? DEFAULT_CFG.bandSome,
+  };
+}
 
 /** Loads the full snapshot pool: approved+complete users joined with
  *  their application answers (prayer/timeframe drive deen scoring). */
@@ -236,6 +248,8 @@ async function loadPool() {
       lastActiveAt: u.lastActiveAt?.toDate?.() || null,
       profile: u.profile || {},
       preferences: u.preferences || {},
+      // Section F — the deen-variance signal scored by matching.js.
+      deenDetail: u.profile?.deenDetail || {},
       answers: answers[d.id] || {},
       displayName: names[d.id] || 'Member',
       ribaBadge: u.ribaDisclosureBadge === true,
@@ -283,16 +297,31 @@ function entrySnapshot(e) {
     whyNow: c.answers.shortAnswers?.whyNow || null,
     deenRelationship: c.answers.shortAnswers?.deenRelationship || null,
     compatibility: e.why,           // "You both pray five daily" etc.
+    band: e.band,                    // strong | good | some — the card headline
+    divergence: e.divergence,        // the one honest divergence (PRD §4.2)
     score: e.score,                  // internal; not rendered to users
     action: null,
     actionAt: null,
+    // NB: income band and residency status are deliberately absent — never
+    // on a match card, revealed only at the Family Stage (PRD §0).
   };
 }
 
-/** Writes one user's batch: batch doc + entry docs + seen markers. */
-async function writeBatchFor(user, pool, date) {
+/** Writes one user's batch: batch doc + entry docs + seen markers.
+ *  ctx: { cfg, exposure } — shared across the daily run for the exposure cap. */
+async function writeBatchFor(user, pool, date, ctx = {}) {
+  const cfg = ctx.cfg || DEFAULT_CFG;
+  const exposure = ctx.exposure || new Map();
+
   const seenSnap = await db.collection(`matches/${user._id}/seen`).get();
-  const seen = new Set(seenSnap.docs.map((d) => d.id));
+  // A passed/shown profile is hidden for 90 days, then may re-surface
+  // (PRD §4.2). Markers older than that no longer block a candidate.
+  const seenCutoff = Date.now() - 90 * 24 * 3600 * 1000;
+  const seen = new Set(
+    seenSnap.docs
+      .filter((d) => (d.get('at')?.toMillis?.() ?? 0) >= seenCutoff)
+      .map((d) => d.id)
+  );
   const interestsSnap = await db
     .collection('interests')
     .where('to', '==', user._id)
@@ -300,8 +329,14 @@ async function writeBatchFor(user, pool, date) {
   const interestedInMe = new Set(interestsSnap.docs.map((d) => d.get('from')));
   const blocked = new Set(user.blockedUids || []);
 
-  const batch = buildBatch(user, pool, { seen, interestedInMe, blocked });
+  const batch = buildBatch(user, pool, {
+    seen, interestedInMe, blocked, cfg, exposure,
+  });
   if (batch.length === 0) return 0;
+  // Count these placements toward the pool-wide exposure cap.
+  for (const e of batch) {
+    exposure.set(e.candidate._id, (exposure.get(e.candidate._id) || 0) + 1);
+  }
 
   const wb = db.batch();
   const batchRef = db.doc(`matches/${user._id}/batches/${date}`);
@@ -342,11 +377,13 @@ exports.generateDailyBatches = onSchedule(
   async () => {
     const pool = await loadPool();
     const date = istDateString();
+    const cfg = await loadScoringCfg();
+    const exposure = new Map(); // pool-wide appearance counts for the cap
     let total = 0;
     for (const user of pool) {
       const existing = await db.doc(`matches/${user._id}/batches/${date}`).get();
       if (existing.exists) continue;
-      total += await writeBatchFor(user, pool, date);
+      total += await writeBatchFor(user, pool, date, { cfg, exposure });
     }
     console.log(`daily batches for ${date}: ${total} entries across ${pool.length} members`);
   }
@@ -363,7 +400,10 @@ exports.generateMyBatch = onCall({ region: REGION }, async (request) => {
   if (!me) {
     throw new HttpsError('failed-precondition', 'Approved, complete profiles only.');
   }
-  const n = await writeBatchFor(me, pool, date);
+  // On-demand (a new member mid-day): exposure cap is best-effort here —
+  // the scheduled 07:00 run enforces it pool-wide.
+  const cfg = await loadScoringCfg();
+  const n = await writeBatchFor(me, pool, date, { cfg });
   return { date, created: n > 0, count: n };
 });
 

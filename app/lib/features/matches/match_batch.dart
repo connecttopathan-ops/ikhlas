@@ -58,9 +58,16 @@ class _MatchBatchState extends ConsumerState<MatchBatch> {
       error: (_, __) => _errorState(),
       data: (snap) {
         if (snap.docs.isEmpty) return _resting();
-        final docs = [...snap.docs]
-          ..sort((a, b) =>
-              (b.data()['score'] as num? ?? 0).compareTo(a.data()['score'] as num? ?? 0));
+        // Rank by alignment band, never by raw score (PRD §4.2). Score is
+        // only a within-band tiebreak here.
+        const bandRank = {'strong': 3, 'good': 2, 'some': 1};
+        final docs = [...snap.docs]..sort((a, b) {
+            final ba = bandRank[a.data()['band']] ?? 0;
+            final bb = bandRank[b.data()['band']] ?? 0;
+            if (bb != ba) return bb - ba;
+            return (b.data()['score'] as num? ?? 0)
+                .compareTo(a.data()['score'] as num? ?? 0);
+          });
         return ListView(
           padding: const EdgeInsets.only(bottom: 24),
           children: [
@@ -144,12 +151,19 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
     '6_12m': 'Nikah in 6–12 months',
     '12_24m': 'Nikah in 12–24 months',
   };
+  static const _bandLabel = {
+    'strong': 'Strong alignment',
+    'good': 'Good alignment',
+    'some': 'Some alignment',
+  };
 
   @override
   Widget build(BuildContext context) {
     final e = widget.doc.data();
     final action = e['action'] as String?;
     final compat = (e['compatibility'] as List?)?.cast<String>() ?? [];
+    final band = _bandLabel[e['band']];
+    final divergence = e['divergence'] as String?;
     final prompts = (e['bioPrompts'] as List?) ?? [];
     final firstPrompt = prompts.isEmpty
         ? null
@@ -170,6 +184,20 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (band != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: DarkTokens.gold.withOpacity(.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(band.toUpperCase(),
+                  style: AppType.inter(10.5,
+                      weight: FontWeight.w600, color: DarkTokens.gold)
+                      .copyWith(letterSpacing: 1)),
+            ),
+            const SizedBox(height: 14),
+          ],
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             // Photo through the server pipeline — blurred/watermarked per
             // the member's privacy mode, girih silhouette when hidden.
@@ -229,6 +257,21 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
                               AppType.inter(13, color: DarkTokens.ivory))),
                 ]),
               ),
+          ],
+          // The one honest divergence — always present (PRD §4.2). It is
+          // what proves the engine advises rather than sells.
+          if (divergence != null && divergence.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Differs on:  ',
+                  style: AppType.inter(12.5,
+                      weight: FontWeight.w600, color: DarkTokens.muted(.8))),
+              Expanded(
+                child: Text(divergence,
+                    style: AppType.inter(12.5,
+                        color: DarkTokens.muted(.8), height: 1.45)),
+              ),
+            ]),
           ],
           if (firstPrompt != null && firstPrompt.isNotEmpty) ...[
             const SizedBox(height: 10),

@@ -35,6 +35,33 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     'divorced': 'Divorced',
     'widowed': 'Widowed',
   };
+  static const _bandLabel = {
+    'strong': 'Strong alignment',
+    'good': 'Good alignment',
+    'some': 'Some alignment',
+  };
+  static const _eduLabel = {
+    'high_school': 'High school',
+    'diploma': 'Diploma',
+    'bachelors': "Bachelor's degree",
+    'masters': "Master's degree",
+    'doctorate': 'Doctorate (PhD)',
+    'islamic_studies': 'Islamic studies',
+    'other': 'Other',
+  };
+  static const _profLabel = {
+    'student': 'Student',
+    'healthcare': 'Healthcare / Medicine',
+    'engineering_it': 'Engineering / IT',
+    'business': 'Business / Self-employed',
+    'education': 'Education / Academia',
+    'government': 'Government / Public sector',
+    'finance': 'Finance / Accounting',
+    'legal': 'Legal',
+    'trade': 'Skilled trade',
+    'homemaker': 'Homemaker',
+    'other': 'Other',
+  };
 
   Future<void> _act(String action) async {
     setState(() => _busy = true);
@@ -110,6 +137,21 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                         style: AppType.inter(11.5, color: DarkTokens.muted())),
                   ),
                 const SizedBox(height: 22),
+                if (_bandLabel[e['band']] != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 11, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: DarkTokens.gold.withOpacity(.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(_bandLabel[e['band']]!.toUpperCase(),
+                        style: AppType.inter(10.5,
+                                weight: FontWeight.w600, color: DarkTokens.gold)
+                            .copyWith(letterSpacing: 1)),
+                  ),
+                  const SizedBox(height: 14),
+                ],
                 Text(
                     '${_prayerLabel[e['prayer']] ?? 'Deen-focused'}'
                     '${e['revert'] == true ? ' · Revert, celebrated' : ''}',
@@ -157,6 +199,34 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                     ),
                 ],
 
+                // The one honest divergence — always shown (PRD §4.2). This
+                // is what proves the engine advises rather than sells.
+                if ((e['divergence'] ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: DarkTokens.ivory.withOpacity(.04),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: DarkTokens.hairline(.3)),
+                    ),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('WORTH KNOWING',
+                              style: AppType.inter(10,
+                                      weight: FontWeight.w600,
+                                      color: DarkTokens.muted(.8))
+                                  .copyWith(letterSpacing: 1)),
+                          const SizedBox(height: 6),
+                          Text('${e['divergence']}',
+                              style: AppType.inter(13.5,
+                                  color: DarkTokens.ivory, height: 1.5)),
+                        ]),
+                  ),
+                ],
+
                 const SizedBox(height: 22),
                 const Hairline(),
                 const SizedBox(height: 18),
@@ -164,8 +234,9 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 const SizedBox(height: 12),
                 _fact('Seeking', _timeframeLabel[e['timeframe']]),
                 _fact('Marital status', _maritalLabel[e['maritalStatus']]),
-                _fact('Education', e['education']),
-                _fact('Profession', e['profession']),
+                _fact('Education', _eduLabel[e['education']] ?? e['education']),
+                _fact('Profession',
+                    _profLabel[e['profession']] ?? e['profession']),
                 _fact('Languages', langs.isEmpty ? null : langs.join(', ')),
                 _fact('Madhhab', e['madhhab']),
 
