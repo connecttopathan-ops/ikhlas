@@ -22,9 +22,11 @@ const DEFAULT_RULES = {
     e1_tawhid: ['not_affirm'],
     e2_riba: ['not_affirm'],
     e3_ribaPractice: ['continuing'],
+    e4_incomeSource: ['not_halal'], // "No" soft-rejects (PRD §4.1 E4)
   },
   manualReviewAnswers: {
     prayer: ['most'],
+    e4_incomeSource: ['uncertain'], // "Uncertain" → human, same logic as prayer:most
   },
 };
 
@@ -80,7 +82,7 @@ function evaluateGate(answers, dob, rules = {}, ctx = {}) {
   }
 
   // Required structured answers missing entirely → human, never auto-pass.
-  for (const field of ['timeframe', 'prayer', 'e1_tawhid', 'e2_riba', 'e3_ribaPractice']) {
+  for (const field of ['timeframe', 'prayer', 'e1_tawhid', 'e2_riba', 'e3_ribaPractice', 'e4_incomeSource']) {
     if (!answers?.[field]) reasons.push(`manual_review:missing:${field}`);
   }
 

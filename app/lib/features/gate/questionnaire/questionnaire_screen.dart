@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,10 +12,10 @@ import '../selfie_capture_screen.dart';
 import 'questionnaire_models.dart';
 import 'questionnaire_widgets.dart';
 
-/// Screening questionnaire — sections A–E as a stepped flow
-/// (ikhlas-tech-requirements.md §4: one question-group per screen,
-/// Fraunces headers, gold accents). Answers stage locally; a single
-/// submission writes the user profile + the immutable application doc.
+/// Screening questionnaire — sections A–F as a stepped flow (PRD v1.2 §4.1:
+/// one question-group per screen, Fraunces headers, gold accents). Answers
+/// stage locally; a single submission writes the user profile + the immutable
+/// application doc. Section F is non-gating and lands in the profile only.
 class QuestionnaireScreen extends ConsumerStatefulWidget {
   const QuestionnaireScreen({super.key});
   @override
@@ -23,7 +24,7 @@ class QuestionnaireScreen extends ConsumerStatefulWidget {
 }
 
 class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
-  static const _totalSteps = 9;
+  static const _totalSteps = 11;
   int _step = 1;
   final _a = QuestionnaireAnswers();
   bool _submitting = false;
@@ -32,14 +33,26 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
   // Text controllers for free-text fields (kept alive across steps).
   late final _city = TextEditingController(text: _a.city);
   late final _country = TextEditingController(text: _a.country);
+  late final _countryOfOrigin = TextEditingController(text: _a.countryOfOrigin);
+  late final _height = TextEditingController();
   late final _languages = TextEditingController();
   late final _ethnicity = TextEditingController();
-  late final _education = TextEditingController();
-  late final _profession = TextEditingController();
+  late final _health = TextEditingController();
   late final _sect = TextEditingController();
   late final _madhhab = TextEditingController();
   late final _whyNow = TextEditingController();
   late final _deen = TextEditingController();
+
+  @override
+  void dispose() {
+    for (final c in [
+      _city, _country, _countryOfOrigin, _height, _languages, _ethnicity,
+      _health, _sect, _madhhab, _whyNow, _deen
+    ]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
 
   void _next() => setState(() => _step++);
 
@@ -94,9 +107,11 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         3 => _sectionC1(),
         4 => _sectionC2(),
         5 => _sectionC3(),
-        6 => _sectionD1(),
-        7 => _sectionD2(),
-        8 => _sectionE(),
+        6 => _sectionC4(),
+        7 => _sectionD1(),
+        8 => _sectionD2(),
+        9 => _sectionE(),
+        10 => _sectionF(),
         _ => _selfieStep(),
       },
     );
@@ -199,6 +214,19 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
               ]),
             ),
           ),
+          const SizedBox(height: 20),
+          UnderlineField(
+              label: 'Height (cm)',
+              controller: _height,
+              keyboardType: TextInputType.number,
+              hint: 'e.g. 170',
+              maxLength: 3,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              onChanged: (v) {
+                final n = int.tryParse(v);
+                setState(() =>
+                    _a.heightCm = (n != null && n >= 120 && n <= 220) ? n : null);
+              }),
           const QuestionLabel('Marital status'),
           OptionList(
               options: Choices.maritalStatus,
@@ -248,7 +276,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         title: 'Where life has placed you',
         children: [
           UnderlineField(
-              label: 'Country',
+              label: 'Where you currently live — country',
               controller: _country,
               onChanged: (v) => setState(() => _a.country = v)),
           const SizedBox(height: 20),
@@ -257,6 +285,16 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
               controller: _city,
               hint: 'e.g. Hyderabad',
               onChanged: (v) => setState(() => _a.city = v)),
+          const SizedBox(height: 20),
+          UnderlineField(
+              label: 'Where you are originally from — country',
+              controller: _countryOfOrigin,
+              onChanged: (v) => setState(() => _a.countryOfOrigin = v)),
+          const QuestionLabel('Your residency status where you live'),
+          OptionList(
+              options: Choices.residencyStatus,
+              selected: _a.residencyStatus,
+              onSelect: (v) => setState(() => _a.residencyStatus = v)),
           const QuestionLabel('Willing to relocate for the right match?'),
           OptionList(
               options: Choices.yesNo,
@@ -287,19 +325,60 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         eyebrow: 'Section C · Education & work',
         title: 'What you do',
         children: [
-          UnderlineField(
-              label: 'Education',
-              controller: _education,
-              hint: 'e.g. B.Tech, Computer Science',
-              onChanged: (v) => setState(() => _a.education = v)),
-          const SizedBox(height: 20),
-          UnderlineField(
-              label: 'Profession',
-              controller: _profession,
-              hint: 'e.g. Software engineer',
-              onChanged: (v) => setState(() => _a.profession = v)),
+          const QuestionLabel('Highest education'),
+          OptionList(
+              options: Choices.education,
+              selected: _a.education,
+              onSelect: (v) => setState(() => _a.education = v)),
+          const QuestionLabel('Profession'),
+          OptionList(
+              options: Choices.profession,
+              selected: _a.profession,
+              onSelect: (v) => setState(() => _a.profession = v)),
+          const QuestionLabel('Annual income band'),
+          Text(
+              'Private — never shown on your match card and never used to rank. '
+              'Shared only at the Family Stage.',
+              style: AppType.inter(12.5, color: DarkTokens.muted(), height: 1.5)),
+          const SizedBox(height: 6),
+          OptionList(
+              options: Choices.incomeBand,
+              selected: _a.incomeBand,
+              onSelect: (v) => setState(() => _a.incomeBand = v)),
         ],
         onNext: _a.sectionC3Complete ? _next : null,
+      );
+
+  // ---- C4. Family & background ----
+  Widget _sectionC4() => StepScaffold(
+        step: 6,
+        totalSteps: _totalSteps,
+        eyebrow: 'Section C · Family & background',
+        title: 'Your family context',
+        children: [
+          const QuestionLabel('Family type'),
+          OptionList(
+              options: Choices.familyType,
+              selected: _a.familyType,
+              onSelect: (v) => setState(() => _a.familyType = v)),
+          const QuestionLabel('How practising is your family?'),
+          OptionList(
+              options: Choices.familyReligiosity,
+              selected: _a.familyReligiosity,
+              onSelect: (v) => setState(() => _a.familyReligiosity = v)),
+          const QuestionLabel('Any health condition to disclose? (optional)'),
+          Text(
+              'Shared only once a conversation opens, never on your match card. '
+              'Honesty before nikah is an amanah.',
+              style: AppType.inter(12.5, color: DarkTokens.muted(), height: 1.5)),
+          const SizedBox(height: 8),
+          UnderlineField(
+              label: 'Health disclosure (optional)',
+              controller: _health,
+              hint: 'Leave blank if none',
+              onChanged: (v) => _a.healthDisclosure = v),
+        ],
+        onNext: _a.sectionC4Complete ? _next : null,
       );
 
   // ---- D1 / D2. Short answers ----
@@ -362,7 +441,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
       );
 
   Widget _sectionD1() => _shortAnswer(
-        step: 6,
+        step: 7,
         title: 'Why nikah, and why now?',
         prompt: 'A few sincere sentences. Minimum 100 characters.',
         ctrl: _whyNow,
@@ -372,7 +451,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
       );
 
   Widget _sectionD2() => _shortAnswer(
-        step: 7,
+        step: 8,
         title: 'Describe your relationship with your deen',
         prompt: 'Where you are, where you are striving to be. '
             'Minimum 100 characters.',
@@ -384,7 +463,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
 
   // ---- E. Creed & finance ----
   Widget _sectionE() => StepScaffold(
-        step: 8,
+        step: 9,
         totalSteps: _totalSteps,
         eyebrow: 'Section E · Creed & finance',
         title: 'Affirmations',
@@ -412,13 +491,64 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
               options: Choices.e3,
               selected: _a.e3RibaPractice,
               onSelect: (v) => setState(() => _a.e3RibaPractice = v)),
+          const QuestionLabel(
+              'Is your primary income from a source you consider halal?'),
+          OptionList(
+              options: Choices.e4,
+              selected: _a.e4IncomeSource,
+              onSelect: (v) => setState(() => _a.e4IncomeSource = v)),
         ],
         onNext: _a.sectionEComplete ? _next : null,
       );
 
+  // ---- F. Deen Detail (NON-GATING — matching signal only) ----
+  Widget _sectionF() => StepScaffold(
+        step: 10,
+        totalSteps: _totalSteps,
+        eyebrow: 'Section F · Deen detail',
+        title: 'A little more, so we match you well',
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: DarkTokens.gold.withOpacity(.08),
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              border: Border.all(color: DarkTokens.gold.withOpacity(.3)),
+            ),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(Icons.info_outline, size: 16, color: DarkTokens.gold),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                    'This helps us match you. None of it affects your '
+                    'application.',
+                    style: AppType.inter(13,
+                        color: DarkTokens.ivory, height: 1.5)),
+              ),
+            ]),
+          ),
+          const QuestionLabel('Your relationship with the Quran'),
+          OptionList(
+              options: Choices.quran,
+              selected: _a.quran,
+              onSelect: (v) => setState(() => _a.quran = v)),
+          const QuestionLabel('Islamic study'),
+          OptionList(
+              options: Choices.islamicStudy,
+              selected: _a.islamicStudy,
+              onSelect: (v) => setState(() => _a.islamicStudy = v)),
+          const QuestionLabel('Fasting beyond Ramadan'),
+          OptionList(
+              options: Choices.fasting,
+              selected: _a.fastingBeyondRamadan,
+              onSelect: (v) => setState(() => _a.fastingBeyondRamadan = v)),
+        ],
+        onNext: _a.sectionFComplete ? _next : null,
+      );
+
   // ---- Verification selfie (manual capture; liveness SDK later) ----
   Widget _selfieStep() => StepScaffold(
-        step: 9,
+        step: 11,
         totalSteps: _totalSteps,
         eyebrow: 'Verification',
         title: 'One honest photo',

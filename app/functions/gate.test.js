@@ -10,6 +10,7 @@ const GOOD_ANSWERS = {
   e1_tawhid: 'affirm',
   e2_riba: 'affirm',
   e3_ribaPractice: 'none',
+  e4_incomeSource: 'halal',
   shortAnswers: {
     whyNow: 'x'.repeat(160),
     deenRelationship: 'y'.repeat(160),
@@ -75,6 +76,16 @@ test('E1/E2 not_affirm and E3 continuing soft-reject', () => {
 test('E3 exiting still passes (honest-disclosure badge case)', () => {
   const v = evaluateGate({ ...GOOD_ANSWERS, e3_ribaPractice: 'exiting' }, ADULT, {}, SELFIE);
   assert.equal(v.result, 'auto_pass');
+});
+
+test('E4 "No" (not_halal income) auto-rejects', () => {
+  const v = evaluateGate({ ...GOOD_ANSWERS, e4_incomeSource: 'not_halal' }, ADULT, {}, SELFIE);
+  assert.equal(v.result, 'auto_reject');
+});
+
+test('E4 "Uncertain" income routes to manual review (same logic as prayer:most)', () => {
+  const v = evaluateGate({ ...GOOD_ANSWERS, e4_incomeSource: 'uncertain' }, ADULT, {}, SELFIE);
+  assert.equal(v.result, 'manual_review');
 });
 
 test('short answers below minimum escalate to a human, never auto-decide', () => {

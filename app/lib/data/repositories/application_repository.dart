@@ -117,15 +117,26 @@ class ApplicationRepository {
       'profile.maritalStatus': a.maritalStatus,
       'profile.hasChildren': a.hasChildren,
       'profile.revert': a.revert,
+      'profile.height': a.heightCm,
       'profile.country': a.country.trim(),
       'profile.city': a.city.trim(),
+      'profile.countryOfOrigin': a.countryOfOrigin.trim(),
+      'profile.residencyStatus': a.residencyStatus,
       'profile.willingToRelocate': a.willingToRelocate,
       'profile.languages': a.languagesList,
       if (a.ethnicity.trim().isNotEmpty) 'profile.ethnicity': a.ethnicity.trim(),
-      'profile.education': a.education.trim(),
-      'profile.profession': a.profession.trim(),
+      'profile.education': a.education,
+      'profile.profession': a.profession,
+      'profile.incomeBand': a.incomeBand,
+      'profile.familyType': a.familyType,
+      'profile.familyReligiosity': a.familyReligiosity,
+      if (a.healthDisclosure.trim().isNotEmpty)
+        'profile.healthDisclosure': a.healthDisclosure.trim(),
       if (a.sect.trim().isNotEmpty) 'profile.sect': a.sect.trim(),
       if (a.madhhab.trim().isNotEmpty) 'profile.madhhab': a.madhhab.trim(),
+      // Section F — non-gating matching signal; profile only, never the
+      // immutable application doc (PRD §4.1 acceptance criteria).
+      'profile.deenDetail': a.deenDetailMap,
       'lastActiveAt': FieldValue.serverTimestamp(),
     });
 

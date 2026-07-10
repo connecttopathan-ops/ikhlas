@@ -232,20 +232,36 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                       _Fact('City', profile['city']),
                       _Fact('Country', profile['country']),
                       _Fact('Relocate', profile['willingToRelocate']),
+                      _Fact('Height', profile['height'] == null
+                          ? null : '${profile['height']} cm'),
                       _Fact('Languages',
                           (profile['languages'] as List?)?.join(', ')),
                       _Fact('Ethnicity', profile['ethnicity']),
-                      _Fact('Education', profile['education']),
-                      _Fact('Profession', profile['profession']),
+                      _Fact('Origin', profile['countryOfOrigin']),
+                      _Fact('Residency', _lbl(profile['residencyStatus'])),
+                      _Fact('Education', _lbl(profile['education'])),
+                      _Fact('Profession', _lbl(profile['profession'])),
+                      _Fact('Income', _lbl(profile['incomeBand'])),
+                      _Fact('Family type', _lbl(profile['familyType'])),
+                      _Fact('Family deen', _lbl(profile['familyReligiosity'])),
+                      _Fact('Health', profile['healthDisclosure']),
                       _Fact('Sect', profile['sect']),
                       _Fact('Madhhab', profile['madhhab']),
-                      _Fact('Timeframe', _answers['timeframe']),
-                      _Fact('Prayer', _answers['prayer']),
-                      _Fact('Fin. ready', _answers['financiallyReady']),
-                      _Fact('Family aware', _answers['familyAware']),
-                      _Fact('E1 tawhid', _answers['e1_tawhid']),
-                      _Fact('E2 riba', _answers['e2_riba']),
-                      _Fact('E3 practice', _answers['e3_ribaPractice']),
+                      _Fact('Timeframe', _lbl(_answers['timeframe'])),
+                      _Fact('Prayer', _lbl(_answers['prayer'])),
+                      _Fact('Fin. ready', _lbl(_answers['financiallyReady'])),
+                      _Fact('Family aware', _lbl(_answers['familyAware'])),
+                      _Fact('E1 tawhid', _lbl(_answers['e1_tawhid'])),
+                      _Fact('E2 riba', _lbl(_answers['e2_riba'])),
+                      _Fact('E3 practice', _lbl(_answers['e3_ribaPractice'])),
+                      _Fact('E4 income', _lbl(_answers['e4_incomeSource'])),
+                      // Section F (non-gating matching signal, from profile).
+                      _Fact('Quran',
+                          _lbl((profile['deenDetail'] as Map?)?['quran'])),
+                      _Fact('Islamic study', _lbl(
+                          (profile['deenDetail'] as Map?)?['islamicStudy'])),
+                      _Fact('Fasting', _lbl(
+                          (profile['deenDetail'] as Map?)?['fastingBeyondRamadan'])),
                     ]),
                   ),
                 ],
@@ -413,6 +429,37 @@ class _LocationFact extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Enum-key → human label for the questionnaire/profile values. Only the
+/// multi-word keys need explicit entries; the rest fall back to a title-case
+/// of the key (so new enum values still render legibly, never as raw snake).
+const _adminLabels = {
+  'high_school': 'High school',
+  'islamic_studies': 'Islamic studies',
+  'engineering_it': 'Engineering / IT',
+  'under_3l': '< ₹3L', 'r3_6l': '₹3–6L', 'r6_12l': '₹6–12L',
+  'r12_24l': '₹12–24L', 'r24_50l': '₹24–50L', 'r50l_plus': '₹50L+',
+  'prefer_not': 'Prefer not to say',
+  'permanent_resident': 'Permanent resident', 'long_term_visa': 'Long-term visa',
+  'work_visa': 'Work visa', 'student_visa': 'Student visa',
+  'very_practising': 'Very practising', 'structured_self': 'Structured self-study',
+  'not_halal': 'Not halal', 'not_affirm': 'Do not affirm',
+  'five_daily': 'Five daily', 'never_married': 'Never married',
+  '6m': 'Within 6 months', '6_12m': '6–12 months', '12_24m': '12–24 months',
+  'exiting': 'Exiting debt', 'will_involve': 'Will involve',
+};
+
+String _pretty(String s) => s
+    .split('_')
+    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+    .join(' ');
+
+String? _lbl(dynamic v) {
+  if (v == null) return null;
+  final s = '$v';
+  if (s.isEmpty) return null;
+  return _adminLabels[s] ?? _pretty(s);
 }
 
 class _Fact extends StatelessWidget {
