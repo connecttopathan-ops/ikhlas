@@ -231,6 +231,35 @@ class Choices {
     Choice('uncertain', 'Uncertain'),
     Choice('not_halal', 'No'),
   ];
+  // ---- Profile builder preferences (PRD v1.2 §4.1) ----
+  // The member's OWN financial stance — scored as ALIGNMENT, never a floor.
+  static const financialExpectation = [
+    Choice('comfortable_provision', 'Comfortable provision'),
+    Choice('modest_is_fine', 'A modest life is enough'),
+    Choice('build_together', "We'll build together"),
+  ];
+  static const spouseWork = [
+    Choice('works', 'Works / will work'),
+    Choice('prefer_not', "I'd prefer they don't"),
+    Choice('no_preference', 'No preference'),
+  ];
+  // Deen preference — what you WANT, so matching can score the gap (P1).
+  static const deenPrefPrayer = [
+    Choice('five_daily', 'Prays five daily'),
+    Choice('most_ok', 'Five daily or most is fine'),
+    Choice('no_preference', 'No preference'),
+  ];
+  static const deenPrefHijabBeard = [
+    Choice('required', 'Required'),
+    Choice('preferred', 'Preferred'),
+    Choice('no_preference', 'No preference'),
+  ];
+  static const deenPrefRiba = [
+    Choice('debt_free', 'Free of interest-based debt'),
+    Choice('exiting_ok', 'Exiting legacy debt is fine'),
+    Choice('no_preference', 'No preference'),
+  ];
+
   // ---- Section F (non-gating) ----
   static const quran = [
     Choice('hafiz', 'Hafiz'),

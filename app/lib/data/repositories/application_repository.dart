@@ -176,6 +176,9 @@ class ApplicationRepository {
     required List<Map<String, String>> bioPrompts,
     required Map<String, dynamic> preferences,
     Map<String, dynamic>? wali,
+    // The member's OWN financial stance — lives on the profile and is
+    // scored as expectation ALIGNMENT by matching.js (never an income floor).
+    String? financialExpectation,
   }) async {
     await _db.collection('users').doc(_uid).update({
       'photos': [
@@ -184,6 +187,8 @@ class ApplicationRepository {
       ],
       'photoPrivacy': photoPrivacy,
       'profile.bioPrompts': bioPrompts,
+      if (financialExpectation != null)
+        'profile.financialExpectation': financialExpectation,
       'preferences': preferences,
       'wali': wali,
       'profileComplete': true,

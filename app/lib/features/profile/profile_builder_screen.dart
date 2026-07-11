@@ -48,6 +48,13 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   bool _acceptWidowed = true;
   bool _acceptChildren = true;
   bool _relocationRequired = false;
+  bool _openToSpouseAbroad = true; // diaspora open by default (PRD Q11)
+  String? _financialExpectation; // own stance → scored as alignment
+  String? _spouseWork;
+  String? _deenPrefPrayer;
+  String? _deenPrefHijabBeard;
+  String? _deenPrefRiba;
+  RangeValues? _heightRange; // nullable — off unless the user sets it
 
   // Step 5 — wali
   final _waliName = TextEditingController();
@@ -69,6 +76,32 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
       _waliRelationship == null;
 
   void _next() => setState(() => _step++);
+
+  /// preferences map — new deen/lifestyle preference fields are nullable and
+  /// only written when set (an unset preference must not become a filter).
+  Map<String, dynamic> _prefsMap() => {
+        'ageMin': _ageRange.start.round(),
+        'ageMax': _ageRange.end.round(),
+        'acceptDivorced': _acceptDivorced,
+        'acceptWidowed': _acceptWidowed,
+        'acceptChildren': _acceptChildren,
+        'relocationRequired': _relocationRequired,
+        'openToSpouseAbroad': _openToSpouseAbroad,
+        if (_spouseWork != null) 'spouseWorkExpectation': _spouseWork,
+        if (_heightRange != null)
+          'heightRange': {
+            'min': _heightRange!.start.round(),
+            'max': _heightRange!.end.round(),
+          },
+        if (_deenPrefPrayer != null ||
+            _deenPrefHijabBeard != null ||
+            _deenPrefRiba != null)
+          'deenPreference': {
+            if (_deenPrefPrayer != null) 'prayer': _deenPrefPrayer,
+            if (_deenPrefHijabBeard != null) 'hijabBeard': _deenPrefHijabBeard,
+            if (_deenPrefRiba != null) 'ribaStance': _deenPrefRiba,
+          },
+      };
 
   Future<void> _addPhotos() async {
     if (_photos.length >= 6) return;
@@ -101,14 +134,8 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
               'answer': _promptCtrls[i].text.trim(),
             },
         ],
-        preferences: {
-          'ageMin': _ageRange.start.round(),
-          'ageMax': _ageRange.end.round(),
-          'acceptDivorced': _acceptDivorced,
-          'acceptWidowed': _acceptWidowed,
-          'acceptChildren': _acceptChildren,
-          'relocationRequired': _relocationRequired,
-        },
+        preferences: _prefsMap(),
+        financialExpectation: _financialExpectation,
         wali: withWali && _waliValid
             ? {
                 'name': _waliName.text.trim(),
@@ -320,8 +347,76 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
               (v) => setState(() => _acceptChildren = v)),
           _toggle('They must be willing to relocate', _relocationRequired,
               (v) => setState(() => _relocationRequired = v)),
+          _toggle('Open to a spouse living in another country',
+              _openToSpouseAbroad,
+              (v) => setState(() => _openToSpouseAbroad = v)),
+
+          QuestionLabel(_heightRange == null
+              ? 'Preferred height range (optional)'
+              : 'Height range: ${_heightRange!.start.round()}–${_heightRange!.end.round()} cm'),
+          if (_heightRange == null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: QuietLink(
+                  linkText: 'Set a height range',
+                  onTap: () => setState(
+                      () => _heightRange = const RangeValues(155, 185))),
+            )
+          else
+            RangeSlider(
+              values: _heightRange!,
+              min: 140,
+              max: 210,
+              divisions: 70,
+              activeColor: DarkTokens.gold,
+              inactiveColor: DarkTokens.hairline(),
+              onChanged: (v) => setState(() => _heightRange = v),
+            ),
+
+          const SizedBox(height: 10),
+          const QuestionLabel('Your own view on provision'),
+          Text('Matched as alignment — never an income filter.',
+              style: AppType.inter(12, color: DarkTokens.muted())),
+          const SizedBox(height: 6),
+          OptionList(
+              options: Choices.financialExpectation,
+              selected: _financialExpectation,
+              onSelect: (v) => setState(() => _financialExpectation = v)),
+
+          const QuestionLabel('Would you like your spouse to work? (optional)'),
+          OptionList(
+              options: Choices.spouseWork,
+              selected: _spouseWork,
+              onSelect: (v) => setState(() => _spouseWork = v)),
+
+          const QuestionLabel('Deen preferences (optional)'),
+          Text('What you\'re looking for — helps us match, never a hard gate.',
+              style: AppType.inter(12, color: DarkTokens.muted())),
+          const SizedBox(height: 10),
+          _prefLabel('Prayer'),
+          OptionList(
+              options: Choices.deenPrefPrayer,
+              selected: _deenPrefPrayer,
+              onSelect: (v) => setState(() => _deenPrefPrayer = v)),
+          _prefLabel('Hijab / beard'),
+          OptionList(
+              options: Choices.deenPrefHijabBeard,
+              selected: _deenPrefHijabBeard,
+              onSelect: (v) => setState(() => _deenPrefHijabBeard = v)),
+          _prefLabel('Interest-based debt'),
+          OptionList(
+              options: Choices.deenPrefRiba,
+              selected: _deenPrefRiba,
+              onSelect: (v) => setState(() => _deenPrefRiba = v)),
         ],
         onNext: _next,
+      );
+
+  Widget _prefLabel(String s) => Padding(
+        padding: const EdgeInsets.only(top: 14, bottom: 2),
+        child: Text(s,
+            style: AppType.inter(13,
+                weight: FontWeight.w500, color: DarkTokens.muted(.85))),
       );
 
   Widget _toggle(String label, bool value, ValueChanged<bool> onChanged) =>
