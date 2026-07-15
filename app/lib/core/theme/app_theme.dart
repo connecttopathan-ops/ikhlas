@@ -13,7 +13,10 @@ class DarkTokens {
   // shared widgets read LightTokens directly (themeMode is light).
   static const bg = Color(0xFFEFF0E5); // sage-tinted ivory ground
   static const ivory = Color(0xFF17251B); // deep green ink (primary text)
-  static Color muted([double o = .58]) => ivory.withOpacity(o);
+  // Secondary text. Floored at .6 so muted copy on the sage ground stays
+  // legible (~4:1) — the faint .4/.5 call-sites were below WCAG AA, which
+  // matters here because Walis skew older. Push toward .7 for full AA.
+  static Color muted([double o = .62]) => ivory.withOpacity(o < .6 ? .6 : o);
   static const gold = Color(0xFFA8842B); // darkened gold for contrast on light
   static Color hairline([double o = .28]) =>
       const Color(0xFF947420).withOpacity(o);
@@ -25,7 +28,7 @@ class DarkTokens {
 class LightTokens {
   static const bg = Color(0xFFEFF0E5); // sage-tinted ivory
   static const ink = Color(0xFF17251B);
-  static Color muted([double o = .55]) => ink.withOpacity(o);
+  static Color muted([double o = .62]) => ink.withOpacity(o < .6 ? .6 : o);
   static const goldArabic = Color(0xFFA8842B); // darkened for contrast
   static Color hairline = const Color(0xFF947420).withOpacity(.55);
   static const link = Color(0xFF8F711F);

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -7,12 +8,18 @@ import '../../core/theme/widgets.dart';
 /// blur + watermark). Originals are never fetched directly; if the
 /// server denies (no relationship, or a privacy mode that hides), we
 /// fall back to the girih silhouette — never a broken image.
+///
+/// Disk-cached (cached_network_image): the `photo` function does per-request
+/// blur/watermark, so repeat views across the batch, detail and chat must not
+/// re-invoke it. The cache key is stable (owner+index); pass [cacheBust] to
+/// force a fresh fetch after a privacy reveal changes what the server serves.
 class MemberPhoto extends StatefulWidget {
   final String ownerUid;
   final int index;
   final double width;
   final double height;
   final double radius;
+  final String? cacheBust;
   const MemberPhoto({
     super.key,
     required this.ownerUid,
@@ -20,6 +27,7 @@ class MemberPhoto extends StatefulWidget {
     required this.width,
     required this.height,
     this.radius = 10,
+    this.cacheBust,
   });
 
   // The deployed HTTPS function (asia-south1).
@@ -56,15 +64,19 @@ class _MemberPhotoState extends State<MemberPhoto> {
           if (!snap.hasData || snap.data == null) return _silhouette();
           final url =
               '${MemberPhoto._base}?owner=${widget.ownerUid}&idx=${widget.index}';
-          return Image.network(
-            url,
+          return CachedNetworkImage(
+            imageUrl: url,
+            cacheKey:
+                '${widget.ownerUid}_${widget.index}${widget.cacheBust ?? ''}',
             width: widget.width,
             height: widget.height,
             fit: BoxFit.cover,
-            headers: {'Authorization': 'Bearer ${snap.data}'},
-            errorBuilder: (_, __, ___) => _silhouette(),
-            loadingBuilder: (context, child, progress) =>
-                progress == null ? child : _silhouette(),
+            httpHeaders: {'Authorization': 'Bearer ${snap.data}'},
+            // The silhouette is the placeholder AND the error state — never a
+            // spinner flash, never a broken image.
+            placeholder: (_, __) => _silhouette(),
+            errorWidget: (_, __, ___) => _silhouette(),
+            fadeInDuration: const Duration(milliseconds: 180),
           );
         },
       ),

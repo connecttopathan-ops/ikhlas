@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'app_theme.dart';
 
 /// ============================================================
@@ -37,7 +38,12 @@ class PrimaryCta extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.control),
           child: InkWell(
             borderRadius: BorderRadius.circular(AppRadius.control),
-            onTap: enabled ? onPressed : null,
+            onTap: enabled
+                ? () {
+                    HapticFeedback.selectionClick();
+                    onPressed!();
+                  }
+                : null,
             child: Container(
               alignment: Alignment.center,
               decoration: BoxDecoration(
@@ -270,16 +276,27 @@ class _NoisePainter extends CustomPainter {
   final double opacity;
   _NoisePainter(this.opacity);
 
+  // The grain is deterministic (fixed seed) and size-dependent, so memoise it
+  // per screen size — every navigation reuses the same point batch instead of
+  // regenerating ~hundreds of offsets on each mount.
+  static final Map<int, List<Offset>> _cache = {};
+  static List<Offset> _pointsFor(Size size) {
+    final key = size.width.round() * 100000 + size.height.round();
+    return _cache.putIfAbsent(key, () {
+      final rnd = math.Random(7); // fixed seed → stable grain
+      // ~1 grain per 900px² with the 3.2% alpha folded into the colour, so the
+      // whole overlay is one cheap drawPoints batch (no saveLayer).
+      final count = (size.width * size.height / 900).round();
+      return List<Offset>.generate(
+          count,
+          (_) => Offset(
+              rnd.nextDouble() * size.width, rnd.nextDouble() * size.height));
+    });
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
-    final rnd = math.Random(7); // fixed seed → stable grain
-    // ~1 grain per 900px² (was ~1 per 55px² = ~15× fewer points) with the
-    // 3.2% alpha folded in, so the whole overlay is one cheap point batch.
-    final count = (size.width * size.height / 900).round();
-    final points = List<Offset>.generate(
-        count,
-        (_) => Offset(
-            rnd.nextDouble() * size.width, rnd.nextDouble() * size.height));
+    final points = _pointsFor(size);
     final paint = Paint()
       // Ink grain reads on the light sage ground (white would vanish).
       ..color = const Color(0xFF17251B).withValues(alpha: opacity)

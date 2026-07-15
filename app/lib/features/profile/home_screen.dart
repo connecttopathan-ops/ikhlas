@@ -35,7 +35,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
-              Text('Ikhlaas', style: AppType.fraunces(24, color: DarkTokens.gold)),
+              Image.asset('assets/brand/wordmark.png',
+                  height: 26, filterQuality: FilterQuality.medium),
               const Spacer(),
               IconButton(
                 onPressed: () => context.go('/conversations'),

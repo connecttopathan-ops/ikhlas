@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -31,19 +32,29 @@ class _MatchBatchState extends ConsumerState<MatchBatch> {
 
   Future<void> _requestBatch() async {
     setState(() => _requesting = true);
+    await _generate(surfaceError: true);
+    if (mounted) setState(() => _requesting = false);
+  }
+
+  /// Pull-to-refresh: ask the server to (re)generate today's batch. The
+  /// snapshots() stream then updates on its own when entries are written.
+  Future<void> _onRefresh() async {
+    await HapticFeedback.selectionClick();
+    await _generate(surfaceError: false);
+  }
+
+  Future<void> _generate({required bool surfaceError}) async {
     try {
       await FirebaseFunctions.instanceFor(region: 'asia-south1')
           .httpsCallable('generateMyBatch')
           .call();
-    } catch (e) {
-      // An empty pool returns cleanly; a real failure surfaces to the user.
-      if (mounted) {
+    } catch (_) {
+      // An empty pool returns cleanly; a real failure surfaces on demand only.
+      if (surfaceError && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text('Could not check for matches. Please try again.',
                 style: AppType.inter(13))));
       }
-    } finally {
-      if (mounted) setState(() => _requesting = false);
     }
   }
 
@@ -68,16 +79,22 @@ class _MatchBatchState extends ConsumerState<MatchBatch> {
             return (b.data()['score'] as num? ?? 0)
                 .compareTo(a.data()['score'] as num? ?? 0);
           });
-        return ListView(
-          padding: const EdgeInsets.only(bottom: 24),
-          children: [
-            Text("TODAY'S MATCHES", style: AppType.eyebrow(DarkTokens.gold)),
-            const SizedBox(height: 6),
-            Text('Quality over quantity — ${docs.length} today.',
-                style: AppType.inter(12.5, color: DarkTokens.muted())),
-            const SizedBox(height: 16),
-            for (final d in docs) _MatchCard(doc: d),
-          ],
+        return RefreshIndicator(
+          onRefresh: _onRefresh,
+          color: DarkTokens.gold,
+          backgroundColor: DarkTokens.bg,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 24),
+            children: [
+              Text("TODAY'S MATCHES", style: AppType.eyebrow(DarkTokens.gold)),
+              const SizedBox(height: 6),
+              Text('Quality over quantity — ${docs.length} today.',
+                  style: AppType.inter(12.5, color: DarkTokens.muted())),
+              const SizedBox(height: 16),
+              for (final d in docs) _MatchCard(doc: d),
+            ],
+          ),
         );
       },
     );
@@ -100,24 +117,40 @@ class _MatchBatchState extends ConsumerState<MatchBatch> {
         ]),
       );
 
-  Widget _resting() => Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const GirihMark(size: 72, opacity: .7),
-          const SizedBox(height: 24),
-          Text('No matches yet today',
-              style: AppType.fraunces(22, color: DarkTokens.ivory)),
-          const SizedBox(height: 8),
-          Text(
-            'Your batch arrives after Fajr. Quality over quantity — '
-            'we never pad the list.',
-            textAlign: TextAlign.center,
-            style: AppType.inter(13, color: DarkTokens.muted(), height: 1.6),
+  Widget _resting() => RefreshIndicator(
+        onRefresh: _onRefresh,
+        color: DarkTokens.gold,
+        backgroundColor: DarkTokens.bg,
+        child: LayoutBuilder(
+          builder: (context, c) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              SizedBox(
+                height: c.maxHeight,
+                child: Center(
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const GirihMark(size: 72, opacity: .7),
+                    const SizedBox(height: 24),
+                    Text('No matches yet today',
+                        style: AppType.fraunces(22, color: DarkTokens.ivory)),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Your batch arrives after Fajr. Quality over quantity — '
+                      'we never pad the list.',
+                      textAlign: TextAlign.center,
+                      style:
+                          AppType.inter(13, color: DarkTokens.muted(), height: 1.6),
+                    ),
+                    const SizedBox(height: 18),
+                    QuietLink(
+                        linkText: _requesting ? 'Checking…' : 'Check for matches',
+                        onTap: _requesting ? null : _requestBatch),
+                  ]),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 18),
-          QuietLink(
-              linkText: _requesting ? 'Checking…' : 'Check for matches',
-              onTap: _requesting ? null : _requestBatch),
-        ]),
+        ),
       );
 }
 
@@ -132,6 +165,7 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
   bool _busy = false;
 
   Future<void> _act(String action) async {
+    HapticFeedback.lightImpact();
     setState(() => _busy = true);
     try {
       await ref

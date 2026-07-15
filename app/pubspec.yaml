@@ -43,6 +43,11 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
+  # Member photos are served through an auth'd Cloud Function (blur + watermark
+  # per request — the most expensive backend call). Disk-cache them so repeat
+  # views across the batch/detail/chat don't re-invoke it.
+  cached_network_image: ^3.3.1
+
 dev_dependencies:
   flutter_launcher_icons: ^0.14.1
   flutter_lints: ^4.0.0
@@ -60,6 +65,8 @@ flutter_launcher_icons:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/brand/
   # Fonts bundled locally (no runtime fetch → sharp on first frame, offline,
   # no dependency on Google's servers). Fraunces = display serif,
   # Inter = UI, Amiri = Arabic reverence-critical text.

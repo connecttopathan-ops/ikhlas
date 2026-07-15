@@ -1,5 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
@@ -45,6 +46,7 @@ class _SelfieCaptureScreenState extends State<SelfieCaptureScreen> {
   Future<void> _capture() async {
     final c = _controller;
     if (c == null || _capturing) return;
+    HapticFeedback.mediumImpact();
     setState(() => _capturing = true);
     try {
       final file = await c.takePicture();
