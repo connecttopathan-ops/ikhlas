@@ -238,7 +238,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         return IkhlasScaffold(
           safeArea: true,
           child: Column(children: [
-            _header(context, stage, closed, other, otherProfile),
+            _header(context, stage, closed, other, otherProfile,
+                photoRevealed: photoReveal[other] == true),
             if (waliVisible) _waliBadge(),
             if (needsAdab)
               Expanded(child: _AdabGate(convId: widget.convId))
@@ -271,15 +272,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     'closed_blocked': 'Blocked',
   };
 
-  void _openProfile(String other, Map<String, dynamic>? profile) {
+  void _openProfile(String other, Map<String, dynamic>? profile,
+      {bool photoRevealed = false}) {
     if (profile == null) return;
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => ChatProfileScreen(ownerUid: other, profile: profile),
+      builder: (_) => ChatProfileScreen(
+          ownerUid: other, profile: profile, photoRevealed: photoRevealed),
     ));
   }
 
   Widget _header(BuildContext context, String stage, bool closed, String other,
-          Map<String, dynamic>? otherProfile) =>
+          Map<String, dynamic>? otherProfile,
+          {bool photoRevealed = false}) =>
       Padding(
         padding: const EdgeInsets.fromLTRB(8, 8, 4, 4),
         child: Row(children: [
@@ -292,7 +296,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               behavior: HitTestBehavior.opaque,
               onTap: otherProfile == null
                   ? null
-                  : () => _openProfile(other, otherProfile),
+                  : () => _openProfile(other, otherProfile,
+                      photoRevealed: photoRevealed),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,

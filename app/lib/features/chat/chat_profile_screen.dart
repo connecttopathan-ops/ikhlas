@@ -12,8 +12,16 @@ import '../matches/member_photo.dart';
 class ChatProfileScreen extends StatelessWidget {
   final String ownerUid;
   final Map<String, dynamic> profile;
+
+  /// Whether this person has revealed their (on_mutual_hidden) photos to me.
+  /// Feeds the photo cache key so a granted reveal refetches instantly instead
+  /// of serving the batch's stale blurred bytes.
+  final bool photoRevealed;
   const ChatProfileScreen(
-      {super.key, required this.ownerUid, required this.profile});
+      {super.key,
+      required this.ownerUid,
+      required this.profile,
+      this.photoRevealed = false});
 
   static const _prayerLabel = {
     'five_daily': 'Prays five daily',
@@ -69,7 +77,10 @@ class ChatProfileScreen extends StatelessWidget {
                     child: hasPhotos
                         ? MemberPhoto(
                             ownerUid: ownerUid,
-                            width: 240, height: 300, radius: 14)
+                            width: 240, height: 300, radius: 14,
+                            // In chat we're matched, so photos are clear (or
+                            // revealed). Bust past the batch's blurred cache.
+                            cacheBust: photoRevealed ? 'chatR' : 'chat')
                         : const SizedBox(
                             width: 240, height: 300,
                             child: Center(
