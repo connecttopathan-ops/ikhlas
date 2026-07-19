@@ -30,8 +30,8 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   // Step 1 — photos
   final List<XFile> _photos = [];
 
-  // Step 2 — privacy (PRD: default blur_until_match)
-  String _privacy = 'blur_until_match';
+  // Step 2 — photo visibility (PRD §4.2: default on_mutual_blur)
+  String _privacy = 'on_mutual_blur';
 
   // Step 3 — guided bio prompts
   static const _prompts = [
@@ -54,6 +54,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   String? _deenPrefPrayer;
   String? _deenPrefHijabBeard;
   String? _deenPrefRiba;
+  String? _dietPreference; // nullable — scored as alignment, never a filter
   RangeValues? _heightRange; // nullable — off unless the user sets it
 
   // Step 5 — wali
@@ -87,6 +88,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
         'acceptChildren': _acceptChildren,
         'relocationRequired': _relocationRequired,
         'openToSpouseAbroad': _openToSpouseAbroad,
+        if (_dietPreference != null) 'dietPreference': _dietPreference,
         if (_spouseWork != null) 'spouseWorkExpectation': _spouseWork,
         if (_heightRange != null)
           'heightRange': {
@@ -126,7 +128,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
       }
       await repo.saveProfileBuilder(
         photoPaths: paths,
-        photoPrivacy: _privacy,
+        photoVisibility: _privacy,
         bioPrompts: [
           for (var i = 0; i < _prompts.length; i++)
             {
@@ -264,17 +266,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
             'buried in settings.',
         children: [
           OptionList(
-            options: const [
-              Choice('blur_until_match', 'Blurred until we match',
-                  note: 'Matches see a soft silhouette; photos reveal on '
-                      'mutual interest. The Ikhlaas default.'),
-              Choice('visible', 'Visible to my daily matches',
-                  note: 'Only people in your curated batch — never a public '
-                      'gallery.'),
-              Choice('request_only', 'Private — I approve every reveal',
-                  note: 'Hidden even after matching until you grant it, '
-                      'revocable anytime.'),
-            ],
+            options: Choices.photoVisibility,
             selected: _privacy,
             onSelect: (v) => setState(() => _privacy = v),
           ),
@@ -382,6 +374,12 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
               options: Choices.financialExpectation,
               selected: _financialExpectation,
               onSelect: (v) => setState(() => _financialExpectation = v)),
+
+          const QuestionLabel('Preferred halal diet (optional)'),
+          OptionList(
+              options: Choices.dietPreference,
+              selected: _dietPreference,
+              onSelect: (v) => setState(() => _dietPreference = v)),
 
           const QuestionLabel('Would you like your spouse to work? (optional)'),
           OptionList(

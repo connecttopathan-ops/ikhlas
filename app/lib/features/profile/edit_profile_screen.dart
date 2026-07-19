@@ -43,7 +43,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   bool _saving = false;
 
   final List<_Photo> _photos = [];
-  String _privacy = 'blur_until_match';
+  String _privacy = 'on_mutual_blur';
 
   static const _prompts = [
     ('first_year', 'My ideal first year of marriage looks like…'),
@@ -64,6 +64,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String? _deenPrefPrayer;
   String? _deenPrefHijabBeard;
   String? _deenPrefRiba;
+  String? _dietPreference;
   RangeValues? _heightRange;
 
   final _waliName = TextEditingController();
@@ -91,7 +92,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       final p = photos[i] as Map?;
       _photos.add(_Photo.existing(p?['storagePath'] as String?, i));
     }
-    _privacy = d['photoPrivacy'] as String? ?? 'blur_until_match';
+    // photoVisibility, migrating the legacy photoPrivacy field.
+    const visMap = {
+      'visible': 'public',
+      'blur_until_match': 'on_mutual_blur',
+      'request_only': 'on_mutual_hidden',
+    };
+    _privacy = (d['profile'] as Map?)?['photoVisibility'] as String? ??
+        visMap[d['photoPrivacy']] ??
+        'on_mutual_blur';
 
     final bio = ((d['profile'] as Map?)?['bioPrompts'] as List?) ?? [];
     for (var i = 0; i < _prompts.length; i++) {
@@ -113,6 +122,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _relocationRequired = prefs['relocationRequired'] as bool? ?? false;
     _openToSpouseAbroad = prefs['openToSpouseAbroad'] as bool? ?? true;
     _spouseWork = prefs['spouseWorkExpectation'] as String?;
+    _dietPreference = prefs['dietPreference'] as String?;
     _financialExpectation =
         (d['profile'] as Map?)?['financialExpectation'] as String?;
     final dp = prefs['deenPreference'] as Map?;
@@ -193,7 +203,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       }
       await repo.saveProfileBuilder(
         photoPaths: paths,
-        photoPrivacy: _privacy,
+        photoVisibility: _privacy,
         bioPrompts: [
           for (var i = 0; i < _prompts.length; i++)
             {'promptId': _prompts[i].$1, 'answer': _promptCtrls[i].text.trim()},
@@ -206,6 +216,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           'acceptChildren': _acceptChildren,
           'relocationRequired': _relocationRequired,
           'openToSpouseAbroad': _openToSpouseAbroad,
+          if (_dietPreference != null) 'dietPreference': _dietPreference,
           if (_spouseWork != null) 'spouseWorkExpectation': _spouseWork,
           if (_heightRange != null)
             'heightRange': {
@@ -285,18 +296,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               _photoGrid(me),
 
               const SizedBox(height: 28),
-              _section('Photo privacy'),
+              _section('Photo visibility'),
               OptionList(
-                options: const [
-                  Choice('blur_until_match', 'Blurred until we match',
-                      note: 'Matches see a soft silhouette; photos reveal on '
-                          'mutual interest. The Ikhlaas default.'),
-                  Choice('visible', 'Visible to my daily matches',
-                      note: 'Only people in your curated batch.'),
-                  Choice('request_only', 'Private — I approve every reveal',
-                      note: 'Hidden even after matching until you grant it, '
-                          'revocable anytime.'),
-                ],
+                options: Choices.photoVisibility,
                 selected: _privacy,
                 onSelect: (v) => setState(() => _privacy = v),
               ),
@@ -394,6 +396,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   options: Choices.financialExpectation,
                   selected: _financialExpectation,
                   onSelect: (v) => setState(() => _financialExpectation = v)),
+
+              const QuestionLabel('Preferred halal diet (optional)'),
+              OptionList(
+                  options: Choices.dietPreference,
+                  selected: _dietPreference,
+                  onSelect: (v) => setState(() => _dietPreference = v)),
 
               const QuestionLabel(
                   'Would you like your spouse to work? (optional)'),

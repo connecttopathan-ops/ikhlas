@@ -37,6 +37,7 @@ class QuestionnaireAnswers {
   String? incomeBand; // COLLECTED, never shown, never scored (PRD §0)
   String? familyType; // joint | nuclear
   String? familyReligiosity; // very_practising | practising | moderate | cultural
+  String? dietPractice; // zabiha_only | halal_only | halal_when_available | no_restriction
   String healthDisclosure = ''; // optional; revealed at conversation stage
 
   // ---- D. Short answers ----
@@ -76,7 +77,9 @@ class QuestionnaireAnswers {
   bool get sectionC3Complete =>
       education != null && profession != null && incomeBand != null;
   bool get sectionC4Complete =>
-      familyType != null && familyReligiosity != null; // health optional
+      familyType != null &&
+      familyReligiosity != null &&
+      dietPractice != null; // health optional
   bool get sectionD1Complete => whyNow.trim().length >= shortAnswerMin;
   bool get sectionD2Complete => deenRelationship.trim().length >= shortAnswerMin;
   bool get sectionEComplete =>
@@ -213,6 +216,32 @@ class Choices {
     Choice('practising', 'Practising'),
     Choice('moderate', 'Moderate'),
     Choice('cultural', 'Cultural / nominal'),
+  ];
+  // Halal diet practice (PRD Section C) — profile.dietPractice.
+  static const diet = [
+    Choice('zabiha_only', 'Zabiha meat only'),
+    Choice('halal_only', 'Halal only'),
+    Choice('halal_when_available', 'Halal when available'),
+    Choice('no_restriction', 'No restriction'),
+  ];
+  // Diet preference — scored as alignment, never a hard filter (§0).
+  static const dietPreference = [
+    Choice('zabiha_only', 'Zabiha meat only'),
+    Choice('halal_only', 'Halal only'),
+    Choice('halal_when_available', 'Halal when available'),
+    Choice('no_restriction', 'No restriction'),
+    Choice('no_preference', 'No preference'),
+  ];
+  // Photo visibility (member-facing) — profile.photoVisibility.
+  static const photoVisibility = [
+    Choice('public', 'Visible to my daily matches',
+        note: 'Shown on your match card. Never a public gallery.'),
+    Choice('on_mutual_blur', 'Blurred until we match',
+        note: 'A soft blur on the card; revealed to you both together '
+            'on mutual interest. The Ikhlaas default.'),
+    Choice('on_mutual_hidden', 'Hidden — revealed by request',
+        note: 'Hidden even after matching until you approve a request '
+            'from your match.'),
   ];
   static const e1 = [
     Choice('affirm', 'I affirm'),

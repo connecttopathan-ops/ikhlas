@@ -80,9 +80,9 @@ class ChatProfileScreen extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                        e['photoPrivacy'] == 'blur_until_match'
+                        e['photoVisibility'] == 'on_mutual_blur'
                             ? 'Photos reveal now that you have matched.'
-                            : e['photoPrivacy'] == 'request_only'
+                            : e['photoVisibility'] == 'on_mutual_hidden'
                                 ? 'Private photos — revealed by request.'
                                 : '',
                         textAlign: TextAlign.center,

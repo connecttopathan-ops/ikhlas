@@ -255,6 +255,73 @@ class GirihMark extends StatelessWidget {
 }
 
 /// ============================================================
+/// Curves-only marks — used ONLY on the match-view profile card, where the
+/// brand rule forbids squares / rotated squares (PRD §4.2). The rest of the
+/// app keeps GirihMark / DiamondBullet unchanged.
+/// ============================================================
+
+/// The dotless-ı monogram with a CURVED lozenge (an ellipse) as the tittle —
+/// no rotated square. The empty-photo motif on the match card.
+class LozengeMark extends StatelessWidget {
+  final double size;
+  final double opacity;
+  const LozengeMark({super.key, required this.size, this.opacity = 1});
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final c = isDark ? _LogoColors.dark : _LogoColors.light;
+    return Opacity(
+      opacity: opacity,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Stack(alignment: Alignment.center, children: [
+          Text('ı',
+              style: TextStyle(
+                  fontFamily: 'Fraunces',
+                  fontSize: size * 0.86,
+                  height: 1,
+                  color: c.word.withOpacity(isDark ? 1 : .9),
+                  fontWeight: FontWeight.w400)),
+          Positioned(
+            top: size * 0.11,
+            // Curved lozenge (vertical ellipse) — the tittle, no corners.
+            child: Container(
+              width: size * 0.15,
+              height: size * 0.2,
+              decoration: BoxDecoration(
+                color: c.lozenge,
+                borderRadius: BorderRadius.all(
+                    Radius.elliptical(size * 0.075, size * 0.1)),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// A small curved bullet (circle) — the card's replacement for DiamondBullet.
+class RoundBullet extends StatelessWidget {
+  final Color? color;
+  final double size;
+  const RoundBullet({super.key, this.color, this.size = 6});
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color ?? (isDark ? DarkTokens.gold : LightTokens.greenAccent),
+      ),
+    );
+  }
+}
+
+/// ============================================================
 /// Noise overlay ~3–3.5% grain (approximates the spec's fractal-noise SVG).
 /// Rendered as a single drawPoints batch, alpha folded into the point
 /// colour (so no full-screen Opacity saveLayer), and cached by a

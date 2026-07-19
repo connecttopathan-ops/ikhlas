@@ -130,6 +130,7 @@ class ApplicationRepository {
       'profile.incomeBand': a.incomeBand,
       'profile.familyType': a.familyType,
       'profile.familyReligiosity': a.familyReligiosity,
+      'profile.dietPractice': a.dietPractice,
       if (a.healthDisclosure.trim().isNotEmpty)
         'profile.healthDisclosure': a.healthDisclosure.trim(),
       if (a.sect.trim().isNotEmpty) 'profile.sect': a.sect.trim(),
@@ -168,11 +169,11 @@ class ApplicationRepository {
     return path;
   }
 
-  /// Saves the completed profile builder in one write. photoPrivacy
-  /// defaults to blur_until_match upstream (PRD §4.3 — privacy default).
+  /// Saves the completed profile builder in one write. photoVisibility
+  /// defaults to on_mutual_blur (PRD §4.2 — the privacy default).
   Future<void> saveProfileBuilder({
     required List<String> photoPaths,
-    required String photoPrivacy,
+    required String photoVisibility,
     required List<Map<String, String>> bioPrompts,
     required Map<String, dynamic> preferences,
     Map<String, dynamic>? wali,
@@ -185,7 +186,7 @@ class ApplicationRepository {
         for (var i = 0; i < photoPaths.length; i++)
           {'storagePath': photoPaths[i], 'order': i},
       ],
-      'photoPrivacy': photoPrivacy,
+      'profile.photoVisibility': photoVisibility,
       'profile.bioPrompts': bioPrompts,
       if (financialExpectation != null)
         'profile.financialExpectation': financialExpectation,

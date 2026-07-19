@@ -453,9 +453,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     required Map photoReveal,
     required Map photoRevealRequests,
   }) {
+    // Only 'on_mutual_hidden' photos involve a request; 'public' and
+    // 'on_mutual_blur' auto-reveal symmetrically on the match (no button).
     // 1. They asked to see MY photos and I haven't revealed yet → grant.
-    final iAmRequestOnly = myProfile?['photoPrivacy'] == 'request_only';
-    if (iAmRequestOnly &&
+    final iAmHidden = myProfile?['photoVisibility'] == 'on_mutual_hidden';
+    if (iAmHidden &&
         myProfile?['hasPhotos'] == true &&
         photoRevealRequests[other] == true &&
         photoReveal[me] != true) {
@@ -467,9 +469,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             errorMsg: 'Could not reveal. Please try again.'),
       );
     }
-    // 2. Their photos are request_only and not yet revealed → ask / waiting.
-    final theyRequestOnly = otherProfile?['photoPrivacy'] == 'request_only';
-    if (theyRequestOnly &&
+    // 2. Their photos are hidden and not yet revealed → ask / waiting.
+    final theyHidden = otherProfile?['photoVisibility'] == 'on_mutual_hidden';
+    if (theyHidden &&
         otherProfile?['hasPhotos'] == true &&
         photoReveal[other] != true) {
       if (photoRevealRequests[me] == true) {

@@ -53,14 +53,21 @@ function decideVisibility({ privacy, matched, revealGranted, inViewerBatch }) {
   if (!matched && !inViewerBatch) return { allowed: false, blur: false };
 
   switch (privacy) {
+    case 'public': // (legacy: 'visible')
     case 'visible':
       return { allowed: true, blur: false };
+    case 'on_mutual_hidden': // (legacy: 'request_only')
     case 'request_only':
-      // Hidden until the owner grants a per-conversation reveal.
-      return { allowed: true, blur: !(matched && revealGranted) };
+      // Hidden even after matching until the owner approves a reveal request.
+      // Pre-match (batch only) it is never shown.
+      if (!matched) return { allowed: false, blur: false };
+      return revealGranted
+        ? { allowed: true, blur: false }
+        : { allowed: false, blur: false };
+    case 'on_mutual_blur': // (legacy: 'blur_until_match')
     case 'blur_until_match':
     default:
-      // Auto-reveals on a mutual match; blurred to a same-day batch.
+      // Symmetric auto-reveal on a mutual match; blurred to a same-day batch.
       return { allowed: true, blur: !matched };
   }
 }

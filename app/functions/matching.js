@@ -152,6 +152,19 @@ function scorePair(a, b, now = new Date()) {
     if (fa === 'modest_is_fine') why.push('Both content with a modest life');
   }
 
+  // --- Halal diet ALIGNMENT (never a hard filter; §0) ---
+  const dia = a.profile?.dietPractice;
+  const dib = b.profile?.dietPractice;
+  if (dia && dib && dia === dib) {
+    score += 6;
+    if (dia === 'zabiha_only') why.push('You both keep zabiha only');
+  } else if (
+    (dia === 'zabiha_only' && dib === 'halal_only') ||
+    (dia === 'halal_only' && dib === 'zabiha_only')
+  ) {
+    score += 3;
+  }
+
   // --- Shared language ---
   const la = new Set(a.profile?.languages || []);
   const shared = (b.profile?.languages || []).filter((l) => la.has(l));

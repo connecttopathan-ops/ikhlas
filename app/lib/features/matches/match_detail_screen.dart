@@ -6,9 +6,10 @@ import '../../core/theme/widgets.dart';
 import '../../providers/application_provider.dart';
 import 'member_photo.dart';
 
-/// Full profile for one daily-batch match. Opened by tapping a card —
-/// deen-first, showing every photo the member's privacy allows, all three
-/// bio prompts, and the basics. Express interest / Pass live here too.
+/// Full profile for one daily-batch match. Deen-first (PRD §4.2): the DEEN
+/// block sits above BASICS, the photo layer honours photoVisibility, and the
+/// card is curves-only — no squares or rotated squares anywhere in this tree.
+/// Income, residency and health are never shown here (Family Stage only, §0).
 class MatchDetailScreen extends ConsumerStatefulWidget {
   final String entryId; // the other member's uid
   final Map<String, dynamic> entry;
@@ -21,9 +22,38 @@ class MatchDetailScreen extends ConsumerStatefulWidget {
 class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
   bool _busy = false;
 
-  static const _prayerLabel = {
+  static const _prayerEyebrow = {
     'five_daily': 'Prays five daily',
     'most': 'Prays most salah',
+  };
+  static const _prayerLabel = {
+    'five_daily': 'Five daily, consistently',
+    'most': 'Most prayers',
+    'working': 'Working on it',
+    'rarely': 'Rarely',
+  };
+  static const _quranLabel = {
+    'hafiz': 'Hafiz',
+    'regular': 'Reads regularly',
+    'learning': 'Learning to read',
+    'seeking': 'Seeking to start',
+  };
+  static const _islamicStudyLabel = {
+    'formal': 'Formal (madrasa / ʿalim)',
+    'structured_self': 'Structured self-study',
+    'casual': 'Casual',
+    'none': 'None yet',
+  };
+  static const _fastingLabel = {
+    'regularly': 'Regularly',
+    'sometimes': 'Sometimes',
+    'no': 'Not beyond Ramadan',
+  };
+  static const _dietLabel = {
+    'zabiha_only': 'Zabiha only',
+    'halal_only': 'Halal only',
+    'halal_when_available': 'Halal when available',
+    'no_restriction': 'No restriction',
   };
   static const _timeframeLabel = {
     '6m': 'Nikah within 6 months',
@@ -75,6 +105,49 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     }
   }
 
+  /// A1 — photo layer, three states, curves-only. `photoVisibility` +
+  /// whether photos exist decide what renders; reveal is mutual + symmetric.
+  Widget _photoLayer(Map<String, dynamic> e) {
+    final hasPhotos = e['hasPhotos'] == true;
+    final vis = e['photoVisibility'] as String? ?? 'on_mutual_blur';
+    const w = 240.0, h = 300.0;
+
+    Widget lozenge() => const SizedBox(
+        width: w, height: h,
+        child: Center(child: LozengeMark(size: 96, opacity: .5)));
+
+    // No photos, or hidden-until-request → the curved lozenge motif.
+    final showLozenge = !hasPhotos || vis == 'on_mutual_hidden';
+    final caption = !hasPhotos
+        ? null
+        : (vis == 'on_mutual_blur' || vis == 'on_mutual_hidden')
+            ? 'Photo shared on mutual interest'
+            : null;
+
+    return Column(children: [
+      Center(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: DarkTokens.hairline(.4)),
+          ),
+          child: showLozenge
+              ? lozenge()
+              // public → clear; on_mutual_blur → server returns a blur pre-match.
+              : MemberPhoto(
+                  ownerUid: widget.entryId, width: w, height: h, radius: 14),
+        ),
+      ),
+      if (caption != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(caption,
+              textAlign: TextAlign.center,
+              style: AppType.inter(11.5, color: DarkTokens.muted())),
+        ),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final e = widget.entry;
@@ -82,7 +155,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     final compat = (e['compatibility'] as List?)?.cast<String>() ?? [];
     final prompts = (e['bioPrompts'] as List?) ?? [];
     final langs = (e['languages'] as List?)?.cast<String>() ?? [];
-    final hasPhotos = e['hasPhotos'] == true;
+    final divergence = (e['divergence'] ?? '').toString();
 
     return IkhlasScaffold(
       child: Column(
@@ -107,35 +180,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
               padding: const EdgeInsets.fromLTRB(
                   AppSpace.screenMargin, 8, AppSpace.screenMargin, 24),
               children: [
-                // Lead photo (privacy-aware) or girih panel
-                Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: DarkTokens.hairline(.4)),
-                    ),
-                    child: hasPhotos
-                        ? MemberPhoto(
-                            ownerUid: widget.entryId,
-                            width: 240, height: 300, radius: 14)
-                        : const SizedBox(
-                            width: 240, height: 300,
-                            child: Center(
-                                child: GirihMark(size: 96, opacity: .5))),
-                  ),
-                ),
-                if (hasPhotos)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6),
-                    child: Text(
-                        e['photoPrivacy'] == 'blur_until_match'
-                            ? 'Photos reveal when interest is mutual.'
-                            : e['photoPrivacy'] == 'request_only'
-                                ? 'Private photos — revealed by request.'
-                                : '',
-                        textAlign: TextAlign.center,
-                        style: AppType.inter(11.5, color: DarkTokens.muted())),
-                  ),
+                _photoLayer(e),
                 const SizedBox(height: 22),
                 if (_bandLabel[e['band']] != null) ...[
                   Container(
@@ -153,7 +198,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                   const SizedBox(height: 14),
                 ],
                 Text(
-                    '${_prayerLabel[e['prayer']] ?? 'Deen-focused'}'
+                    '${_prayerEyebrow[e['prayer']] ?? 'Deen-focused'}'
                     '${e['revert'] == true ? ' · Revert, celebrated' : ''}',
                     style: AppType.eyebrow(DarkTokens.gold)),
                 const SizedBox(height: 8),
@@ -168,10 +213,13 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 if (e['ribaDisclosureBadge'] == true) ...[
                   const SizedBox(height: 8),
                   Row(children: [
-                    const DiamondBullet(size: 6),
+                    const RoundBullet(size: 6),
                     const SizedBox(width: 8),
-                    Text('Honest disclosure: actively exiting legacy debt',
-                        style: AppType.inter(12.5, color: DarkTokens.gold)),
+                    Expanded(
+                      child: Text(
+                          'Honest disclosure: actively exiting legacy debt',
+                          style: AppType.inter(12.5, color: DarkTokens.gold)),
+                    ),
                   ]),
                 ],
 
@@ -189,7 +237,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                           children: [
                             const Padding(
                                 padding: EdgeInsets.only(top: 6),
-                                child: DiamondBullet(size: 5)),
+                                child: RoundBullet(size: 5)),
                             const SizedBox(width: 10),
                             Expanded(
                                 child: Text(c,
@@ -199,34 +247,20 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                     ),
                 ],
 
-                // The one honest divergence — always shown (PRD §4.2). This
-                // is what proves the engine advises rather than sells.
-                if ((e['divergence'] ?? '').toString().isNotEmpty) ...[
-                  const SizedBox(height: 18),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: DarkTokens.ivory.withOpacity(.04),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: DarkTokens.hairline(.3)),
-                    ),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('WORTH KNOWING',
-                              style: AppType.inter(10,
-                                      weight: FontWeight.w600,
-                                      color: DarkTokens.muted(.8))
-                                  .copyWith(letterSpacing: 1)),
-                          const SizedBox(height: 6),
-                          Text('${e['divergence']}',
-                              style: AppType.inter(13.5,
-                                  color: DarkTokens.ivory, height: 1.5)),
-                        ]),
-                  ),
-                ],
+                // A2 — DEEN block, above BASICS. Madhhab lives here now.
+                const SizedBox(height: 22),
+                const Hairline(),
+                const SizedBox(height: 18),
+                Text('DEEN', style: AppType.eyebrow(DarkTokens.gold)),
+                const SizedBox(height: 12),
+                _fact('Prayer', _prayerLabel[e['prayer']]),
+                _fact('Quran', _quranLabel[e['quran']]),
+                _fact('Islamic study', _islamicStudyLabel[e['islamicStudy']]),
+                _fact('Fasting', _fastingLabel[e['fastingBeyondRamadan']]),
+                _fact('Madhhab', e['madhhab']),
+                _fact('Diet', _dietLabel[e['dietPractice']]),
 
+                // A3 — BASICS, now with Height (madhhab moved to Deen).
                 const SizedBox(height: 22),
                 const Hairline(),
                 const SizedBox(height: 18),
@@ -234,17 +268,36 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 const SizedBox(height: 12),
                 _fact('Seeking', _timeframeLabel[e['timeframe']]),
                 _fact('Marital status', _maritalLabel[e['maritalStatus']]),
+                _fact('Height',
+                    e['height'] == null ? null : '${e['height']} cm'),
                 _fact('Education', _eduLabel[e['education']] ?? e['education']),
                 _fact('Profession',
                     _profLabel[e['profession']] ?? e['profession']),
                 _fact('Languages', langs.isEmpty ? null : langs.join(', ')),
-                _fact('Madhhab', e['madhhab']),
 
+                // A4 — the one honest divergence, below BASICS (PRD §4.2).
+                if (divergence.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Differs on:  ',
+                        style: AppType.inter(13,
+                            weight: FontWeight.w600,
+                            color: DarkTokens.muted(.85))),
+                    Expanded(
+                      child: Text(divergence,
+                          style: AppType.inter(13,
+                              color: DarkTokens.muted(.85), height: 1.45)),
+                    ),
+                  ]),
+                ],
+
+                // A6 — "In their words" left exactly as is.
                 if (prompts.isNotEmpty) ...[
                   const SizedBox(height: 22),
                   const Hairline(),
                   const SizedBox(height: 18),
-                  Text('IN HER WORDS', style: AppType.eyebrow(DarkTokens.gold)),
+                  Text('IN THEIR WORDS',
+                      style: AppType.eyebrow(DarkTokens.gold)),
                   const SizedBox(height: 12),
                   for (final p in prompts)
                     if (((p as Map)['answer'] ?? '').toString().isNotEmpty)
@@ -267,13 +320,13 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                       ),
                 ],
 
-                // Section D answers — seriousness/deen, shown to matches.
                 if ((e['whyNow'] ?? '').toString().isNotEmpty ||
                     (e['deenRelationship'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 22),
                   const Hairline(),
                   const SizedBox(height: 18),
-                  Text('ON SEEKING NIKAH', style: AppType.eyebrow(DarkTokens.gold)),
+                  Text('ON SEEKING NIKAH',
+                      style: AppType.eyebrow(DarkTokens.gold)),
                   const SizedBox(height: 12),
                   if ((e['whyNow'] ?? '').toString().isNotEmpty) ...[
                     Text('Why nikah, and why now',
@@ -325,13 +378,15 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
               padding: const EdgeInsets.fromLTRB(
                   AppSpace.screenMargin, 8, AppSpace.screenMargin, 24),
               child: Row(children: [
-                const DiamondBullet(),
+                const RoundBullet(),
                 const SizedBox(width: 10),
-                Text(
-                    action == 'interested'
-                        ? 'Interest expressed — a conversation opens if mutual.'
-                        : 'Passed, respectfully.',
-                    style: AppType.inter(12.5, color: DarkTokens.muted())),
+                Expanded(
+                  child: Text(
+                      action == 'interested'
+                          ? 'Interest expressed — a conversation opens if mutual.'
+                          : 'Passed, respectfully.',
+                      style: AppType.inter(12.5, color: DarkTokens.muted())),
+                ),
               ]),
             ),
         ],

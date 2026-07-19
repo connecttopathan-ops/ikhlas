@@ -366,6 +366,11 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
               options: Choices.familyReligiosity,
               selected: _a.familyReligiosity,
               onSelect: (v) => setState(() => _a.familyReligiosity = v)),
+          const QuestionLabel('Your halal diet practice'),
+          OptionList(
+              options: Choices.diet,
+              selected: _a.dietPractice,
+              onSelect: (v) => setState(() => _a.dietPractice = v)),
           const QuestionLabel('Any health condition to disclose? (optional)'),
           Text(
               'Shared only once a conversation opens, never on your match card. '

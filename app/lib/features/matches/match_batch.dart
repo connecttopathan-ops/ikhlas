@@ -246,7 +246,7 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
                   : const SizedBox(
                       width: 84,
                       height: 104,
-                      child: Center(child: GirihMark(size: 44, opacity: .55))),
+                      child: Center(child: LozengeMark(size: 44, opacity: .55))),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -283,7 +283,7 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 5),
                 child: Row(children: [
-                  const DiamondBullet(size: 5),
+                  const RoundBullet(size: 5),
                   const SizedBox(width: 8),
                   Expanded(
                       child: Text(c,
@@ -334,7 +334,7 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
             ])
           else
             Row(children: [
-              const DiamondBullet(),
+              const RoundBullet(),
               const SizedBox(width: 10),
               Text(
                   action == 'interested'

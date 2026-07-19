@@ -223,6 +223,21 @@ async function loadScoringCfg() {
 
 /** Loads the full snapshot pool: approved+complete users joined with
  *  their application answers (prayer/timeframe drive deen scoring). */
+// photoVisibility (public | on_mutual_blur | on_mutual_hidden), migrating the
+// legacy photoPrivacy field for members onboarded before the rename.
+const _visMap = {
+  visible: 'public',
+  blur_until_match: 'on_mutual_blur',
+  request_only: 'on_mutual_hidden',
+};
+function photoVisOf(u) {
+  return (
+    u.profile?.photoVisibility ||
+    _visMap[u.photoPrivacy] ||
+    'on_mutual_blur'
+  );
+}
+
 async function loadPool() {
   const [usersSnap, appsSnap] = await Promise.all([
     db.collection('users')
@@ -254,7 +269,7 @@ async function loadPool() {
       displayName: names[d.id] || 'Member',
       ribaBadge: u.ribaDisclosureBadge === true,
       hasPhotos: (u.photos || []).length > 0,
-      photoPrivacy: u.photoPrivacy || 'blur_until_match',
+      photoVisibility: photoVisOf(u),
       blockedUids: u.blockedUids || [],
       fcmTokens: u.fcmTokens || {},
     };
@@ -284,13 +299,19 @@ function entrySnapshot(e) {
     maritalStatus: c.profile.maritalStatus || null,
     hasChildren: c.profile.hasChildren ?? null,
     revert: c.profile.revert === true,
+    height: c.profile.height ?? null,
     sect: c.profile.sect || null,
     madhhab: c.profile.madhhab || null,
     prayer: c.answers.prayer || null,
     timeframe: c.answers.timeframe || null,
+    // Deen detail (Section F) + diet — the card's DEEN block (PRD §4.2).
+    quran: c.deenDetail?.quran || null,
+    islamicStudy: c.deenDetail?.islamicStudy || null,
+    fastingBeyondRamadan: c.deenDetail?.fastingBeyondRamadan || null,
+    dietPractice: c.profile.dietPractice || null,
     ribaDisclosureBadge: c.ribaBadge,
     hasPhotos: c.hasPhotos === true,
-    photoPrivacy: c.photoPrivacy || 'blur_until_match',
+    photoVisibility: c.photoVisibility || 'on_mutual_blur',
     bioPrompts: c.profile.bioPrompts || [],
     // Section D answers are shown on the profile to matches (disclosed to
     // the applicant at entry) as well as used for review.
@@ -562,7 +583,7 @@ exports.photo = onRequest(
       let blur = false;
       if (viewer !== owner) {
         const vis = decideVisibility({
-          privacy: ownerSnap.get('photoPrivacy') || 'blur_until_match',
+          privacy: photoVisOf(ownerSnap.data()),
           matched,
           revealGranted,
           inViewerBatch: inBatch,
@@ -1092,15 +1113,20 @@ function chatProfile(userSnap, appSnap) {
     education: p.education || null,
     maritalStatus: p.maritalStatus || null,
     languages: p.languages || [],
+    height: p.height ?? null,
     madhhab: p.madhhab || null,
     revert: p.revert === true,
     prayer: a.prayer || null,
     timeframe: a.timeframe || null,
+    quran: p.deenDetail?.quran || null,
+    islamicStudy: p.deenDetail?.islamicStudy || null,
+    fastingBeyondRamadan: p.deenDetail?.fastingBeyondRamadan || null,
+    dietPractice: p.dietPractice || null,
     ribaDisclosureBadge: u.ribaDisclosureBadge === true,
     bioPrompts: p.bioPrompts || [],
     whyNow: a.shortAnswers?.whyNow || null,
     deenRelationship: a.shortAnswers?.deenRelationship || null,
-    photoPrivacy: u.photoPrivacy || 'blur_until_match',
+    photoVisibility: photoVisOf(u),
     hasPhotos: (u.photos || []).length > 0,
   };
 }
