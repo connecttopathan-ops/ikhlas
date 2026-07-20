@@ -78,9 +78,11 @@ class ChatProfileScreen extends StatelessWidget {
                         ? MemberPhoto(
                             ownerUid: ownerUid,
                             width: 240, height: 300, radius: 14,
-                            // In chat we're matched, so photos are clear (or
-                            // revealed). Bust past the batch's blurred cache.
-                            cacheBust: photoRevealed ? 'chatR' : 'chat')
+                            // Only diverge from the batch's cache when the served
+                            // image actually differs: blur→clear on match, or a
+                            // hidden reveal. Public photos are clear in both, so
+                            // we reuse the batch's cache (no extra fetch/latency).
+                            cacheBust: _photoCacheBust(e['photoVisibility']))
                         : const SizedBox(
                             width: 240, height: 300,
                             child: Center(
@@ -94,7 +96,9 @@ class ChatProfileScreen extends StatelessWidget {
                         e['photoVisibility'] == 'on_mutual_blur'
                             ? 'Photos reveal now that you have matched.'
                             : e['photoVisibility'] == 'on_mutual_hidden'
-                                ? 'Private photos — revealed by request.'
+                                ? (photoRevealed
+                                    ? 'Photos shared with you.'
+                                    : 'Private photos — revealed by request.')
                                 : '',
                         textAlign: TextAlign.center,
                         style: AppType.inter(11.5, color: DarkTokens.muted())),
@@ -204,6 +208,21 @@ class ChatProfileScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// The cache-key suffix for a chat photo. `null` reuses the batch's cache
+  /// (public — identical bytes). `on_mutual_blur` was cached blurred in the
+  /// batch, so we must refetch the clear version. `on_mutual_hidden` flips key
+  /// on reveal so the newly-shared photo loads immediately.
+  String? _photoCacheBust(dynamic visibility) {
+    switch (visibility) {
+      case 'on_mutual_hidden':
+        return photoRevealed ? 'chatR' : 'chat';
+      case 'on_mutual_blur':
+        return 'chat';
+      default:
+        return null;
+    }
   }
 
   static String _promptLabel(dynamic id) {
