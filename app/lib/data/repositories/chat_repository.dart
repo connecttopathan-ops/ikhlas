@@ -39,6 +39,16 @@ class ChatRepository {
   Future<void> endWithDua(String convId) =>
       _fns.httpsCallable('endWithDua').call({'convId': convId});
 
+  /// Mark the conversation read (I opened the chat) — bumps my read + delivered
+  /// high-water marks so the other party's sent messages show blue ticks.
+  Future<void> markRead(String convId) =>
+      _fns.httpsCallable('markConversationRead').call({'convId': convId});
+
+  /// Mark delivered only (my device received the message, chat not yet opened).
+  Future<void> markDelivered(String convId) => _fns
+      .httpsCallable('markConversationRead')
+      .call({'convId': convId, 'deliveredOnly': true});
+
   Future<void> grantPhotoReveal(String convId, {bool revoke = false}) => _fns
       .httpsCallable('grantPhotoReveal')
       .call({'convId': convId, 'revoke': revoke});

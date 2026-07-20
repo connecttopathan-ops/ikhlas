@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
+import 'chat_avatar.dart';
 import 'chat_profile_screen.dart';
 import 'conversations_screen.dart';
 
@@ -31,6 +32,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   late final _msgStream = _repo.messagesStream(widget.convId);
   final _scroll = ScrollController();
   int _lastCount = 0;
+  String? _readMarkedFor;
 
   @override
   void dispose() {
@@ -245,7 +247,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Expanded(child: _AdabGate(convId: widget.convId))
             else ...[
               if (revealBar != null && !closed) revealBar,
-              Expanded(child: _messages(me)),
+              Expanded(child: _messages(me, other, conv)),
               if (familyExchange != null)
                 _familyPanel(familyExchange, me, other)
               else if (!closed && !frozen)
@@ -291,6 +293,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             onPressed: () => context.go('/conversations'),
             icon: Icon(Icons.arrow_back, size: 22, color: DarkTokens.muted(.7)),
           ),
+          if (otherProfile != null) ...[
+            ChatAvatar(
+                ownerUid: other,
+                profile: otherProfile,
+                photoRevealed: photoRevealed,
+                size: 38),
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -567,7 +577,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       );
 
-  Widget _messages(String me) {
+  Widget _messages(String me, String other, Map<String, dynamic> conv) {
+    final readUpTo = (conv['readUpTo'] as Map?) ?? const {};
+    final deliveredUpTo = (conv['deliveredUpTo'] as Map?) ?? const {};
+    final otherRead = readUpTo[other] as Timestamp?;
+    final otherDelivered = deliveredUpTo[other] as Timestamp?;
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _msgStream,
       builder: (context, snap) {
@@ -583,6 +597,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             }
           });
         }
+        // Mark read once when the newest message is inbound (they'll see the
+        // blue ticks on their side). Throttled by the last message id.
+        if (msgs.isNotEmpty) {
+          final last = msgs.last;
+          if (last.data()['from'] != me && _readMarkedFor != last.id) {
+            _readMarkedFor = last.id;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ref.read(chatRepositoryProvider).markRead(widget.convId);
+            });
+          }
+        }
         // Flatten into a display list with date dividers between days.
         final items = <Widget>[];
         DateTime? lastDay;
@@ -597,7 +622,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               lastDay = day;
             }
           }
-          items.add(_bubble(m, me, dt));
+          items.add(_bubble(m, me, dt, otherRead, otherDelivered));
         }
         return ListView.builder(
           controller: _scroll,
@@ -609,7 +634,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  Widget _bubble(Map<String, dynamic> m, String me, DateTime? dt) {
+  Widget _bubble(Map<String, dynamic> m, String me, DateTime? dt,
+      Timestamp? otherRead, Timestamp? otherDelivered) {
     if (m['system'] == true) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -622,6 +648,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
     }
     final mine = m['from'] == me;
+    final at = m['at'];
+    final receipt = mine ? _receipt(at, otherRead, otherDelivered) : null;
     return Column(
       crossAxisAlignment:
           mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -647,11 +675,38 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         if (dt != null)
           Padding(
             padding: const EdgeInsets.only(top: 3, bottom: 2, left: 2, right: 2),
-            child: Text(_timeLabel(dt),
-                style: AppType.inter(10, color: DarkTokens.muted(.55))),
+            child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment:
+                    mine ? MainAxisAlignment.end : MainAxisAlignment.start,
+                children: [
+                  Text(_timeLabel(dt),
+                      style: AppType.inter(10, color: DarkTokens.muted(.55))),
+                  if (receipt != null) ...[
+                    const SizedBox(width: 4),
+                    receipt,
+                  ],
+                ]),
           ),
       ],
     );
+  }
+
+  /// WhatsApp-style receipt for one of MY messages: single tick = sent, double
+  /// tick = delivered, blue double = read. Compares the message time against
+  /// the other party's read/delivered high-water marks.
+  Widget _receipt(dynamic at, Timestamp? otherRead, Timestamp? otherDelivered) {
+    // No server timestamp yet (optimistic/pending write) → single tick.
+    if (at is! Timestamp) {
+      return Icon(Icons.check, size: 13, color: DarkTokens.muted(.5));
+    }
+    if (otherRead != null && otherRead.compareTo(at) >= 0) {
+      return const Icon(Icons.done_all, size: 13, color: Color(0xFF2E7D32));
+    }
+    if (otherDelivered != null && otherDelivered.compareTo(at) >= 0) {
+      return Icon(Icons.done_all, size: 13, color: DarkTokens.muted(.5));
+    }
+    return Icon(Icons.check, size: 13, color: DarkTokens.muted(.5));
   }
 
   Widget _composer() => Padding(

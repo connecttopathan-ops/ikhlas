@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
 import '../../data/repositories/chat_repository.dart';
+import 'chat_avatar.dart';
 
 final chatRepositoryProvider = Provider<ChatRepository>((_) => ChatRepository());
 
@@ -25,6 +26,7 @@ class ConversationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final convs = ref.watch(conversationsProvider);
+    final me = FirebaseAuth.instance.currentUser?.uid ?? '';
     return IkhlasScaffold(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpace.screenMargin),
@@ -91,7 +93,7 @@ class ConversationsScreen extends ConsumerWidget {
                           'not collectors.',
                           style: AppType.inter(12, color: DarkTokens.muted())),
                     ),
-                    for (final d in docs) _ConvTile(doc: d),
+                    for (final d in docs) _ConvTile(doc: d, me: me),
                   ]);
                 },
               ),
@@ -103,9 +105,10 @@ class ConversationsScreen extends ConsumerWidget {
   }
 }
 
-class _ConvTile extends StatelessWidget {
+class _ConvTile extends ConsumerWidget {
   final QueryDocumentSnapshot<Map<String, dynamic>> doc;
-  const _ConvTile({required this.doc});
+  final String me;
+  const _ConvTile({required this.doc, required this.me});
 
   static const _stageLabel = {
     'intro': 'Introduction',
@@ -116,53 +119,141 @@ class _ConvTile extends StatelessWidget {
     'success': 'Proceeding to nikah',
   };
 
+  // One delivery mark per (conv, message) — build() runs often; don't spam.
+  static final Set<String> _deliveredSeen = {};
+
+  static const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul',
+    'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  String _time(Timestamp? ts) {
+    if (ts == null) return '';
+    final d = ts.toDate();
+    final now = DateTime.now();
+    if (d.year == now.year && d.month == now.month && d.day == now.day) {
+      final h = d.hour == 0 ? 12 : (d.hour > 12 ? d.hour - 12 : d.hour);
+      return '$h:${d.minute.toString().padLeft(2, '0')} ${d.hour < 12 ? 'AM' : 'PM'}';
+    }
+    return '${d.day} ${_months[d.month - 1]}';
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final d = doc.data();
     final stage = d['stage'] as String? ?? 'intro';
     final closed = ConversationsScreen.isClosed(stage);
-    final me = FirebaseAuth.instance.currentUser?.uid ?? '';
     final adab = (d['adabAcknowledged'] as Map?) ?? {};
     final needsAdab = adab[me] != true;
+
+    final participants = (d['participants'] as List?)?.cast<String>() ?? [];
+    final other = participants.firstWhere((p) => p != me, orElse: () => '');
+    final profiles = (d['profiles'] as Map?) ?? const {};
+    final otherProfile = (profiles[other] as Map?)?.cast<String, dynamic>();
+    final name = otherProfile?['displayName'] as String? ?? 'Your match';
+    final photoReveal = (d['photoReveal'] as Map?) ?? const {};
+
+    final lastAt = d['lastMessageAt'] as Timestamp?;
+    final lastText = d['lastMessageText'] as String?;
+    final lastFrom = d['lastMessageFrom'] as String?;
+    final readUpTo = (d['readUpTo'] as Map?) ?? const {};
+    final myRead = readUpTo[me] as Timestamp?;
+    final unread = !closed &&
+        lastFrom != null &&
+        lastFrom != me &&
+        lastAt != null &&
+        (myRead == null || myRead.compareTo(lastAt) < 0);
+
+    // Mark delivered when this device sees an inbound message I haven't got yet.
+    if (unread) {
+      final delivered = (d['deliveredUpTo'] as Map?) ?? const {};
+      final myDeliv = delivered[me] as Timestamp?;
+      if (myDeliv == null || myDeliv.compareTo(lastAt) < 0) {
+        final key = '${doc.id}|${lastAt.millisecondsSinceEpoch}';
+        if (_deliveredSeen.add(key)) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ref.read(chatRepositoryProvider).markDelivered(doc.id);
+          });
+        }
+      }
+    }
+
+    // Subtitle: the last message preview, else the stage/adab hint.
+    String subtitle;
+    if (closed) {
+      subtitle = _stageLabel[stage] ?? 'This conversation has ended';
+    } else if (lastText != null && lastText.isNotEmpty) {
+      subtitle = (lastFrom == me ? 'You: ' : '') + lastText;
+    } else if (needsAdab) {
+      subtitle = 'Tap to begin — adab guidelines first';
+    } else {
+      subtitle = 'Say salaam to begin';
+    }
 
     return InkWell(
       onTap: () => context.go('/chat/${doc.id}'),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: DarkTokens.hairline(closed ? .2 : .4)),
         ),
         child: Row(children: [
           Opacity(
-            opacity: closed ? .4 : 1,
-            child: const GirihMark(size: 34, opacity: .7),
+            opacity: closed ? .45 : 1,
+            child: ChatAvatar(
+                ownerUid: other,
+                profile: otherProfile,
+                photoRevealed: photoReveal[other] == true,
+                size: 46),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_stageLabel[stage] ?? stage,
-                      style: AppType.inter(14.5,
-                          weight: FontWeight.w500,
-                          color: closed
-                              ? DarkTokens.muted()
-                              : DarkTokens.ivory)),
-                  const SizedBox(height: 2),
-                  Text(
-                      needsAdab && !closed
-                          ? 'Tap to begin — adab guidelines first'
-                          : closed
-                              ? 'This conversation has ended'
-                              : 'Your match',
-                      style:
-                          AppType.inter(12, color: DarkTokens.muted())),
+                  Row(children: [
+                    Expanded(
+                      child: Text(name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppType.inter(15,
+                              weight: FontWeight.w600,
+                              color: closed
+                                  ? DarkTokens.muted()
+                                  : DarkTokens.ivory)),
+                    ),
+                    if (lastAt != null) ...[
+                      const SizedBox(width: 8),
+                      Text(_time(lastAt),
+                          style: AppType.inter(11,
+                              color: unread
+                                  ? DarkTokens.gold
+                                  : DarkTokens.muted(.6))),
+                    ],
+                  ]),
+                  const SizedBox(height: 3),
+                  Row(children: [
+                    Expanded(
+                      child: Text(subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppType.inter(12.5,
+                              weight:
+                                  unread ? FontWeight.w600 : FontWeight.w400,
+                              color: unread
+                                  ? DarkTokens.ivory
+                                  : DarkTokens.muted())),
+                    ),
+                    if (unread) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                          width: 9,
+                          height: 9,
+                          decoration: const BoxDecoration(
+                              shape: BoxShape.circle, color: DarkTokens.gold)),
+                    ],
+                  ]),
                 ]),
           ),
-          if (!closed)
-            Icon(Icons.chevron_right, size: 20, color: DarkTokens.muted(.6)),
         ]),
       ),
     );

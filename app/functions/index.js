@@ -689,6 +689,8 @@ exports.sendMessage = onCall({ region: REGION }, async (request) => {
   });
   await ref.update({
     lastMessageAt: FieldValue.serverTimestamp(),
+    lastMessageText: body.slice(0, 140),
+    lastMessageFrom: uid,
     [`nudged`]: FieldValue.delete(),
   });
 
@@ -727,6 +729,27 @@ exports.grantPhotoReveal = onCall({ region: REGION }, async (request) => {
       { route: `/chat/${convId}` });
   }
   return { ok: true, granted: grant };
+});
+
+// Read / delivered receipts (WhatsApp-style ticks). A participant marks the
+// conversation delivered when their device has the messages, and read when they
+// open the chat. We store only high-water timestamps per uid, so a sent message
+// is 'read' when the OTHER party's readUpTo passes it. Client writes are denied
+// by rules, so this goes through a callable like every other chat mutation.
+exports.markConversationRead = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const convId = request.data?.convId;
+  const deliveredOnly = request.data?.deliveredOnly === true;
+  const ref = db.doc(`conversations/${convId}`);
+  const snap = await ref.get();
+  if (!snap.exists || !snap.get('participants').includes(uid)) {
+    throw new HttpsError('permission-denied', 'Not your conversation.');
+  }
+  const now = FieldValue.serverTimestamp();
+  const upd = { [`deliveredUpTo.${uid}`]: now };
+  if (!deliveredOnly) upd[`readUpTo.${uid}`] = now;
+  await ref.update(upd);
+  return { ok: true };
 });
 
 exports.endWithDua = onCall({ region: REGION }, async (request) => {
