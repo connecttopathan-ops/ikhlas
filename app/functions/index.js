@@ -709,6 +709,14 @@ exports.grantPhotoReveal = onCall({ region: REGION }, async (request) => {
   // The owner grants reveal of THEIR photos to this conversation; revocable.
   const grant = request.data?.revoke ? false : true;
   await ref.update({ [`photoReveal.${uid}`]: grant });
+  // Tell the requester their photo request was accepted (only on grant).
+  if (grant) {
+    const other = snap.get('participants').find((p) => p !== uid);
+    const name = snap.get('profiles')?.[uid]?.displayName || 'Your match';
+    await pushTo(other, 'Photos shared',
+      `${name} has shared their photos with you.`,
+      { route: `/chat/${convId}` });
+  }
   return { ok: true, granted: grant };
 });
 
@@ -1071,13 +1079,17 @@ exports.waliRequestPause = onCall({ region: REGION }, async (request) => {
 });
 
 // ---- shared notification helpers ----
-async function pushTo(uid, title, body) {
+async function pushTo(uid, title, body, data) {
   const tokens = Object.keys(
     (await db.doc(`users/${uid}`).get()).get('fcmTokens') || {}
   );
   if (tokens.length === 0) return;
   await getMessaging()
-    .sendEachForMulticast({ tokens, notification: { title, body } })
+    .sendEachForMulticast({
+      tokens,
+      notification: { title, body },
+      ...(data ? { data } : {}),
+    })
     .catch(() => {});
 }
 
@@ -1144,7 +1156,8 @@ exports.requestPhotoReveal = onCall({ region: REGION }, async (request) => {
   const other = snap.get('participants').find((p) => p !== uid);
   const name = snap.get('profiles')?.[uid]?.displayName || 'Your match';
   await pushTo(other, 'A photo request',
-    `${name} has asked to see your photos. Open the conversation to decide.`);
+    `${name} has asked to see your photos. Open the conversation to decide.`,
+    { route: `/chat/${convId}` });
   return { ok: true };
 });
 

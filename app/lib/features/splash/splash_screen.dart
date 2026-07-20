@@ -23,14 +23,34 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     // Status-bar style is set correctly (dark icons on the light ground)
     // once in main.dart — don't override it here.
     _stagger.forward();
-    Future.delayed(const Duration(milliseconds: 2600), _handoff);
+    _handoff();
   }
 
   Future<void> _handoff() async {
+    final auth = FirebaseAuth.instance;
+    // On a cold start Firebase restores the persisted session ASYNCHRONOUSLY,
+    // so reading currentUser after a fixed delay can still see null and bounce
+    // a signed-in member to /landing. Wait for the first authoritative auth
+    // event, overlapped with the splash animation so there's no added delay:
+    // for a signed-in user this resolves as soon as the session restores; for
+    // a genuinely signed-out user it times out at the animation length and we
+    // fall through to /landing — no extra wait either way.
+    final authReady = auth.currentUser != null
+        ? Future<User?>.value(auth.currentUser)
+        : auth
+            .authStateChanges()
+            .firstWhere((u) => u != null)
+            .timeout(const Duration(milliseconds: 2600), onTimeout: () => null);
+    final results = await Future.wait<Object?>([
+      authReady,
+      Future<void>.delayed(const Duration(milliseconds: 2600)),
+    ]);
+    final user = results[0] as User?;
+
     // Already signed in → resume where they left off; otherwise the
     // application landing. (No landing/login bounce for returning members.)
     String route = '/landing';
-    if (FirebaseAuth.instance.currentUser != null) {
+    if (user != null) {
       try {
         route = await ApplicationRepository().resolveEntryRoute();
       } catch (_) {}
