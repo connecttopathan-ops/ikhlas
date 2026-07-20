@@ -545,7 +545,16 @@ const { processPhoto, decideVisibility } = require('./photos');
 const convIdOf = (a, b) => [a, b].sort().join('_');
 
 exports.photo = onRequest(
-  { region: REGION, memory: '512MiB', cors: true },
+  {
+    region: REGION,
+    // 1GiB → more CPU for the per-request blur+watermark (Jimp is CPU-bound).
+    memory: '1GiB',
+    // Keep one instance warm so a photo opened after an idle period doesn't
+    // pay a cold start (the "loads after a while" latency). Repeat views are
+    // already disk-cached client-side for 5 min.
+    minInstances: 1,
+    cors: true,
+  },
   async (req, res) => {
     try {
       const authz = req.get('Authorization') || '';
