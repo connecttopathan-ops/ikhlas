@@ -33,6 +33,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   final _scroll = ScrollController();
   int _lastCount = 0;
   String? _readMarkedFor;
+  // Optimistic outbound messages, shown instantly and dropped once the real
+  // doc (matched by clientId) arrives on the stream.
+  final List<Map<String, String>> _pending = [];
+  int _clientSeq = 0;
 
   @override
   void dispose() {
@@ -44,12 +48,24 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   Future<void> _send() async {
     final text = _input.text.trim();
     if (text.isEmpty) return;
-    setState(() => _sending = true);
-    try {
-      await ref.read(chatRepositoryProvider).sendMessage(widget.convId, text);
+    // Optimistic: show it immediately, clear the box, don't block the button.
+    final clientId = '${DateTime.now().microsecondsSinceEpoch}_${_clientSeq++}';
+    setState(() {
+      _pending.add({'clientId': clientId, 'text': text});
       _input.clear();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scroll.hasClients) {
+        _scroll.jumpTo(_scroll.position.maxScrollExtent);
+      }
+    });
+    try {
+      await ref
+          .read(chatRepositoryProvider)
+          .sendMessage(widget.convId, text, clientId: clientId);
     } on FirebaseFunctionsException catch (e) {
       if (mounted) {
+        setState(() => _pending.removeWhere((p) => p['clientId'] == clientId));
         // The contact-info filter's warning surfaces here.
         showDialog(
           context: context,
@@ -69,8 +85,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _sending = false);
+    } catch (_) {
+      // Network / unknown — drop the optimistic bubble and let them retry.
+      if (mounted) {
+        setState(() => _pending.removeWhere((p) => p['clientId'] == clientId));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Could not send. Please try again.',
+                style: AppType.inter(13))));
+      }
     }
   }
 
@@ -608,6 +630,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             });
           }
         }
+        // Confirmed clientIds → drop the matching optimistic bubbles.
+        final confirmed = <String>{};
+        for (final doc in msgs) {
+          final cid = doc.data()['clientId'];
+          if (cid is String) confirmed.add(cid);
+        }
+        if (_pending.any((p) => confirmed.contains(p['clientId']))) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() => _pending
+                  .removeWhere((p) => confirmed.contains(p['clientId'])));
+            }
+          });
+        }
+
         // Flatten into a display list with date dividers between days.
         final items = <Widget>[];
         DateTime? lastDay;
@@ -623,6 +660,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             }
           }
           items.add(_bubble(m, me, dt, otherRead, otherDelivered));
+        }
+        // Optimistic messages not yet confirmed by the server, at the bottom.
+        for (final p in _pending) {
+          if (confirmed.contains(p['clientId'])) continue;
+          items.add(_pendingBubble(p['text'] ?? ''));
         }
         return ListView.builder(
           controller: _scroll,
@@ -708,6 +750,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
     return Icon(Icons.check, size: 13, color: DarkTokens.muted(.5));
   }
+
+  /// An optimistic (not-yet-confirmed) outbound message — instant echo with a
+  /// clock instead of a tick until the server write lands on the stream.
+  Widget _pendingBubble(String text) => Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              margin: const EdgeInsets.only(top: 4),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * .72),
+              decoration: BoxDecoration(
+                color: DarkTokens.gold.withOpacity(.10),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: DarkTokens.hairline(.3)),
+              ),
+              child: Text(text,
+                  style: AppType.inter(14, color: DarkTokens.ivory)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 3, bottom: 2, right: 2),
+            child: Icon(Icons.access_time, size: 12, color: DarkTokens.muted(.5)),
+          ),
+        ],
+      );
 
   Widget _composer() => Padding(
         padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),

@@ -33,8 +33,12 @@ class ChatRepository {
 
   /// Throws FirebaseFunctionsException with the warning message when the
   /// text contains blocked contact info — the UI surfaces `.message`.
-  Future<void> sendMessage(String convId, String text) =>
-      _fns.httpsCallable('sendMessage').call({'convId': convId, 'text': text});
+  Future<void> sendMessage(String convId, String text, {String? clientId}) =>
+      _fns.httpsCallable('sendMessage').call({
+        'convId': convId,
+        'text': text,
+        if (clientId != null) 'clientId': clientId,
+      });
 
   Future<void> endWithDua(String convId) =>
       _fns.httpsCallable('endWithDua').call({'convId': convId});

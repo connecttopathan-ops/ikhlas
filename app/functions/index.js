@@ -659,9 +659,14 @@ exports.acknowledgeAdab = onCall({ region: REGION }, async (request) => {
   return { ok: true };
 });
 
-exports.sendMessage = onCall({ region: REGION }, async (request) => {
+// Kept warm (no cold start) so sending feels instant. The message write and
+// the conversation summary go in a single batch (one round trip), and the FCM
+// push is handled off this path by onMessageCreated below — so the caller
+// returns as soon as the message is persisted.
+exports.sendMessage = onCall({ region: REGION, minInstances: 1 }, async (request) => {
   const uid = requireAuth(request);
   const { convId, text } = request.data || {};
+  const clientId = request.data?.clientId; // client nonce → optimistic dedup
   const body = String(text || '').trim();
   if (!body) throw new HttpsError('invalid-argument', 'Empty message.');
   if (body.length > 2000) throw new HttpsError('invalid-argument', 'Too long.');
@@ -682,32 +687,42 @@ exports.sendMessage = onCall({ region: REGION }, async (request) => {
         'the Family Stage. Please keep the conversation here.'
     );
   }
-  await ref.collection('messages').add({
+  const msgRef = ref.collection('messages').doc();
+  const batch = db.batch();
+  batch.set(msgRef, {
     from: uid,
     text: body,
     at: FieldValue.serverTimestamp(),
+    ...(clientId ? { clientId: String(clientId) } : {}),
   });
-  await ref.update({
+  batch.update(ref, {
     lastMessageAt: FieldValue.serverTimestamp(),
     lastMessageText: body.slice(0, 140),
     lastMessageFrom: uid,
     [`nudged`]: FieldValue.delete(),
   });
-
-  const other = snap.get('participants').find((p) => p !== uid);
-  const tokens = Object.keys(
-    (await db.doc(`users/${other}`).get()).get('fcmTokens') || {}
-  );
-  if (tokens.length > 0) {
-    await getMessaging()
-      .sendEachForMulticast({
-        tokens,
-        notification: { title: 'New message', body: 'You have a new message on Ikhlaas.' },
-      })
-      .catch(() => {});
-  }
+  await batch.commit();
   return { ok: true };
 });
+
+// New-message push, off the send path. Fires on every message write; skips
+// system messages and notifies the OTHER participant with the sender's name.
+exports.onMessageCreated = onDocumentCreated(
+  'conversations/{convId}/messages/{msgId}',
+  async (event) => {
+    const m = event.data?.data();
+    if (!m || m.system === true || !m.from) return;
+    const convId = event.params.convId;
+    const convSnap = await db.doc(`conversations/${convId}`).get();
+    if (!convSnap.exists) return;
+    const parts = convSnap.get('participants') || [];
+    const other = parts.find((p) => p !== m.from);
+    if (!other) return;
+    const name = convSnap.get('profiles')?.[m.from]?.displayName || 'Your match';
+    const preview = String(m.text || '').slice(0, 90) || 'New message on Ikhlaas.';
+    await pushTo(other, name, preview, { route: `/chat/${convId}` });
+  }
+);
 
 exports.grantPhotoReveal = onCall({ region: REGION }, async (request) => {
   const uid = requireAuth(request);
