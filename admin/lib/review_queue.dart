@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'id_review_queue.dart';
 import 'reports_queue.dart';
 import 'tokens.dart';
 
@@ -17,7 +18,7 @@ class ReviewQueueScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: T.bg,
@@ -39,6 +40,7 @@ class ReviewQueueScreen extends StatelessWidget {
             tabs: const [
               Tab(text: 'Queue'),
               Tab(text: 'All applications'),
+              Tab(text: 'ID verification'),
               Tab(text: 'Reports'),
             ],
           ),
@@ -46,6 +48,7 @@ class ReviewQueueScreen extends StatelessWidget {
         body: const TabBarView(children: [
           _ApplicationsList(queueOnly: true),
           _ApplicationsList(queueOnly: false),
+          IdReviewQueue(),
           ReportsQueue(),
         ]),
       ),

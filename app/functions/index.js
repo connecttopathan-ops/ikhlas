@@ -17,6 +17,12 @@ const { getStorage } = require('firebase-admin/storage');
 const crypto = require('crypto');
 const { evaluateGate } = require('./gate');
 const { sendOtpEmail } = require('./resend');
+const { analyzeIdDoc } = require('./verification');
+
+// Quarantine bucket for government-ID images: admin-only, unreachable from the
+// app (no client SDK access, no reference in any client-readable doc). Images
+// are retained (not deleted) for manual re-check during closed testing.
+const ID_QUARANTINE_BUCKET = 'ikhlas-caecf-idquarantine';
 
 // Resend transactional email. The API key is a secret:
 //   firebase functions:secrets:set RESEND_API_KEY
@@ -112,6 +118,18 @@ exports.notifyDecision = onDocumentUpdated(
     const after = event.data?.after.data();
     if (!before || !after || before.status === after.status) return;
 
+    // When ID verification is a gate, flag newly-approved users so the client
+    // (which cannot read config/*) knows to route them to /verify-id before
+    // pool entry. Changing only these fields won't re-fire (status unchanged).
+    if (after.status === 'approved' && after.idVerified !== true) {
+      if (await idVerificationMandatory()) {
+        await event.data.after.ref.update({
+          idRequired: true,
+          idDocStatus: after.idDocStatus || 'none',
+        });
+      }
+    }
+
     const copy = {
       approved: {
         title: 'Welcome to Ikhlaas',
@@ -163,6 +181,170 @@ function requireAuth(request) {
   }
   return request.auth.uid;
 }
+
+function requireModerator(request) {
+  const uid = requireAuth(request);
+  if (request.auth.token?.moderator !== true) {
+    throw new HttpsError('permission-denied', 'Moderator only.');
+  }
+  return uid;
+}
+
+/** Is government-ID verification a hard gate right now? Config-flagged so the
+ *  PRD's "optional badge" model can be restored without a code change:
+ *  config/verification = { mandatory: bool }. Defaults to true (closed test). */
+async function idVerificationMandatory() {
+  try {
+    const d = await db.doc('config/verification').get();
+    return d.exists ? d.get('mandatory') !== false : true;
+  } catch (_) {
+    return true;
+  }
+}
+
+// ============================================================
+// Government-ID verification (PRD Step 4A). MANDATORY when the config flag is
+// on. Runs AFTER gate approval, BEFORE pool entry. OCR + face-presence are
+// decision SUPPORT only — a human approves/rejects every document. Images live
+// solely in the admin-only quarantine bucket; the client never sees them, and
+// the full Aadhaar number is never stored (last4 only).
+// ============================================================
+
+// Applicant submits exactly ONE ID (passport preferred). We OCR the name,
+// check for a face, quarantine the image, and queue it for manual review.
+// NEVER auto-approves.
+exports.onIdDocSubmit = onCall(
+  { region: REGION, memory: '512MiB' },
+  async (request) => {
+    const uid = requireAuth(request);
+    const type = request.data?.type;
+    const imageBase64 = request.data?.imageBase64;
+    if (type !== 'passport' && type !== 'aadhaar') {
+      throw new HttpsError('invalid-argument', 'Choose passport or Aadhaar.');
+    }
+    if (typeof imageBase64 !== 'string' || imageBase64.length < 100) {
+      throw new HttpsError('invalid-argument', 'Attach a clear photo of your ID.');
+    }
+    const userSnap = await db.doc(`users/${uid}`).get();
+    const status = userSnap.get('status');
+    // Only approved (or resubmitting) applicants verify — never at signup.
+    if (status !== 'approved' && status !== 'needs_info') {
+      throw new HttpsError('failed-precondition', 'Verification opens after approval.');
+    }
+    const idBuffer = Buffer.from(imageBase64, 'base64');
+    if (idBuffer.length > 8 * 1024 * 1024) {
+      throw new HttpsError('invalid-argument', 'Image too large.');
+    }
+
+    // The selfie captured at application — for the admin's visual face compare.
+    let selfieBuffer = null;
+    try {
+      const [b] = await getStorage().bucket()
+        .file(`users/${uid}/verification/selfie.jpg`).download();
+      selfieBuffer = b;
+    } catch (_) {}
+
+    const appSnap = await db.doc(`applications/${uid}`).get();
+    const applicationName =
+      appSnap.get('intentDeclaration.typedName') ||
+      userSnap.get('profile.displayName') || '';
+    const livenessPassed =
+      appSnap.get('verification.selfie.livenessPassed') ?? null;
+
+    const analysis = await analyzeIdDoc({
+      idBuffer, selfieBuffer, applicationName, type,
+    });
+
+    // Image → admin-only quarantine bucket. Retained (no delete) for re-check.
+    const storageRef = `idDocs/${uid}.jpg`;
+    await getStorage().bucket(ID_QUARANTINE_BUCKET).file(storageRef).save(idBuffer, {
+      contentType: 'image/jpeg',
+      resumable: false,
+      metadata: { metadata: { uid, type } },
+    });
+
+    // Full record → ADMIN-ONLY doc (never client-readable) so no image ref or
+    // gameable score reaches the applicant's own (self-readable) documents.
+    await db.doc(`idReview/${uid}`).set({
+      uid,
+      type,
+      status: 'submitted',
+      ocrName: analysis.ocrName,
+      nameMatchScore: analysis.nameMatchScore,
+      faceMatchScore: analysis.faceMatchScore,   // null this tier — manual
+      faceMatchMethod: analysis.faceMatchMethod,
+      idFacePresent: analysis.idFacePresent,
+      selfieFacePresent: analysis.selfieFacePresent,
+      livenessPassed,
+      last4: analysis.last4,                      // never the full number
+      storageRef,
+      applicationName,
+      submittedAt: FieldValue.serverTimestamp(),
+      reviewedBy: null,
+      reviewedAt: null,
+    }, { merge: true });
+
+    // Minimal, self-readable status for the applicant's own routing only.
+    await db.doc(`users/${uid}`).update({
+      idDocStatus: 'submitted',
+      idDocType: type,
+    });
+    return { ok: true };
+  }
+);
+
+// Moderator approves/rejects a submitted ID. Approve → pool entry; reject →
+// needs_info (applicant resubmits). Scores are support; this call IS the human.
+exports.reviewIdDoc = onCall({ region: REGION }, async (request) => {
+  const modUid = requireModerator(request);
+  const uid = request.data?.uid;
+  const decision = request.data?.decision;   // 'approve' | 'reject'
+  const reason = String(request.data?.reason || '').slice(0, 500);
+  if (!uid || (decision !== 'approve' && decision !== 'reject')) {
+    throw new HttpsError('invalid-argument', 'uid + decision required.');
+  }
+  const reviewRef = db.doc(`idReview/${uid}`);
+  if (!(await reviewRef.get()).exists) {
+    throw new HttpsError('not-found', 'No submitted ID for this user.');
+  }
+  const approved = decision === 'approve';
+  await reviewRef.update({
+    status: approved ? 'approved' : 'rejected',
+    reviewedBy: modUid,
+    reviewedAt: FieldValue.serverTimestamp(),
+    ...(reason ? { rejectionReason: reason } : {}),
+  });
+  await db.doc(`users/${uid}`).update({
+    idVerified: approved,
+    idDocStatus: approved ? 'approved' : 'rejected',
+    ...(approved ? {} : { status: 'needs_info' }),
+  });
+  await pushTo(uid,
+    approved ? 'You are verified' : 'ID needs another look',
+    approved
+      ? 'Your ID has been verified — you are now in the matching pool, in shaa Allah.'
+      : (reason || 'Please re-submit a clearer photo of your ID.'),
+    { route: '/verify-id' });
+  return { ok: true, approved };
+});
+
+// The ID + selfie images for the admin review card — MODERATOR ONLY, returned
+// as base64 so the quarantine bucket is never exposed to any client SDK.
+exports.idDocImage = onCall({ region: REGION, memory: '512MiB' }, async (request) => {
+  requireModerator(request);
+  const uid = request.data?.uid;
+  if (!uid) throw new HttpsError('invalid-argument', 'uid required.');
+  const ref = (await db.doc(`idReview/${uid}`).get()).get('storageRef');
+  if (!ref) throw new HttpsError('not-found', 'No ID on file.');
+  const [idBuf] = await getStorage().bucket(ID_QUARANTINE_BUCKET).file(ref).download();
+  let selfieB64 = null;
+  try {
+    const [sb] = await getStorage().bucket()
+      .file(`users/${uid}/verification/selfie.jpg`).download();
+    selfieB64 = sb.toString('base64');
+  } catch (_) {}
+  return { idImageBase64: idBuf.toString('base64'), selfieBase64: selfieB64 };
+});
 
 exports.pauseAccount = onCall({ region: REGION }, async (request) => {
   const uid = requireAuth(request);
@@ -239,12 +421,13 @@ function photoVisOf(u) {
 }
 
 async function loadPool() {
-  const [usersSnap, appsSnap] = await Promise.all([
+  const [usersSnap, appsSnap, mandatory] = await Promise.all([
     db.collection('users')
       .where('status', '==', 'approved')
       .where('profileComplete', '==', true)
       .get(),
     db.collection('applications').get(),
+    idVerificationMandatory(),
   ]);
   const answers = {};
   appsSnap.forEach((d) => (answers[d.id] = d.get('answers') || {}));
@@ -252,7 +435,10 @@ async function loadPool() {
   appsSnap.forEach(
     (d) => (names[d.id] = (d.get('intentDeclaration.typedName') || '').split(' ')[0])
   );
-  return usersSnap.docs.map((d) => {
+  return usersSnap.docs
+    // Pool entry requires a manually-approved ID when verification is a gate.
+    .filter((d) => !mandatory || d.get('idVerified') === true)
+    .map((d) => {
     const u = d.data();
     return {
       _id: d.id,

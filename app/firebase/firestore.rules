@@ -99,6 +99,16 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // idReview/{uid} — government-ID verification records. ADMIN-ONLY: holds
+    // OCR/scores + the quarantine image ref, so it is NEVER client-readable
+    // (the applicant sees only users/{uid}.idDocStatus). Written by backend.
+    // ============================================================
+    match /idReview/{uid} {
+      allow read: if isModerator();
+      allow write: if false;
+    }
+
+    // ============================================================
     // matches/{uid}/... — server-generated daily batches. LAW 1 made
     // real: discovery reads ONLY these docs, never the users collection.
     // ============================================================

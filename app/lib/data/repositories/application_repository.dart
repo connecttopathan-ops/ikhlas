@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -23,13 +24,33 @@ class ApplicationRepository {
   ///   soft_rejected   → decision
   ///   applying        → resume at the first unfinished step
   ///                     (phone → declaration → questionnaire)
+  final _fns = FirebaseFunctions.instanceFor(region: 'asia-south1');
+
+  /// Submits one government-ID image (base64) for the mandatory verification
+  /// step. The image goes only to the admin-only quarantine bucket via the
+  /// callable; it is never written to any client-readable path.
+  Future<void> submitIdDoc({required String type, required String imageBase64}) =>
+      _fns.httpsCallable('onIdDocSubmit').call({
+        'type': type,
+        'imageBase64': imageBase64,
+      });
+
   Future<String> resolveEntryRoute() async {
     final snap = await _db.collection('users').doc(_uid).get();
     final d = snap.data() ?? {};
     final status = d['status'] as String?;
     switch (status) {
+      case 'needs_info':
+        // ID was rejected — the applicant must re-submit before pool entry.
+        return '/verify-id';
       case 'approved':
       case 'paused':
+        // Mandatory government-ID gate (PRD Step 4A): after approval, before
+        // pool entry. `idRequired` is set by the backend only when the flag is
+        // on, so the optional-badge model needs no client change.
+        if (d['idRequired'] == true && d['idDocStatus'] != 'approved') {
+          return '/verify-id';
+        }
         return d['profileComplete'] == true ? '/home' : '/welcome';
       case 'under_review':
         return '/review-wait';
