@@ -7,7 +7,7 @@ const {
   onDocumentCreated,
   onDocumentUpdated,
 } = require('firebase-functions/v2/firestore');
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onCall, HttpsError, onRequest } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -328,27 +328,43 @@ exports.reviewIdDoc = onCall({ region: REGION }, async (request) => {
   return { ok: true, approved };
 });
 
-// Short-lived signed URLs for the ID + selfie — MODERATOR ONLY. URLs (short
-// strings) avoid the Flutter-web cloud_functions large-payload bug, and the
-// quarantine bucket is still never exposed to any client SDK (10-min expiry).
-exports.idDocImage = onCall({ region: REGION }, async (request) => {
-  requireModerator(request);
-  const uid = request.data?.uid;
-  if (!uid) throw new HttpsError('invalid-argument', 'uid required.');
-  const ref = (await db.doc(`idReview/${uid}`).get()).get('storageRef');
-  if (!ref) throw new HttpsError('not-found', 'No ID on file.');
-  const expires = Date.now() + 10 * 60 * 1000;
-  const [idUrl] = await getStorage().bucket(ID_QUARANTINE_BUCKET).file(ref)
-    .getSignedUrl({ action: 'read', expires });
-  let selfieUrl = null;
-  try {
-    const [su] = await getStorage().bucket()
-      .file(`users/${uid}/verification/selfie.jpg`)
-      .getSignedUrl({ action: 'read', expires });
-    selfieUrl = su;
-  } catch (_) {}
-  return { idUrl, selfieUrl };
-});
+// Authenticated image proxy for the admin review card — MODERATOR ONLY. The
+// moderator's ID token rides in the query (Flutter-web Image.network can't set
+// headers); we verify it + the moderator claim, then stream the bytes. Avoids
+// base64 (Int64 web bug) and URL signing. The quarantine bucket stays private.
+exports.idDocImageRaw = onRequest(
+  { region: REGION, cors: true, memory: '512MiB' },
+  async (req, res) => {
+    try {
+      const token =
+        (req.query.token || '').toString() ||
+        (req.get('Authorization') || '').replace(/^Bearer /, '');
+      if (!token) return res.status(401).send('unauthenticated');
+      const decoded = await getAuth().verifyIdToken(token);
+      if (decoded.moderator !== true) return res.status(403).send('forbidden');
+
+      const uid = (req.query.uid || '').toString();
+      const which = (req.query.which || 'id').toString();
+      if (!uid) return res.status(400).send('uid required');
+
+      let buf;
+      if (which === 'selfie') {
+        [buf] = await getStorage().bucket()
+          .file(`users/${uid}/verification/selfie.jpg`).download();
+      } else {
+        const ref = (await db.doc(`idReview/${uid}`).get()).get('storageRef');
+        if (!ref) return res.status(404).send('not found');
+        [buf] = await getStorage().bucket(ID_QUARANTINE_BUCKET).file(ref).download();
+      }
+      res.set('Cache-Control', 'private, max-age=120');
+      res.set('Content-Type', 'image/jpeg');
+      return res.status(200).send(buf);
+    } catch (e) {
+      console.error('idDocImageRaw error', e?.message);
+      return res.status(500).send('error');
+    }
+  }
+);
 
 exports.pauseAccount = onCall({ region: REGION }, async (request) => {
   const uid = requireAuth(request);
@@ -729,7 +745,6 @@ exports.onEntryAction = onDocumentUpdated(
 // goes through this function: permission-checked, blurred per privacy
 // mode, watermarked with the viewer's id for leak tracing.
 // ============================================================
-const { onRequest } = require('firebase-functions/v2/https');
 const { processPhoto, decideVisibility } = require('./photos');
 
 const convIdOf = (a, b) => [a, b].sort().join('_');

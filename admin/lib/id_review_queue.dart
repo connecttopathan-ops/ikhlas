@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'tokens.dart';
@@ -62,16 +63,17 @@ class _IdCardState extends State<_IdCard> {
   String? _idUrl, _selfieUrl;
   bool _loadingImg = false, _busy = false;
 
+  static const _imgBase =
+      'https://asia-south1-ikhlas-caecf.cloudfunctions.net/idDocImageRaw';
+
   Future<void> _loadImages() async {
     setState(() => _loadingImg = true);
     try {
-      final res = await _fns
-          .httpsCallable('idDocImage')
-          .call({'uid': widget.uid});
-      final m = Map<String, dynamic>.from(res.data as Map);
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token == null) throw 'Not signed in';
       setState(() {
-        _idUrl = m['idUrl'] as String?;
-        _selfieUrl = m['selfieUrl'] as String?;
+        _idUrl = '$_imgBase?uid=${widget.uid}&which=id&token=$token';
+        _selfieUrl = '$_imgBase?uid=${widget.uid}&which=selfie&token=$token';
       });
     } catch (e) {
       _snack('Could not load images: $e');
