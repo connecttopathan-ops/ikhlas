@@ -141,7 +141,7 @@ class _IdCardState extends State<_IdCard> {
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.all(18),
-      constraints: const BoxConstraints(maxWidth: 760),
+      constraints: const BoxConstraints(maxWidth: 1040),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: T.hairline),
@@ -208,27 +208,70 @@ class _IdCardState extends State<_IdCard> {
   Widget _labelled(String label, String? url) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: T.inter(11.5, color: T.muted)),
+          Row(children: [
+            Text(label, style: T.inter(11.5, color: T.muted)),
+            if (url != null) ...[
+              const Spacer(),
+              Text('tap to zoom', style: T.inter(10.5, color: T.gold)),
+            ],
+          ]),
           const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: url == null
-                ? Container(
-                    height: 220,
-                    alignment: Alignment.center,
-                    color: Colors.black26,
-                    child: Text('none', style: T.inter(12, color: T.muted)))
-                : Image.network(url,
-                    height: 220, width: double.infinity, fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => Container(
-                        height: 220,
-                        alignment: Alignment.center,
-                        color: Colors.black26,
-                        child: Text('could not load',
-                            style: T.inter(12, color: T.muted)))),
+          GestureDetector(
+            onTap: url == null ? null : () => _openFull(url, label),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: url == null
+                  ? Container(
+                      height: 480,
+                      alignment: Alignment.center,
+                      color: Colors.black26,
+                      child: Text('none', style: T.inter(12, color: T.muted)))
+                  : Image.network(url,
+                      height: 480, width: double.infinity, fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Container(
+                          height: 480,
+                          alignment: Alignment.center,
+                          color: Colors.black26,
+                          child: Text('could not load',
+                              style: T.inter(12, color: T.muted)))),
+            ),
           ),
         ],
       );
+
+  /// Full-screen, pinch/scroll-zoomable view — needed to read passport MRZ,
+  /// name, and number when verifying against the selfie.
+  void _openFull(String url, String label) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(.92),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(24),
+        child: Stack(children: [
+          Positioned.fill(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 6,
+              child: Center(child: Image.network(url, fit: BoxFit.contain)),
+            ),
+          ),
+          Positioned(
+            top: 8, left: 12,
+            child: Text(label,
+                style: T.inter(13, weight: FontWeight.w600, color: Colors.white)),
+          ),
+          Positioned(
+            top: 0, right: 0,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 26),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
 
   Widget _chip(String t) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
