@@ -328,6 +328,56 @@ exports.reviewIdDoc = onCall({ region: REGION }, async (request) => {
   return { ok: true, approved };
 });
 
+// HTTP twin of reviewIdDoc for the Flutter-web admin — the cloud_functions web
+// plugin throws "Int64 accessor not supported by dart2js" on callable responses,
+// so the admin hits this instead. Moderator token in the query; same effect.
+exports.reviewIdDocHttp = onRequest(
+  { region: REGION, cors: true },
+  async (req, res) => {
+    try {
+      const token =
+        (req.query.token || '').toString() ||
+        (req.get('Authorization') || '').replace(/^Bearer /, '');
+      if (!token) return res.status(401).json({ error: 'unauthenticated' });
+      const decoded = await getAuth().verifyIdToken(token);
+      if (decoded.moderator !== true) return res.status(403).json({ error: 'forbidden' });
+
+      const uid = (req.query.uid || '').toString();
+      const decision = (req.query.decision || '').toString();
+      const reason = (req.query.reason || '').toString().slice(0, 500);
+      if (!uid || (decision !== 'approve' && decision !== 'reject')) {
+        return res.status(400).json({ error: 'uid + decision required' });
+      }
+      const reviewRef = db.doc(`idReview/${uid}`);
+      if (!(await reviewRef.get()).exists) {
+        return res.status(404).json({ error: 'no submitted ID' });
+      }
+      const approved = decision === 'approve';
+      await reviewRef.update({
+        status: approved ? 'approved' : 'rejected',
+        reviewedBy: decoded.uid,
+        reviewedAt: FieldValue.serverTimestamp(),
+        ...(reason ? { rejectionReason: reason } : {}),
+      });
+      await db.doc(`users/${uid}`).update({
+        idVerified: approved,
+        idDocStatus: approved ? 'approved' : 'rejected',
+        ...(approved ? {} : { status: 'needs_info' }),
+      });
+      await pushTo(uid,
+        approved ? 'You are verified' : 'ID needs another look',
+        approved
+          ? 'Your ID has been verified — you are now in the matching pool, in shaa Allah.'
+          : (reason || 'Please re-submit a clearer photo of your ID.'),
+        { route: '/verify-id' });
+      return res.status(200).json({ ok: true, approved });
+    } catch (e) {
+      console.error('reviewIdDocHttp error', e?.message);
+      return res.status(500).json({ error: 'error' });
+    }
+  }
+);
+
 // Authenticated image proxy for the admin review card — MODERATOR ONLY. The
 // moderator's ID token rides in the query (Flutter-web Image.network can't set
 // headers); we verify it + the moderator claim, then stream the bytes. Avoids

@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 import 'tokens.dart';
 
@@ -59,12 +59,13 @@ class _IdCard extends StatefulWidget {
 }
 
 class _IdCardState extends State<_IdCard> {
-  final _fns = FirebaseFunctions.instanceFor(region: 'asia-south1');
   String? _idUrl, _selfieUrl;
   bool _loadingImg = false, _busy = false;
 
   static const _imgBase =
       'https://asia-south1-ikhlas-caecf.cloudfunctions.net/idDocImageRaw';
+  static const _reviewBase =
+      'https://asia-south1-ikhlas-caecf.cloudfunctions.net/reviewIdDocHttp';
 
   Future<void> _loadImages() async {
     setState(() => _loadingImg = true);
@@ -90,11 +91,17 @@ class _IdCardState extends State<_IdCard> {
     }
     setState(() => _busy = true);
     try {
-      await _fns.httpsCallable('reviewIdDoc').call({
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      final uri = Uri.parse(_reviewBase).replace(queryParameters: {
         'uid': widget.uid,
         'decision': decision,
         if (reason != null && reason.isNotEmpty) 'reason': reason,
+        'token': token ?? '',
       });
+      final resp = await http.get(uri);
+      if (resp.statusCode != 200) {
+        throw 'HTTP ${resp.statusCode}: ${resp.body}';
+      }
       _snack(decision == 'approve' ? 'Approved — user is now in the pool.' : 'Rejected.');
     } catch (e) {
       _snack('Failed: $e');
