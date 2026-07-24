@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
@@ -61,7 +59,7 @@ class _IdCard extends StatefulWidget {
 
 class _IdCardState extends State<_IdCard> {
   final _fns = FirebaseFunctions.instanceFor(region: 'asia-south1');
-  String? _idB64, _selfieB64;
+  String? _idUrl, _selfieUrl;
   bool _loadingImg = false, _busy = false;
 
   Future<void> _loadImages() async {
@@ -72,8 +70,8 @@ class _IdCardState extends State<_IdCard> {
           .call({'uid': widget.uid});
       final m = Map<String, dynamic>.from(res.data as Map);
       setState(() {
-        _idB64 = m['idImageBase64'] as String?;
-        _selfieB64 = m['selfieBase64'] as String?;
+        _idUrl = m['idUrl'] as String?;
+        _selfieUrl = m['selfieUrl'] as String?;
       });
     } catch (e) {
       _snack('Could not load images: $e');
@@ -167,7 +165,7 @@ class _IdCardState extends State<_IdCard> {
           _stat('Liveness', _yn(d['livenessPassed'])),
         ]),
         const SizedBox(height: 16),
-        if (_idB64 == null && !_loadingImg)
+        if (_idUrl == null && !_loadingImg)
           OutlinedButton.icon(
             onPressed: _loadImages,
             icon: const Icon(Icons.image_outlined, size: 18),
@@ -175,7 +173,7 @@ class _IdCardState extends State<_IdCard> {
           ),
         if (_loadingImg) const Center(child: Padding(
           padding: EdgeInsets.all(12), child: CircularProgressIndicator())),
-        if (_idB64 != null) _images(),
+        if (_idUrl != null) _images(),
         const SizedBox(height: 18),
         Row(children: [
           Expanded(
@@ -200,26 +198,32 @@ class _IdCardState extends State<_IdCard> {
   }
 
   Widget _images() => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Expanded(child: _labelled('ID document', _idB64)),
+        Expanded(child: _labelled('ID document', _idUrl)),
         const SizedBox(width: 14),
-        Expanded(child: _labelled('Selfie (on file)', _selfieB64)),
+        Expanded(child: _labelled('Selfie (on file)', _selfieUrl)),
       ]);
 
-  Widget _labelled(String label, String? b64) => Column(
+  Widget _labelled(String label, String? url) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label, style: T.inter(11.5, color: T.muted)),
           const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: b64 == null
+            child: url == null
                 ? Container(
                     height: 220,
                     alignment: Alignment.center,
                     color: Colors.black26,
                     child: Text('none', style: T.inter(12, color: T.muted)))
-                : Image.memory(base64Decode(b64),
-                    height: 220, width: double.infinity, fit: BoxFit.contain),
+                : Image.network(url,
+                    height: 220, width: double.infinity, fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => Container(
+                        height: 220,
+                        alignment: Alignment.center,
+                        color: Colors.black26,
+                        child: Text('could not load',
+                            style: T.inter(12, color: T.muted)))),
           ),
         ],
       );

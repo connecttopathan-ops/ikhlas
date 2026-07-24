@@ -328,22 +328,26 @@ exports.reviewIdDoc = onCall({ region: REGION }, async (request) => {
   return { ok: true, approved };
 });
 
-// The ID + selfie images for the admin review card — MODERATOR ONLY, returned
-// as base64 so the quarantine bucket is never exposed to any client SDK.
-exports.idDocImage = onCall({ region: REGION, memory: '512MiB' }, async (request) => {
+// Short-lived signed URLs for the ID + selfie — MODERATOR ONLY. URLs (short
+// strings) avoid the Flutter-web cloud_functions large-payload bug, and the
+// quarantine bucket is still never exposed to any client SDK (10-min expiry).
+exports.idDocImage = onCall({ region: REGION }, async (request) => {
   requireModerator(request);
   const uid = request.data?.uid;
   if (!uid) throw new HttpsError('invalid-argument', 'uid required.');
   const ref = (await db.doc(`idReview/${uid}`).get()).get('storageRef');
   if (!ref) throw new HttpsError('not-found', 'No ID on file.');
-  const [idBuf] = await getStorage().bucket(ID_QUARANTINE_BUCKET).file(ref).download();
-  let selfieB64 = null;
+  const expires = Date.now() + 10 * 60 * 1000;
+  const [idUrl] = await getStorage().bucket(ID_QUARANTINE_BUCKET).file(ref)
+    .getSignedUrl({ action: 'read', expires });
+  let selfieUrl = null;
   try {
-    const [sb] = await getStorage().bucket()
-      .file(`users/${uid}/verification/selfie.jpg`).download();
-    selfieB64 = sb.toString('base64');
+    const [su] = await getStorage().bucket()
+      .file(`users/${uid}/verification/selfie.jpg`)
+      .getSignedUrl({ action: 'read', expires });
+    selfieUrl = su;
   } catch (_) {}
-  return { idImageBase64: idBuf.toString('base64'), selfieBase64: selfieB64 };
+  return { idUrl, selfieUrl };
 });
 
 exports.pauseAccount = onCall({ region: REGION }, async (request) => {
