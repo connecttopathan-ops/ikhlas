@@ -108,7 +108,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   Future<void> _addPhotos() async {
     if (_photos.length >= 6) return;
     final picked = await ImagePicker()
-        .pickMultiImage(maxWidth: 1600, imageQuality: 88);
+        .pickMultiImage(maxWidth: 1200, imageQuality: 78);
     if (picked.isNotEmpty) {
       setState(() {
         for (final img in picked) {

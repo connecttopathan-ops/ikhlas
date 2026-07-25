@@ -143,6 +143,7 @@ class _IdCardState extends State<_IdCard> {
     final d = widget.data;
     final name = d['applicationName'] ?? '—';
     final type = d['type'] ?? '—';
+    final pending = d['analysisPending'] == true; // OCR still running
     final nameScore = d['nameMatchScore'];
     final last4 = d['last4'] ?? '—';
     return Container(
@@ -165,9 +166,9 @@ class _IdCardState extends State<_IdCard> {
         Text('uid ${widget.uid}', style: T.inter(11.5, color: T.muted)),
         const SizedBox(height: 14),
         Wrap(spacing: 20, runSpacing: 8, children: [
-          _stat('Name match', nameScore == null ? '—' : '${((nameScore as num) * 100).round()}%'),
-          _stat('OCR name', (d['ocrName'] ?? '—').toString()),
-          _stat('ID last4', last4.toString()),
+          _stat('Name match', pending ? 'analysing…' : nameScore == null ? '—' : '${((nameScore as num) * 100).round()}%'),
+          _stat('OCR name', pending ? 'analysing…' : (d['ocrName'] ?? '—').toString()),
+          _stat('ID last4', pending ? 'analysing…' : last4.toString()),
           _stat('Face match', 'Manual — compare below'),
           _stat('Face on ID', _yn(d['idFacePresent'])),
           _stat('Face on selfie', _yn(d['selfieFacePresent'])),

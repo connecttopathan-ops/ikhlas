@@ -28,18 +28,27 @@ final routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/',
     refreshListenable: notifier,
     redirect: (context, state) {
-      final user = FirebaseAuth.instance.currentUser;
       final loc = state.matchedLocation;
       const publicRoutes = {'/', '/landing', '/login'};
+
+      // #9 — distinguish "auth still resolving" from "definitely logged out".
+      // On a cold start Firebase restores the session asynchronously; reading
+      // currentUser synchronously saw null and bounced a signed-in member to
+      // /landing (the repeated "signed out" bug). While auth is loading, never
+      // redirect — the splash ('/') holds and the notifier re-runs on resolve.
+      final authState = ref.read(authStateProvider);
+      if (authState.isLoading) return null;
+      final user = authState.valueOrNull;
 
       if (user == null) {
         return publicRoutes.contains(loc) ? null : '/landing';
       }
 
       // Signed in: gate status drives where you're allowed to be.
+      final userDocAsync = ref.read(userDocProvider);
       final status = ref.read(userStatusProvider);
       final profileComplete = ref.read(profileCompleteProvider);
-      final userDoc = ref.read(userDocProvider).value?.data();
+      final userDoc = userDocAsync.value?.data();
       final idRequired = userDoc?['idRequired'] == true;
       final idApproved = userDoc?['idDocStatus'] == 'approved';
       switch (status) {
@@ -66,6 +75,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         case 'soft_rejected':
           return loc == '/decision' ? null : '/decision';
         default:
+          // A signed-in member whose user doc is still loading must NOT be
+          // treated as 'applying' and bounced to /landing (#9). Hold instead.
+          if (userDocAsync.isLoading) return null;
           // 'applying' (or doc still loading): the application flow is fine,
           // decision surfaces are not. /review-wait stays reachable — right
           // after submission the client lands there while the gate engine

@@ -6,6 +6,7 @@
 const {
   onDocumentCreated,
   onDocumentUpdated,
+  onDocumentWritten,
 } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError, onRequest } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
@@ -236,24 +237,12 @@ exports.onIdDocSubmit = onCall(
       throw new HttpsError('invalid-argument', 'Image too large.');
     }
 
-    // The selfie captured at application — for the admin's visual face compare.
-    let selfieBuffer = null;
-    try {
-      const [b] = await getStorage().bucket()
-        .file(`users/${uid}/verification/selfie.jpg`).download();
-      selfieBuffer = b;
-    } catch (_) {}
-
     const appSnap = await db.doc(`applications/${uid}`).get();
     const applicationName =
       appSnap.get('intentDeclaration.typedName') ||
       userSnap.get('profile.displayName') || '';
     const livenessPassed =
       appSnap.get('verification.selfie.livenessPassed') ?? null;
-
-    const analysis = await analyzeIdDoc({
-      idBuffer, selfieBuffer, applicationName, type,
-    });
 
     // Image → admin-only quarantine bucket. Retained (no delete) for re-check.
     const storageRef = `idDocs/${uid}.jpg`;
@@ -263,20 +252,23 @@ exports.onIdDocSubmit = onCall(
       metadata: { metadata: { uid, type } },
     });
 
-    // Full record → ADMIN-ONLY doc (never client-readable) so no image ref or
-    // gameable score reaches the applicant's own (self-readable) documents.
+    // Record written WITHOUT OCR — the analyzeIdReview trigger fills the support
+    // signals off this path, so the applicant's submission returns instantly
+    // (Vision OCR + face detection no longer block the call). ADMIN-ONLY doc.
     await db.doc(`idReview/${uid}`).set({
       uid,
       type,
       status: 'submitted',
-      ocrName: analysis.ocrName,
-      nameMatchScore: analysis.nameMatchScore,
-      faceMatchScore: analysis.faceMatchScore,   // null this tier — manual
-      faceMatchMethod: analysis.faceMatchMethod,
-      idFacePresent: analysis.idFacePresent,
-      selfieFacePresent: analysis.selfieFacePresent,
+      analysisPending: true,          // trigger clears this once OCR runs
+      analysisRequestedAt: FieldValue.serverTimestamp(),
+      ocrName: null,
+      nameMatchScore: null,
+      faceMatchScore: null,           // null this tier — manual
+      faceMatchMethod: 'manual',
+      idFacePresent: null,
+      selfieFacePresent: null,
       livenessPassed,
-      last4: analysis.last4,                      // never the full number
+      last4: null,                    // never the full number
       storageRef,
       applicationName,
       submittedAt: FieldValue.serverTimestamp(),
@@ -290,6 +282,50 @@ exports.onIdDocSubmit = onCall(
       idDocType: type,
     });
     return { ok: true };
+  }
+);
+
+// OCR name-match + face-presence run HERE, off the submit path, so uploading an
+// ID feels instant. Fires when a review record is (re)submitted for analysis;
+// reads the quarantined image + selfie, runs Vision, writes the support signals.
+exports.analyzeIdReview = onDocumentWritten(
+  { document: 'idReview/{uid}', region: REGION, memory: '512MiB' },
+  async (event) => {
+    const after = event.data?.after?.data();
+    const before = event.data?.before?.data();
+    // Only on the submit/resubmit transition — not on the trigger's own write
+    // (analysisPending:false) or the admin's approve/reject.
+    if (!after || after.analysisPending !== true) return;
+    if (before && before.analysisPending === true) return;
+
+    const uid = event.params.uid;
+    try {
+      const [idBuf] = await getStorage()
+        .bucket(ID_QUARANTINE_BUCKET).file(after.storageRef).download();
+      let selfieBuf = null;
+      try {
+        const [s] = await getStorage().bucket()
+          .file(`users/${uid}/verification/selfie.jpg`).download();
+        selfieBuf = s;
+      } catch (_) {}
+      const analysis = await analyzeIdDoc({
+        idBuffer: idBuf, selfieBuffer: selfieBuf,
+        applicationName: after.applicationName, type: after.type,
+      });
+      await db.doc(`idReview/${uid}`).update({
+        ocrName: analysis.ocrName,
+        nameMatchScore: analysis.nameMatchScore,
+        last4: analysis.last4,
+        faceMatchScore: analysis.faceMatchScore,
+        faceMatchMethod: analysis.faceMatchMethod,
+        idFacePresent: analysis.idFacePresent,
+        selfieFacePresent: analysis.selfieFacePresent,
+        analysisPending: false,
+      });
+    } catch (e) {
+      console.error('analyzeIdReview error', e?.message);
+      await db.doc(`idReview/${uid}`).update({ analysisPending: false });
+    }
   }
 );
 
