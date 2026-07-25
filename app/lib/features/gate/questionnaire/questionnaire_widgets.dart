@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../core/theme/app_theme.dart';
@@ -167,21 +169,33 @@ class _OptionRow extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 22,
-              height: 22,
-              margin: const EdgeInsets.only(top: 1),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.checkbox),
-                border: Border.all(
-                    color: DarkTokens.gold.withOpacity(selected ? .9 : .45),
-                    width: 1),
-              ),
-              alignment: Alignment.center,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 250),
-                opacity: selected ? 1 : 0,
-                child: const DiamondBullet(size: 10, color: DarkTokens.gold),
+            // One control vocabulary: a diamond in BOTH states — filled =
+            // selected, outline = unselected (radio behaviour). No shape swap
+            // between states, which is what read ambiguously before.
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: Center(
+                  child: Transform.rotate(
+                    angle: math.pi / 4,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 13,
+                      height: 13,
+                      decoration: BoxDecoration(
+                        color:
+                            selected ? DarkTokens.gold : Colors.transparent,
+                        borderRadius: BorderRadius.circular(2),
+                        border: Border.all(
+                            color: DarkTokens.gold
+                                .withOpacity(selected ? .9 : .5),
+                            width: 1.4),
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 14),
@@ -279,5 +293,34 @@ class QuestionLabel extends StatelessWidget {
                 weight: FontWeight.w500,
                 color: DarkTokens.ivory,
                 height: 1.4)),
+      );
+}
+
+/// Affirmation prompt: a bold plain-language commitment line, with an optional
+/// smaller light clarifier beneath carrying the doctrinal precision. Keeps the
+/// creed/finance questions readable on a phone without losing accuracy.
+class AffirmationPrompt extends StatelessWidget {
+  final String main;
+  final String? clarifier;
+  const AffirmationPrompt(this.main, {this.clarifier, super.key});
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 22, bottom: 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(main,
+                style: AppType.inter(15.5,
+                    weight: FontWeight.w600,
+                    color: DarkTokens.ivory,
+                    height: 1.4)),
+            if (clarifier != null) ...[
+              const SizedBox(height: 5),
+              Text(clarifier!,
+                  style: AppType.inter(12.5,
+                      color: DarkTokens.muted(), height: 1.5)),
+            ],
+          ],
+        ),
       );
 }

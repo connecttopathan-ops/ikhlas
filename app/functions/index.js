@@ -647,12 +647,11 @@ function entrySnapshot(e) {
     madhhab: c.profile.madhhab || null,
     prayer: c.answers.prayer || null,
     timeframe: c.answers.timeframe || null,
-    // Deen detail (Section F) + diet — the card's DEEN block (PRD §4.2).
+    // Deen detail (Section F) — the card's DEEN block (PRD §4.2).
     quranEngagement: c.deenDetail?.quranEngagement || null,
     quranMemorization: c.deenDetail?.quranMemorization || null,
     islamicStudy: c.deenDetail?.islamicStudy || null,
     fasting: c.deenDetail?.fasting || null,
-    dietPractice: c.profile.dietPractice || null,
     ribaDisclosureBadge: c.ribaBadge,
     hasPhotos: c.hasPhotos === true,
     photoVisibility: c.photoVisibility || 'on_mutual_blur',
@@ -1525,7 +1524,6 @@ function chatProfile(userSnap, appSnap) {
     quranMemorization: p.deenDetail?.quranMemorization || null,
     islamicStudy: p.deenDetail?.islamicStudy || null,
     fasting: p.deenDetail?.fasting || null,
-    dietPractice: p.dietPractice || null,
     ribaDisclosureBadge: u.ribaDisclosureBadge === true,
     bioPrompts: p.bioPrompts || [],
     timingReadiness: a.shortAnswers?.timingReadiness

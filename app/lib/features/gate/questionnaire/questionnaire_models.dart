@@ -40,7 +40,6 @@ class QuestionnaireAnswers {
   String? incomeBand; // COLLECTED, never shown, never scored (PRD §0)
   String? familyType; // joint | nuclear
   String? familyReligiosity; // very_practising | practising | moderate | cultural
-  String? dietPractice; // zabiha_only | halal_only | halal_when_available | no_restriction
   String healthDisclosure = ''; // optional; revealed at conversation stage
 
   // ---- D. Short answers ----
@@ -84,9 +83,7 @@ class QuestionnaireAnswers {
   bool get sectionC3Complete =>
       education != null && profession != null && incomeBand != null;
   bool get sectionC4Complete =>
-      familyType != null &&
-      familyReligiosity != null &&
-      dietPractice != null; // health optional
+      familyType != null && familyReligiosity != null; // health optional
   bool get sectionD1Complete => timingReadiness.trim().length >= shortAnswerMin;
   bool get sectionD2Complete => deenRelationship.trim().length >= shortAnswerMin;
   bool get sectionEComplete =>
@@ -231,21 +228,6 @@ class Choices {
     Choice('moderate', 'Moderate'),
     Choice('cultural', 'Cultural / nominal'),
   ];
-  // Halal diet practice (PRD Section C) — profile.dietPractice.
-  static const diet = [
-    Choice('zabiha_only', 'Zabiha meat only'),
-    Choice('halal_only', 'Halal only'),
-    Choice('halal_when_available', 'Halal when available'),
-    Choice('no_restriction', 'No restriction'),
-  ];
-  // Diet preference — scored as alignment, never a hard filter (§0).
-  static const dietPreference = [
-    Choice('zabiha_only', 'Zabiha meat only'),
-    Choice('halal_only', 'Halal only'),
-    Choice('halal_when_available', 'Halal when available'),
-    Choice('no_restriction', 'No restriction'),
-    Choice('no_preference', 'No preference'),
-  ];
   // Photo visibility (member-facing) — profile.photoVisibility.
   static const photoVisibility = [
     Choice('public', 'Visible to my daily matches',
@@ -262,16 +244,18 @@ class Choices {
     Choice('not_affirm', 'I do not affirm'),
   ];
   static const e3 = [
-    Choice('none', 'I have no interest-based debt'),
-    Choice('exiting', 'I have legacy debt and am actively exiting it',
+    Choice('none', 'I have none'),
+    Choice('exiting', "I have some, and I'm actively getting out of it",
         note: 'Shown to matches as an honest-disclosure badge — '
             'transparency before nikah.'),
     Choice('continuing',
-        'I use interest-based financing and intend to continue'),
+        'I use interest-based financing and plan to continue'),
   ];
+  // E4 income. Label reads "Not sure"; the stored value stays 'uncertain'
+  // (routes to manual review — do not change the gate value).
   static const e4 = [
-    Choice('halal', 'Yes — from a source I consider halal'),
-    Choice('uncertain', 'Uncertain'),
+    Choice('halal', 'Yes'),
+    Choice('uncertain', 'Not sure'),
     Choice('not_halal', 'No'),
   ];
   // ---- Profile builder preferences (PRD v1.2 §4.1) ----

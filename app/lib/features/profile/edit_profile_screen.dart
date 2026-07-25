@@ -64,7 +64,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String? _deenPrefPrayer;
   String? _deenPrefHijabBeard;
   String? _deenPrefRiba;
-  String? _dietPreference;
   RangeValues? _heightRange;
 
   final _waliName = TextEditingController();
@@ -122,7 +121,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _relocationRequired = prefs['relocationRequired'] as bool? ?? false;
     _openToSpouseAbroad = prefs['openToSpouseAbroad'] as bool? ?? true;
     _spouseWork = prefs['spouseWorkExpectation'] as String?;
-    _dietPreference = prefs['dietPreference'] as String?;
     _financialExpectation =
         (d['profile'] as Map?)?['financialExpectation'] as String?;
     final dp = prefs['deenPreference'] as Map?;
@@ -216,7 +214,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           'acceptChildren': _acceptChildren,
           'relocationRequired': _relocationRequired,
           'openToSpouseAbroad': _openToSpouseAbroad,
-          if (_dietPreference != null) 'dietPreference': _dietPreference,
           if (_spouseWork != null) 'spouseWorkExpectation': _spouseWork,
           if (_heightRange != null)
             'heightRange': {
@@ -396,12 +393,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   options: Choices.financialExpectation,
                   selected: _financialExpectation,
                   onSelect: (v) => setState(() => _financialExpectation = v)),
-
-              const QuestionLabel('Preferred halal diet (optional)'),
-              OptionList(
-                  options: Choices.dietPreference,
-                  selected: _dietPreference,
-                  onSelect: (v) => setState(() => _dietPreference = v)),
 
               const QuestionLabel(
                   'Would you like your spouse to work? (optional)'),

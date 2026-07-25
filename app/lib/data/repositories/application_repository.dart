@@ -155,7 +155,6 @@ class ApplicationRepository {
       'profile.incomeBand': a.incomeBand,
       'profile.familyType': a.familyType,
       'profile.familyReligiosity': a.familyReligiosity,
-      'profile.dietPractice': a.dietPractice,
       if (a.healthDisclosure.trim().isNotEmpty)
         'profile.healthDisclosure': a.healthDisclosure.trim(),
       if (a.sect.trim().isNotEmpty) 'profile.sect': a.sect.trim(),

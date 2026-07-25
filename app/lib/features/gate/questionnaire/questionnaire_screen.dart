@@ -122,12 +122,26 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
     if (shot != null) setState(() => _selfie = shot);
   }
 
+  // Camera path — the framed capture screen with the document guide.
   Future<void> _captureId() async {
     if (_idType == null) return;
     final shot = await Navigator.of(context).push<XFile>(
       MaterialPageRoute(builder: (_) => IdCaptureScreen(docType: _idType!)),
     );
     if (shot != null) setState(() => _idImage = shot);
+  }
+
+  // Device path — pick an existing photo from the gallery. Same OCR + face
+  // pipeline as the camera path; uploads just miss the alignment guide, so
+  // they may OCR slightly worse (acceptable — more manual correction).
+  Future<void> _uploadId() async {
+    if (_idType == null) return;
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 2400,
+      imageQuality: 88,
+    );
+    if (file != null) setState(() => _idImage = file);
   }
 
   Future<void> _pickDob() async {
@@ -434,11 +448,6 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
               options: Choices.familyReligiosity,
               selected: _a.familyReligiosity,
               onSelect: (v) => setState(() => _a.familyReligiosity = v)),
-          const QuestionLabel('Your halal diet practice'),
-          OptionList(
-              options: Choices.diet,
-              selected: _a.dietPractice,
-              onSelect: (v) => setState(() => _a.dietPractice = v)),
           const QuestionLabel('Any health condition to disclose? (optional)'),
           Text(
               'Shared only once a conversation opens, never on your match card. '
@@ -689,29 +698,37 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         intro: 'These reflect the standard of the Ikhlaas pool. '
             'Answer truthfully before Allah.',
         children: [
-          const QuestionLabel(
-              'I affirm that all worship and supplication is for Allah alone. '
-              'I do not invoke, supplicate to, or seek help from the deceased, '
-              'saints, or graves.'),
+          // E1 Tawhid. The clarifier is fiqh-sensitive (targets istighatha, not
+          // grave visitation) and flagged for scholarly sign-off — do NOT edit.
+          const AffirmationPrompt(
+            'I worship Allah alone, and call upon Him alone.',
+            clarifier:
+                "I don't pray to, or seek help from, the dead, saints, or graves.",
+          ),
           OptionList(
               options: Choices.e1,
               selected: _a.e1Tawhid,
               onSelect: (v) => setState(() => _a.e1Tawhid = v)),
-          const QuestionLabel(
-              'I affirm that riba (interest) is impermissible, including '
-              'conventional interest-based home, car, and personal loans and '
-              'credit-card interest.'),
+          // E2 Riba belief.
+          const AffirmationPrompt(
+            'I believe riba (interest) is haram.',
+            clarifier:
+                'This includes conventional interest-based home, car, and '
+                'personal loans, and credit-card interest.',
+          ),
           OptionList(
               options: Choices.e1, // same affirm / not_affirm pair
               selected: _a.e2Riba,
               onSelect: (v) => setState(() => _a.e2Riba = v)),
-          const QuestionLabel('My current situation with interest-based debt:'),
+          // E3 Debt situation. E3(b) carries the honest-disclosure badge (note
+          // lives on the option in Choices.e3).
+          const AffirmationPrompt('My situation with interest-based debt:'),
           OptionList(
               options: Choices.e3,
               selected: _a.e3RibaPractice,
               onSelect: (v) => setState(() => _a.e3RibaPractice = v)),
-          const QuestionLabel(
-              'Is your primary income from a source you consider halal?'),
+          // E4 Income. Label "Not sure"; stored config value stays "uncertain".
+          const AffirmationPrompt('Is your main income from a halal source?'),
           OptionList(
               options: Choices.e4,
               selected: _a.e4IncomeSource,
@@ -856,49 +873,56 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
                   })),
           const SizedBox(height: 20),
           Center(
-            child: InkWell(
-              onTap: _idType == null || _submitting ? null : _captureId,
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              child: Container(
-                width: 260,
-                height: 170,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.control),
-                  border: Border.all(
-                      color: DarkTokens.gold
-                          .withOpacity(_idImage == null ? .45 : .9),
-                      width: 1),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: _idImage == null
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.badge_outlined,
-                              size: 40,
-                              color: DarkTokens.muted(_idType == null ? .3 : .7)),
-                          const SizedBox(height: 12),
-                          Text(
-                              _idType == null
-                                  ? 'Choose a document first'
-                                  : 'Tap to photograph your ${_idType == 'passport' ? 'passport' : 'Aadhaar'}',
-                              textAlign: TextAlign.center,
-                              style: AppType.inter(13,
-                                  color: DarkTokens.muted(.7))),
-                        ],
-                      )
-                    : Image.file(File(_idImage!.path), fit: BoxFit.cover),
+            child: Container(
+              width: 260,
+              height: 170,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadius.control),
+                border: Border.all(
+                    color: DarkTokens.gold
+                        .withOpacity(_idImage == null ? .45 : .9),
+                    width: 1),
               ),
+              clipBehavior: Clip.antiAlias,
+              child: _idImage == null
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.badge_outlined,
+                            size: 40,
+                            color: DarkTokens.muted(_idType == null ? .3 : .7)),
+                        const SizedBox(height: 12),
+                        Text(
+                            _idType == null
+                                ? 'Choose a document first'
+                                : 'Take a photo or upload your ${_idType == 'passport' ? 'passport' : 'Aadhaar'}',
+                            textAlign: TextAlign.center,
+                            style: AppType.inter(13,
+                                color: DarkTokens.muted(.7))),
+                      ],
+                    )
+                  : Image.file(File(_idImage!.path), fit: BoxFit.cover),
             ),
           ),
-          if (_idImage != null) ...[
-            const SizedBox(height: 14),
-            Center(
-              child: QuietLink(
-                  linkText: 'Retake photo',
-                  onTap: _submitting ? null : _captureId),
+          const SizedBox(height: 16),
+          // Two paths, both available: framed camera capture OR a device photo.
+          Row(children: [
+            Expanded(
+              child: _idActionButton(
+                _idImage == null ? 'Take photo' : 'Retake',
+                Icons.photo_camera_outlined,
+                _idType == null || _submitting ? null : _captureId,
+              ),
             ),
-          ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: _idActionButton(
+                'Upload from device',
+                Icons.upload_file_outlined,
+                _idType == null || _submitting ? null : _uploadId,
+              ),
+            ),
+          ]),
           const SizedBox(height: 22),
           Text(
             'Your application is reviewed by our team. Decisions are '
@@ -912,4 +936,38 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
             ? _submit
             : null,
       );
+
+  // Bordered action button for the ID step (curved, on-brand). Disabled when
+  // onTap is null (no document chosen yet, or a submit is in flight).
+  Widget _idActionButton(String label, IconData icon, VoidCallback? onTap) {
+    final enabled = onTap != null;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppRadius.control),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.control),
+          border: Border.all(
+              color: DarkTokens.gold.withOpacity(enabled ? .6 : .25), width: 1),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon,
+                size: 18,
+                color: DarkTokens.gold.withOpacity(enabled ? .95 : .35)),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(label,
+                  textAlign: TextAlign.center,
+                  style: AppType.inter(13,
+                      weight: FontWeight.w500,
+                      color: DarkTokens.ivory.withOpacity(enabled ? 1 : .4))),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

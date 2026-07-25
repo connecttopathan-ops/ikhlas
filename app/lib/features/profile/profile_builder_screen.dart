@@ -54,7 +54,6 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   String? _deenPrefPrayer;
   String? _deenPrefHijabBeard;
   String? _deenPrefRiba;
-  String? _dietPreference; // nullable — scored as alignment, never a filter
   RangeValues? _heightRange; // nullable — off unless the user sets it
 
   // Step 5 — wali
@@ -88,7 +87,6 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
         'acceptChildren': _acceptChildren,
         'relocationRequired': _relocationRequired,
         'openToSpouseAbroad': _openToSpouseAbroad,
-        if (_dietPreference != null) 'dietPreference': _dietPreference,
         if (_spouseWork != null) 'spouseWorkExpectation': _spouseWork,
         if (_heightRange != null)
           'heightRange': {
@@ -374,12 +372,6 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
               options: Choices.financialExpectation,
               selected: _financialExpectation,
               onSelect: (v) => setState(() => _financialExpectation = v)),
-
-          const QuestionLabel('Preferred halal diet (optional)'),
-          OptionList(
-              options: Choices.dietPreference,
-              selected: _dietPreference,
-              onSelect: (v) => setState(() => _dietPreference = v)),
 
           const QuestionLabel('Would you like your spouse to work? (optional)'),
           OptionList(

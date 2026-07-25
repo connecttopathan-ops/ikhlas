@@ -65,12 +65,6 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     final inch = totalIn % 12;
     return '$ft\'$inch" ($cm cm)';
   }
-  static const _dietLabel = {
-    'zabiha_only': 'Zabiha only',
-    'halal_only': 'Halal only',
-    'halal_when_available': 'Halal when available',
-    'no_restriction': 'No restriction',
-  };
   static const _timeframeLabel = {
     '6m': 'Nikah within 6 months',
     '6_12m': 'Nikah in 6–12 months',
@@ -276,7 +270,6 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 _fact('Islamic study', _islamicStudyLabel[e['islamicStudy']]),
                 _fact('Fasting', _fastingLabel[e['fasting']]),
                 _fact('Madhhab', e['madhhab']),
-                _fact('Diet', _dietLabel[e['dietPractice']]),
 
                 // A3 — BASICS, now with Height (madhhab moved to Deen).
                 const SizedBox(height: 22),
