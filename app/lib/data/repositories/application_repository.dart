@@ -27,12 +27,16 @@ class ApplicationRepository {
   final _fns = FirebaseFunctions.instanceFor(region: 'asia-south1');
 
   /// Submits one government-ID image (base64) for the mandatory verification
-  /// step. The image goes only to the admin-only quarantine bucket via the
-  /// callable; it is never written to any client-readable path.
-  Future<void> submitIdDoc({required String type, required String imageBase64}) =>
+  /// step, captured DURING the application. The image goes only to the
+  /// admin-only quarantine bucket via the callable; it is never written to any
+  /// client-readable path. `name` (the declaration's typed name) feeds the OCR
+  /// name-match, since the immutable application doc may not exist yet.
+  Future<void> submitIdDoc(
+          {required String type, required String imageBase64, String? name}) =>
       _fns.httpsCallable('onIdDocSubmit').call({
         'type': type,
         'imageBase64': imageBase64,
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
       });
 
   Future<String> resolveEntryRoute() async {
@@ -40,17 +44,11 @@ class ApplicationRepository {
     final d = snap.data() ?? {};
     final status = d['status'] as String?;
     switch (status) {
-      case 'needs_info':
-        // ID was rejected — the applicant must re-submit before pool entry.
-        return '/verify-id';
       case 'approved':
       case 'paused':
-        // Mandatory government-ID gate (PRD Step 4A): after approval, before
-        // pool entry. `idRequired` is set by the backend only when the flag is
-        // on, so the optional-badge model needs no client change.
-        if (d['idRequired'] == true && d['idDocStatus'] != 'approved') {
-          return '/verify-id';
-        }
+        // Government-ID is now reviewed inline with the application (a single
+        // admin decision), so approval already means fully verified — straight
+        // to the pool / profile builder, no separate ID gate.
         return d['profileComplete'] == true ? '/home' : '/welcome';
       case 'under_review':
         return '/review-wait';

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/widgets.dart';
 import '../../../providers/application_provider.dart';
+import '../id_capture_screen.dart';
 import '../location_data.dart';
 import '../selfie_capture_screen.dart';
 import 'questionnaire_models.dart';
@@ -25,11 +27,16 @@ class QuestionnaireScreen extends ConsumerStatefulWidget {
 }
 
 class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
-  static const _totalSteps = 11;
+  static const _totalSteps = 12;
   int _step = 1;
   final _a = QuestionnaireAnswers();
   bool _submitting = false;
   XFile? _selfie;
+  // Government-ID captured DURING the application (single admin decision covers
+  // eligibility + ID together). Reviewed inline by a moderator; never public.
+  String? _idType; // 'passport' | 'aadhaar'
+  XFile? _idImage;
+  bool _appSubmitted = false; // guard: applications/{uid} is create-once
 
   // Text controllers for free-text fields (kept alive across steps).
   late final _languages = TextEditingController();
@@ -85,8 +92,18 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
     setState(() => _submitting = true);
     try {
       final repo = ref.read(applicationRepositoryProvider);
+      // ID-first, so a failure retries cleanly before the immutable
+      // application doc is created: selfie → ID → application.
       final path = await repo.uploadSelfie(File(_selfie!.path));
-      await repo.submitApplication(_a, selfieStoragePath: path);
+      final idBytes = await File(_idImage!.path).readAsBytes();
+      await repo.submitIdDoc(
+        type: _idType!,
+        imageBase64: base64Encode(idBytes),
+      );
+      if (!_appSubmitted) {
+        await repo.submitApplication(_a, selfieStoragePath: path);
+        _appSubmitted = true;
+      }
       if (mounted) context.go('/review-wait');
     } catch (e) {
       if (mounted) {
@@ -103,6 +120,14 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
       MaterialPageRoute(builder: (_) => const SelfieCaptureScreen()),
     );
     if (shot != null) setState(() => _selfie = shot);
+  }
+
+  Future<void> _captureId() async {
+    if (_idType == null) return;
+    final shot = await Navigator.of(context).push<XFile>(
+      MaterialPageRoute(builder: (_) => IdCaptureScreen(docType: _idType!)),
+    );
+    if (shot != null) setState(() => _idImage = shot);
   }
 
   Future<void> _pickDob() async {
@@ -137,7 +162,8 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         8 => _sectionD2(),
         9 => _sectionE(),
         10 => _sectionF(),
-        _ => _selfieStep(),
+        11 => _selfieStep(),
+        _ => _idStep(),
       },
     );
   }
@@ -748,16 +774,15 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
   Widget _selfieStep() => StepScaffold(
         step: 11,
         totalSteps: _totalSteps,
-        eyebrow: 'Verification',
+        eyebrow: 'Verification · 1 of 2',
         title: 'One honest photo',
         intro: 'A quick selfie confirms you are you. It is seen only by '
             'our review team — never by other members.',
-        ctaLabel: 'Submit my application',
-        loading: _submitting,
+        ctaLabel: 'Continue',
         children: [
           Center(
             child: InkWell(
-              onTap: _submitting ? null : _captureSelfie,
+              onTap: _captureSelfie,
               borderRadius: BorderRadius.circular(AppRadius.control),
               child: Container(
                 width: 220,
@@ -789,8 +814,89 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
             const SizedBox(height: 14),
             Center(
               child: QuietLink(
+                  linkText: 'Retake photo', onTap: _captureSelfie),
+            ),
+          ],
+          const SizedBox(height: 22),
+          Text(
+            'Next you will add one government-ID for a one-time identity '
+            'check. Both photos are seen only by our review team.',
+            style: AppType.inter(12.5, color: DarkTokens.muted(), height: 1.6),
+          ),
+        ],
+        onNext: _selfie != null ? _next : null,
+      );
+
+  // ---- Government-ID (captured with the application; reviewed inline by a
+  // moderator alongside eligibility — a single decision). Image goes only to
+  // the admin-only quarantine bucket; never public, purged if declined. ----
+  Widget _idStep() => StepScaffold(
+        step: 12,
+        totalSteps: _totalSteps,
+        eyebrow: 'Verification · 2 of 2',
+        title: 'Verify your identity',
+        intro: 'One clear photo of a government-ID. It is used only to confirm '
+            'you are a real person, seen only by our review team, and deleted '
+            'if your application is not accepted.',
+        ctaLabel: 'Submit my application',
+        loading: _submitting,
+        children: [
+          const QuestionLabel('Which document will you use?'),
+          OptionList(
+              options: const [
+                Choice('passport', 'Passport'),
+                Choice('aadhaar', 'Aadhaar'),
+              ],
+              selected: _idType,
+              onSelect: (v) => setState(() {
+                    // Changing the document invalidates a photo framed for the
+                    // previous one (different aspect ratio / guide).
+                    if (v != _idType) _idImage = null;
+                    _idType = v;
+                  })),
+          const SizedBox(height: 20),
+          Center(
+            child: InkWell(
+              onTap: _idType == null || _submitting ? null : _captureId,
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              child: Container(
+                width: 260,
+                height: 170,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                  border: Border.all(
+                      color: DarkTokens.gold
+                          .withOpacity(_idImage == null ? .45 : .9),
+                      width: 1),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _idImage == null
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.badge_outlined,
+                              size: 40,
+                              color: DarkTokens.muted(_idType == null ? .3 : .7)),
+                          const SizedBox(height: 12),
+                          Text(
+                              _idType == null
+                                  ? 'Choose a document first'
+                                  : 'Tap to photograph your ${_idType == 'passport' ? 'passport' : 'Aadhaar'}',
+                              textAlign: TextAlign.center,
+                              style: AppType.inter(13,
+                                  color: DarkTokens.muted(.7))),
+                        ],
+                      )
+                    : Image.file(File(_idImage!.path), fit: BoxFit.cover),
+              ),
+            ),
+          ),
+          if (_idImage != null) ...[
+            const SizedBox(height: 14),
+            Center(
+              child: QuietLink(
                   linkText: 'Retake photo',
-                  onTap: _submitting ? null : _captureSelfie),
+                  onTap: _submitting ? null : _captureId),
             ),
           ],
           const SizedBox(height: 22),
@@ -802,6 +908,8 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
             style: AppType.inter(12.5, color: DarkTokens.muted(), height: 1.6),
           ),
         ],
-        onNext: _selfie != null && !_submitting ? _submit : null,
+        onNext: _idType != null && _idImage != null && !_submitting
+            ? _submit
+            : null,
       );
 }

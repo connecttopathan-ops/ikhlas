@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,7 +9,6 @@ import '../../features/gate/declaration_screen.dart';
 import '../../features/gate/questionnaire/questionnaire_screen.dart';
 import '../../features/gate/review_wait_screen.dart';
 import '../../features/gate/decision_screens.dart';
-import '../../features/gate/verify_id_screen.dart';
 import '../../features/profile/profile_builder_screen.dart';
 import '../../features/profile/edit_profile_screen.dart';
 import '../../features/profile/home_screen.dart';
@@ -48,21 +46,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       final userDocAsync = ref.read(userDocProvider);
       final status = ref.read(userStatusProvider);
       final profileComplete = ref.read(profileCompleteProvider);
-      final userDoc = userDocAsync.value?.data();
-      final idRequired = userDoc?['idRequired'] == true;
-      final idApproved = userDoc?['idDocStatus'] == 'approved';
       switch (status) {
         case 'under_review':
           return loc == '/review-wait' ? null : '/review-wait';
-        case 'needs_info':
-          // ID rejected → pinned to re-verification until approved.
-          return loc == '/verify-id' ? null : '/verify-id';
         case 'approved':
         case 'paused':
-          // Mandatory government-ID gate: after approval, before pool entry.
-          if (idRequired && !idApproved) {
-            return loc == '/verify-id' ? null : '/verify-id';
-          }
+          // Government-ID is reviewed inline with the application now (one admin
+          // decision), so approval already means fully verified — no ID gate.
           if (profileComplete) {
             final allowed = {'/home', '/settings', '/profile-builder',
               '/edit-profile', '/conversations'};
@@ -98,7 +88,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/declaration', builder: (_, __) => const DeclarationScreen()),
       GoRoute(path: '/questionnaire', builder: (_, __) => const QuestionnaireScreen()),
       GoRoute(path: '/review-wait', builder: (_, __) => const ReviewWaitScreen()),
-      GoRoute(path: '/verify-id', builder: (_, __) => const VerifyIdScreen()),
       GoRoute(path: '/welcome', builder: (_, __) => const ApprovedScreen()),
       GoRoute(path: '/decision', builder: (_, __) => const SoftRejectedScreen()),
       GoRoute(path: '/profile-builder', builder: (_, __) => const ProfileBuilderScreen()),

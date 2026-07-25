@@ -67,12 +67,22 @@ exports.onApplicationSubmit = onDocumentCreated(
       hasSelfie,
     });
 
+    // With mandatory government-ID, the single admin decision covers eligibility
+    // AND ID — so a clean gate can no longer auto-approve on its own; a human
+    // must review the ID. Downgrade a would-be auto_pass to the human queue,
+    // but keep the true gate verdict on autoScore so the moderator sees it was
+    // otherwise clean and can approve in one click. auto_reject still stands
+    // (no point reviewing the ID of a clear reject — it gets purged on reject).
+    const idMandatory = await idVerificationMandatory();
+    const idGated = idMandatory && verdict.result === 'auto_pass';
+    const effective = idGated ? 'manual_review' : verdict.result;
+
     const appUpdate = {
-      autoScore: { result: verdict.result, reasons: verdict.reasons },
+      autoScore: { result: verdict.result, reasons: verdict.reasons, idGated },
     };
     const userUpdate = { };
 
-    switch (verdict.result) {
+    switch (effective) {
       case 'auto_pass':
         appUpdate.decision = 'approved';
         appUpdate.decidedAt = FieldValue.serverTimestamp();
@@ -115,20 +125,32 @@ exports.onApplicationSubmit = onDocumentCreated(
 exports.notifyDecision = onDocumentUpdated(
   { document: 'users/{uid}', region: REGION },
   async (event) => {
+    const uid = event.params.uid;
     const before = event.data?.before.data();
     const after = event.data?.after.data();
     if (!before || !after || before.status === after.status) return;
 
-    // When ID verification is a gate, flag newly-approved users so the client
-    // (which cannot read config/*) knows to route them to /verify-id before
-    // pool entry. Changing only these fields won't re-fire (status unchanged).
-    if (after.status === 'approved' && after.idVerified !== true) {
-      if (await idVerificationMandatory()) {
-        await event.data.after.ref.update({
-          idRequired: true,
-          idDocStatus: after.idDocStatus || 'none',
-        });
-      }
+    // Single admin decision: approving the application ALSO finalizes the
+    // government-ID (the moderator reviewed it inline on the same card). Only
+    // when the mandatory flag is on. This re-write keeps status unchanged, so
+    // notifyDecision won't re-fire on it.
+    if (after.status === 'approved' && after.idVerified !== true
+        && await idVerificationMandatory()) {
+      await event.data.after.ref.update({
+        idVerified: true,
+        idDocStatus: 'approved',
+      });
+      await db.doc(`idReview/${uid}`).set({
+        status: 'approved',
+        reviewedBy: 'inline_with_application',
+        reviewedAt: FieldValue.serverTimestamp(),
+      }, { merge: true }).catch(() => {});
+    }
+    // Data minimization: a declined applicant's government-ID is purged from the
+    // quarantine bucket at once — we never retain the IDs of people we turned
+    // away. Approved members' IDs are kept for the audit trail.
+    if (after.status === 'soft_rejected' || after.status === 'banned') {
+      await purgeIdDoc(uid);
     }
 
     const copy = {
@@ -203,6 +225,26 @@ async function idVerificationMandatory() {
   }
 }
 
+/** Deletes a declined applicant's quarantined government-ID image + its review
+ *  record (data minimization — we don't retain the IDs of people we turned
+ *  away). Best-effort: never throws into the caller. */
+async function purgeIdDoc(uid) {
+  try {
+    const snap = await db.doc(`idReview/${uid}`).get();
+    if (!snap.exists) return;
+    const ref = snap.get('storageRef');
+    if (ref) {
+      await getStorage().bucket(ID_QUARANTINE_BUCKET).file(ref).delete()
+        .catch(() => {}); // already gone / never uploaded
+    }
+    await db.doc(`idReview/${uid}`).delete().catch(() => {});
+    await db.doc(`users/${uid}`).update({ idDocStatus: 'purged' }).catch(() => {});
+    console.log(`purgeIdDoc: removed quarantined ID for uid=${uid}`);
+  } catch (e) {
+    console.error('purgeIdDoc error', uid, e?.message);
+  }
+}
+
 // ============================================================
 // Government-ID verification (PRD Step 4A). MANDATORY when the config flag is
 // on. Runs AFTER gate approval, BEFORE pool entry. OCR + face-presence are
@@ -228,18 +270,25 @@ exports.onIdDocSubmit = onCall(
     }
     const userSnap = await db.doc(`users/${uid}`).get();
     const status = userSnap.get('status');
-    // Only approved (or resubmitting) applicants verify — never at signup.
-    if (status !== 'approved' && status !== 'needs_info') {
-      throw new HttpsError('failed-precondition', 'Verification opens after approval.');
+    // ID is now captured DURING the application (one admin decision covers
+    // eligibility + ID together), so it must be accepted while status is still
+    // 'applying'/'under_review'. Only a closed-negative status blocks it.
+    if (status === 'soft_rejected' || status === 'banned') {
+      throw new HttpsError('failed-precondition', 'This application is closed.');
     }
     const idBuffer = Buffer.from(imageBase64, 'base64');
     if (idBuffer.length > 8 * 1024 * 1024) {
       throw new HttpsError('invalid-argument', 'Image too large.');
     }
 
+    // ID is submitted BEFORE the application doc exists (ID-first, so a failed
+    // submit retries cleanly), so fall back to the staged draft declaration and
+    // the client-supplied name for the OCR name-match.
     const appSnap = await db.doc(`applications/${uid}`).get();
     const applicationName =
+      (typeof request.data?.name === 'string' ? request.data.name.trim() : '') ||
       appSnap.get('intentDeclaration.typedName') ||
+      userSnap.get('draft.intentDeclaration.typedName') ||
       userSnap.get('profile.displayName') || '';
     const livenessPassed =
       appSnap.get('verification.selfie.livenessPassed') ?? null;

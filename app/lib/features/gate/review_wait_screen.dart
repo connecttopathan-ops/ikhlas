@@ -61,13 +61,14 @@ class _ReviewWaitScreenState extends ConsumerState<ReviewWaitScreen>
                 textAlign: TextAlign.center,
                 style: AppType.fraunces(28, color: DarkTokens.ivory)),
             const SizedBox(height: 24),
-            // One surface, sub-steps inside it (PRD Step 4A). Liveness resolves
-            // instantly; eligibility + sincerity is the real 24h wait.
+            // One surface, sub-steps inside it. Photo + ID land instantly;
+            // eligibility, sincerity and identity are the real 24h review —
+            // decided together in a single moderator pass.
             _step(Icons.check_circle,
-                'Selfie & liveness verified', 'instant', done: true),
+                'Selfie & ID received', 'instant', done: true),
             const SizedBox(height: 14),
             _step(Icons.hourglass_top,
-                'Eligibility & sincerity — reviewing', 'within 24h',
+                'Eligibility, sincerity & identity — reviewing', 'within 24h',
                 done: false),
             const Spacer(flex: 3),
             Text(

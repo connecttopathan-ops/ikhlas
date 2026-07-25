@@ -4,7 +4,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'id_review_queue.dart';
 import 'reports_queue.dart';
 import 'tokens.dart';
 
@@ -18,7 +17,7 @@ class ReviewQueueScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: T.bg,
@@ -40,7 +39,6 @@ class ReviewQueueScreen extends StatelessWidget {
             tabs: const [
               Tab(text: 'Queue'),
               Tab(text: 'All applications'),
-              Tab(text: 'ID verification'),
               Tab(text: 'Reports'),
             ],
           ),
@@ -48,7 +46,6 @@ class ReviewQueueScreen extends StatelessWidget {
         body: const TabBarView(children: [
           _ApplicationsList(queueOnly: true),
           _ApplicationsList(queueOnly: false),
-          IdReviewQueue(),
           ReportsQueue(),
         ]),
       ),
@@ -313,6 +310,16 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                       accuracyM: (location['accuracyM'] as num?)?.toDouble()),
               ]),
 
+              // ---- government-ID (reviewed inline; the decision below covers
+              // eligibility AND ID in one action) ----
+              const SizedBox(height: 22),
+              Container(height: 1, color: T.hairline),
+              const SizedBox(height: 14),
+              Text('IDENTITY VERIFICATION',
+                  style: T.inter(11, weight: FontWeight.w700, color: T.gold)),
+              const SizedBox(height: 12),
+              _IdInlinePanel(uid: _uid),
+
               // ---- decision audit / actions ----
               const SizedBox(height: 18),
               if (decision != null) ...[
@@ -343,7 +350,7 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                     onPressed: _busy ? null : () => _decide('approved'),
                     style: FilledButton.styleFrom(
                         backgroundColor: T.approve, foregroundColor: T.ivory),
-                    child: Text('Approve',
+                    child: Text('Approve (eligibility + ID)',
                         style: T.inter(14, weight: FontWeight.w600)),
                   ),
                   const SizedBox(width: 12),
@@ -532,4 +539,162 @@ class _Chip extends StatelessWidget {
         ),
         child: Text(text, style: T.inter(11.5, color: color)),
       );
+}
+
+/// Read-only government-ID review, folded into the application card so the
+/// moderator reviews eligibility AND identity in one place, then makes a
+/// SINGLE decision with the Approve / Soft-reject buttons below. Approving
+/// finalizes the ID (server trigger); rejecting purges it from quarantine.
+class _IdInlinePanel extends StatefulWidget {
+  final String uid;
+  const _IdInlinePanel({required this.uid});
+  @override
+  State<_IdInlinePanel> createState() => _IdInlinePanelState();
+}
+
+class _IdInlinePanelState extends State<_IdInlinePanel> {
+  static const _imgBase =
+      'https://asia-south1-ikhlas-caecf.cloudfunctions.net/idDocImageRaw';
+  String? _idUrl, _selfieUrl;
+  bool _loading = false;
+
+  Future<void> _reveal() async {
+    setState(() => _loading = true);
+    try {
+      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token == null) throw 'Not signed in';
+      setState(() {
+        _idUrl = '$_imgBase?uid=${widget.uid}&which=id&token=$token';
+        _selfieUrl = '$_imgBase?uid=${widget.uid}&which=selfie&token=$token';
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not load images: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .doc('idReview/${widget.uid}')
+          .snapshots(),
+      builder: (context, snap) {
+        final d = snap.data?.data();
+        if (d == null) {
+          return Text('No ID submitted with this application.',
+              style: T.inter(13, color: T.muted));
+        }
+        final pending = d['analysisPending'] == true;
+        final nameScore = d['nameMatchScore'];
+        final status = (d['status'] ?? '').toString();
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Wrap(spacing: 24, runSpacing: 10, children: [
+            _stat('Document', (d['type'] ?? '—').toString().toUpperCase()),
+            _stat('ID status', status.isEmpty ? '—' : status),
+            _stat('Name match',
+                pending ? 'analysing…' : nameScore == null
+                    ? '—' : '${((nameScore as num) * 100).round()}%'),
+            _stat('OCR name',
+                pending ? 'analysing…' : (d['ocrName'] ?? '—').toString()),
+            _stat('ID last4',
+                pending ? 'analysing…' : (d['last4'] ?? '—').toString()),
+            _stat('Face on ID', _yn(d['idFacePresent'])),
+            _stat('Face on selfie', _yn(d['selfieFacePresent'])),
+            _stat('Liveness', _yn(d['livenessPassed'])),
+          ]),
+          const SizedBox(height: 14),
+          if (_idUrl == null && !_loading)
+            OutlinedButton.icon(
+              onPressed: _reveal,
+              icon: const Icon(Icons.badge_outlined, size: 18),
+              label: Text('Reveal ID + selfie', style: T.inter(13)),
+            ),
+          if (_loading)
+            const Padding(
+                padding: EdgeInsets.all(12),
+                child: CircularProgressIndicator()),
+          if (_idUrl != null)
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Expanded(child: _labelled('ID document', _idUrl!)),
+              const SizedBox(width: 14),
+              Expanded(child: _labelled('Selfie (on file)', _selfieUrl!)),
+            ]),
+        ]);
+      },
+    );
+  }
+
+  Widget _labelled(String label, String url) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text(label, style: T.inter(11.5, color: T.muted)),
+            const Spacer(),
+            Text('tap to zoom', style: T.inter(10.5, color: T.gold)),
+          ]),
+          const SizedBox(height: 6),
+          GestureDetector(
+            onTap: () => _openFull(url, label),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(url,
+                  height: 460, width: double.infinity, fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Container(
+                      height: 460,
+                      alignment: Alignment.center,
+                      color: Colors.black26,
+                      child: Text('could not load',
+                          style: T.inter(12, color: T.muted)))),
+            ),
+          ),
+        ],
+      );
+
+  void _openFull(String url, String label) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(.92),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(24),
+        child: Stack(children: [
+          Positioned.fill(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 6,
+              child: Center(child: Image.network(url, fit: BoxFit.contain)),
+            ),
+          ),
+          Positioned(
+            top: 8, left: 12,
+            child: Text(label,
+                style: T.inter(13, weight: FontWeight.w600, color: Colors.white)),
+          ),
+          Positioned(
+            top: 0, right: 0,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 26),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _stat(String k, String v) => SizedBox(
+        width: 150,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(k, style: T.inter(11, color: T.muted)),
+          const SizedBox(height: 2),
+          Text(v, style: T.inter(13.5, color: T.ivory)),
+        ]),
+      );
+
+  String _yn(dynamic v) => v == true ? 'Yes' : v == false ? 'No' : '—';
 }
