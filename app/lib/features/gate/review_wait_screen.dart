@@ -57,28 +57,23 @@ class _ReviewWaitScreenState extends ConsumerState<ReviewWaitScreen>
             Text('قَيْدُ الْمُرَاجَعَة',
                 style: AppType.amiri(15, color: DarkTokens.gold)),
             const SizedBox(height: 8),
-            Text('Under review',
+            Text('Application under review',
                 textAlign: TextAlign.center,
-                style: AppType.fraunces(30, color: DarkTokens.ivory)),
-            const SizedBox(height: 16),
-            Text(
-              'Your application is with our review team. Every member of '
-              'Ikhlaas passes through this gate — it is what keeps the pool '
-              'serious.',
-              textAlign: TextAlign.center,
-              style: AppType.inter(14, color: DarkTokens.muted(.62), height: 1.7),
-            ),
-            const SizedBox(height: 28),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const DiamondBullet(),
-              const SizedBox(width: 10),
-              Text('Decisions typically within 24 hours',
-                  style: AppType.inter(13, color: DarkTokens.ivory)),
-            ]),
+                style: AppType.fraunces(28, color: DarkTokens.ivory)),
+            const SizedBox(height: 24),
+            // One surface, sub-steps inside it (PRD Step 4A). Liveness resolves
+            // instantly; eligibility + sincerity is the real 24h wait.
+            _step(Icons.check_circle,
+                'Selfie & liveness verified', 'instant', done: true),
+            const SizedBox(height: 14),
+            _step(Icons.hourglass_top,
+                'Eligibility & sincerity — reviewing', 'within 24h',
+                done: false),
             const Spacer(flex: 3),
             Text(
-              'You may close the app — we will notify you.',
-              style: AppType.inter(12, color: DarkTokens.muted()),
+              "We'll notify you the moment it's done. You may close the app.",
+              textAlign: TextAlign.center,
+              style: AppType.inter(12.5, color: DarkTokens.muted()),
             ),
             const SizedBox(height: 24),
           ],
@@ -86,4 +81,19 @@ class _ReviewWaitScreenState extends ConsumerState<ReviewWaitScreen>
       ),
     );
   }
+
+  Widget _step(IconData icon, String label, String meta,
+          {required bool done}) =>
+      Row(children: [
+        Icon(icon, size: 20,
+            color: done ? DarkTokens.gold : DarkTokens.muted(.7)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(label,
+              style: AppType.inter(14,
+                  color: done ? DarkTokens.ivory : DarkTokens.muted(.9))),
+        ),
+        Text(meta,
+            style: AppType.inter(12, color: DarkTokens.muted(.7))),
+      ]);
 }

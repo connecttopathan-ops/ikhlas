@@ -32,11 +32,18 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     'working': 'Working on it',
     'rarely': 'Rarely',
   };
-  static const _quranLabel = {
-    'hafiz': 'Hafiz',
-    'regular': 'Reads regularly',
-    'learning': 'Learning to read',
+  static const _quranEngagementLabel = {
+    'daily_recitation': 'Daily recitation',
+    'weekly': 'Weekly',
+    'ramadan_only': 'Mainly in Ramadan',
+    'learning_to_read': 'Learning to read',
     'seeking': 'Seeking to start',
+  };
+  static const _quranMemLabel = {
+    'hafiz': 'Hafiz',
+    'juz_amma_plus': 'Juz ʿAmma and more',
+    'some_surahs': 'Some surahs',
+    'learning': 'Just beginning',
   };
   static const _islamicStudyLabel = {
     'formal': 'Formal (madrasa / ʿalim)',
@@ -45,10 +52,19 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     'none': 'None yet',
   };
   static const _fastingLabel = {
-    'regularly': 'Regularly',
-    'sometimes': 'Sometimes',
-    'no': 'Not beyond Ramadan',
+    'beyond_ramadan_regularly': 'Ramadan + regularly beyond',
+    'beyond_ramadan_sometimes': 'Ramadan + sometimes beyond',
+    'ramadan_only': 'Ramadan',
+    'not_ramadan': 'Not currently',
   };
+  // Height stored as cm (int); shown in both units — 5'4" (163 cm).
+  static String? _heightLabel(dynamic cm) {
+    if (cm is! int || cm <= 0) return null;
+    final totalIn = (cm / 2.54).round();
+    final ft = totalIn ~/ 12;
+    final inch = totalIn % 12;
+    return '$ft\'$inch" ($cm cm)';
+  }
   static const _dietLabel = {
     'zabiha_only': 'Zabiha only',
     'halal_only': 'Halal only',
@@ -254,9 +270,11 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 Text('DEEN', style: AppType.eyebrow(DarkTokens.gold)),
                 const SizedBox(height: 12),
                 _fact('Prayer', _prayerLabel[e['prayer']]),
-                _fact('Quran', _quranLabel[e['quran']]),
+                _fact('Quran', _quranEngagementLabel[e['quranEngagement']]),
+                _fact('Memorization',
+                    _quranMemLabel[e['quranMemorization']]),
                 _fact('Islamic study', _islamicStudyLabel[e['islamicStudy']]),
-                _fact('Fasting', _fastingLabel[e['fastingBeyondRamadan']]),
+                _fact('Fasting', _fastingLabel[e['fasting']]),
                 _fact('Madhhab', e['madhhab']),
                 _fact('Diet', _dietLabel[e['dietPractice']]),
 
@@ -268,8 +286,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 const SizedBox(height: 12),
                 _fact('Seeking', _timeframeLabel[e['timeframe']]),
                 _fact('Marital status', _maritalLabel[e['maritalStatus']]),
-                _fact('Height',
-                    e['height'] == null ? null : '${e['height']} cm'),
+                _fact('Height', _heightLabel(e['height'])),
                 _fact('Education', _eduLabel[e['education']] ?? e['education']),
                 _fact('Profession',
                     _profLabel[e['profession']] ?? e['profession']),
@@ -320,7 +337,7 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                       ),
                 ],
 
-                if ((e['whyNow'] ?? '').toString().isNotEmpty ||
+                if ((e['timingReadiness'] ?? '').toString().isNotEmpty ||
                     (e['deenRelationship'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 22),
                   const Hairline(),
@@ -328,12 +345,12 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                   Text('ON SEEKING NIKAH',
                       style: AppType.eyebrow(DarkTokens.gold)),
                   const SizedBox(height: 12),
-                  if ((e['whyNow'] ?? '').toString().isNotEmpty) ...[
-                    Text('Why nikah, and why now',
+                  if ((e['timingReadiness'] ?? '').toString().isNotEmpty) ...[
+                    Text('Why this is the right time',
                         style: AppType.inter(11.5,
                             color: DarkTokens.muted(), weight: FontWeight.w500)),
                     const SizedBox(height: 4),
-                    Text('“${e['whyNow']}”',
+                    Text('“${e['timingReadiness']}”',
                         style: AppType.fraunces(15.5,
                             color: DarkTokens.ivory,
                             style: FontStyle.italic,

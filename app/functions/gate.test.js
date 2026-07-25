@@ -11,8 +11,9 @@ const GOOD_ANSWERS = {
   e2_riba: 'affirm',
   e3_ribaPractice: 'none',
   e4_incomeSource: 'halal',
+  fasting: 'ramadan_only',
   shortAnswers: {
-    whyNow: 'x'.repeat(160),
+    timingReadiness: 'x'.repeat(160),
     deenRelationship: 'y'.repeat(160),
   },
 };
@@ -57,6 +58,21 @@ test('prayer "most" routes to manual review (Ab\'s ruling, July 2026)', () => {
   assert.equal(v.result, 'manual_review');
 });
 
+test('fasting "not_ramadan" routes to manual review, never auto-reject', () => {
+  const v = evaluateGate({ ...GOOD_ANSWERS, fasting: 'not_ramadan' }, ADULT, {}, SELFIE);
+  assert.equal(v.result, 'manual_review');
+  assert.ok(v.reasons.some((r) => r.includes('fasting')));
+});
+
+test('legacy shortAnswers.whyNow still counts (older client compat)', () => {
+  const { shortAnswers, ...rest } = GOOD_ANSWERS;
+  const v = evaluateGate(
+    { ...rest, shortAnswers: { whyNow: 'x'.repeat(160), deenRelationship: 'y'.repeat(160) } },
+    ADULT, {}, SELFIE
+  );
+  assert.equal(v.result, 'auto_pass');
+});
+
 test('E1/E2 not_affirm and E3 continuing soft-reject', () => {
   assert.equal(
     evaluateGate({ ...GOOD_ANSWERS, e1_tawhid: 'not_affirm' }, ADULT, {}, SELFIE).result,
@@ -90,7 +106,7 @@ test('E4 "Uncertain" income routes to manual review (same logic as prayer:most)'
 
 test('short answers below minimum escalate to a human, never auto-decide', () => {
   const v = evaluateGate(
-    { ...GOOD_ANSWERS, shortAnswers: { whyNow: 'short', deenRelationship: 'short' } },
+    { ...GOOD_ANSWERS, shortAnswers: { timingReadiness: 'short', deenRelationship: 'short' } },
     ADULT, {}, SELFIE
   );
   assert.equal(v.result, 'manual_review');

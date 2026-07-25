@@ -170,7 +170,7 @@ class ChatProfileScreen extends StatelessWidget {
                       ),
                 ],
 
-                if ((e['whyNow'] ?? '').toString().isNotEmpty ||
+                if ((e['timingReadiness'] ?? '').toString().isNotEmpty ||
                     (e['deenRelationship'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 22),
                   const Hairline(),
@@ -178,12 +178,12 @@ class ChatProfileScreen extends StatelessWidget {
                   Text('ON SEEKING NIKAH',
                       style: AppType.eyebrow(DarkTokens.gold)),
                   const SizedBox(height: 12),
-                  if ((e['whyNow'] ?? '').toString().isNotEmpty) ...[
-                    Text('Why nikah, and why now',
+                  if ((e['timingReadiness'] ?? '').toString().isNotEmpty) ...[
+                    Text('Why this is the right time',
                         style: AppType.inter(11.5,
                             color: DarkTokens.muted(), weight: FontWeight.w500)),
                     const SizedBox(height: 4),
-                    Text('“${e['whyNow']}”',
+                    Text('“${e['timingReadiness']}”',
                         style: AppType.fraunces(15.5,
                             color: DarkTokens.ivory,
                             style: FontStyle.italic,

@@ -116,21 +116,34 @@ function scorePair(a, b, now = new Date()) {
   }
 
   // --- Section F deen detail (the deen-variance signal) ---
+  // Quran is now split: memorization (how much held) + engagement (how you
+  // read). Fall back to the legacy single `quran` field for older profiles.
   const da = a.deenDetail || {};
   const db_ = b.deenDetail || {};
-  if (da.quran && da.quran === db_.quran) {
-    score += 10;
-    if (da.quran === 'hafiz') why.push('You are both huffaz, mashaAllah');
+  const memA = da.quranMemorization ?? da.quran;
+  const memB = db_.quranMemorization ?? db_.quran;
+  if (memA && memA === memB) {
+    score += 8;
+    if (memA === 'hafiz') why.push('You are both huffaz, mashaAllah');
   } else if (
-    (da.quran === 'hafiz' && db_.quran === 'regular') ||
-    (da.quran === 'regular' && db_.quran === 'hafiz')
+    (memA === 'hafiz' && memB === 'juz_amma_plus') ||
+    (memA === 'juz_amma_plus' && memB === 'hafiz')
   ) {
-    score += 5;
+    score += 4;
+  }
+  if (da.quranEngagement && da.quranEngagement === db_.quranEngagement) {
+    score += 3;
+    if (da.quranEngagement === 'daily_recitation') {
+      why.push('You both recite Qur’an daily');
+    }
   }
   if (da.islamicStudy && da.islamicStudy === db_.islamicStudy) score += 7;
-  if (da.fastingBeyondRamadan && da.fastingBeyondRamadan === db_.fastingBeyondRamadan) {
+  // Fasting now covers Ramadan itself; `fasting` replaces `fastingBeyondRamadan`.
+  const fastA = da.fasting ?? da.fastingBeyondRamadan;
+  const fastB = db_.fasting ?? db_.fastingBeyondRamadan;
+  if (fastA && fastA === fastB) {
     score += 6;
-    if (da.fastingBeyondRamadan === 'regularly') {
+    if (fastA === 'beyond_ramadan_regularly' || fastA === 'regularly') {
       why.push('You both fast beyond Ramadan');
     }
   }

@@ -232,15 +232,22 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                       _Fact('Marital', profile['maritalStatus']),
                       _Fact('Children', profile['hasChildren']),
                       _Fact('Revert', profile['revert']),
-                      _Fact('City', profile['city']),
-                      _Fact('Country', profile['country']),
+                      _Fact('City', (profile['residence'] as Map?)?['city']
+                          ?? profile['city']),
+                      _Fact('Town', (profile['residence'] as Map?)?['town']),
+                      _Fact('State', (profile['residence'] as Map?)?['state']),
+                      _Fact('Country', (profile['residence'] as Map?)?['country']
+                          ?? profile['country']),
                       _Fact('Relocate', profile['willingToRelocate']),
-                      _Fact('Height', profile['height'] == null
-                          ? null : '${profile['height']} cm'),
+                      _Fact('Height', () {
+                        final h = profile['heightCm'] ?? profile['height'];
+                        return h == null ? null : '$h cm';
+                      }()),
                       _Fact('Languages',
                           (profile['languages'] as List?)?.join(', ')),
                       _Fact('Ethnicity', profile['ethnicity']),
-                      _Fact('Origin', profile['countryOfOrigin']),
+                      _Fact('Nationality',
+                          profile['nationality'] ?? profile['countryOfOrigin']),
                       _Fact('Residency', _lbl(profile['residencyStatus'])),
                       _Fact('Education', _lbl(profile['education'])),
                       _Fact('Profession', _lbl(profile['profession'])),
@@ -259,12 +266,16 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                       _Fact('E3 practice', _lbl(_answers['e3_ribaPractice'])),
                       _Fact('E4 income', _lbl(_answers['e4_incomeSource'])),
                       // Section F (non-gating matching signal, from profile).
-                      _Fact('Quran',
-                          _lbl((profile['deenDetail'] as Map?)?['quran'])),
+                      _Fact('Quran recitation', _lbl(
+                          (profile['deenDetail'] as Map?)?['quranEngagement']
+                              ?? (profile['deenDetail'] as Map?)?['quran'])),
+                      _Fact('Quran memorization', _lbl(
+                          (profile['deenDetail'] as Map?)?['quranMemorization'])),
                       _Fact('Islamic study', _lbl(
                           (profile['deenDetail'] as Map?)?['islamicStudy'])),
                       _Fact('Fasting', _lbl(
-                          (profile['deenDetail'] as Map?)?['fastingBeyondRamadan'])),
+                          (profile['deenDetail'] as Map?)?['fasting']
+                              ?? (profile['deenDetail'] as Map?)?['fastingBeyondRamadan'])),
                     ]),
                   ),
                 ],
@@ -272,7 +283,8 @@ class _ApplicationCardState extends State<_ApplicationCard> {
               const SizedBox(height: 18),
 
               // ---- short answers ----
-              _ShortAnswer('Why nikah, why now', sa['whyNow']),
+              _ShortAnswer('Why nikah, why now',
+                  sa['timingReadiness'] ?? sa['whyNow']),
               const SizedBox(height: 12),
               _ShortAnswer('Relationship with deen', sa['deenRelationship']),
               const SizedBox(height: 18),
@@ -451,6 +463,13 @@ const _adminLabels = {
   'five_daily': 'Five daily', 'never_married': 'Never married',
   '6m': 'Within 6 months', '6_12m': '6–12 months', '12_24m': '12–24 months',
   'exiting': 'Exiting debt', 'will_involve': 'Will involve',
+  // Section F — split Quran + fasting (post-questionnaire-rewrite values).
+  'daily_recitation': 'Daily recitation', 'learning_to_read': 'Learning to read',
+  'seeking': 'Seeking to start', 'juz_amma_plus': 'Juz ʿAmma and more',
+  'some_surahs': 'Some surahs', 'hafiz': 'Hafiz (complete)',
+  'beyond_ramadan_regularly': 'Ramadan + regularly beyond',
+  'beyond_ramadan_sometimes': 'Ramadan + sometimes beyond',
+  'ramadan_only': 'Ramadan only', 'not_ramadan': 'Not fasting Ramadan currently',
 };
 
 String _pretty(String s) => s

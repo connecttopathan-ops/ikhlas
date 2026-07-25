@@ -27,6 +27,9 @@ const DEFAULT_RULES = {
   manualReviewAnswers: {
     prayer: ['most'],
     e4_incomeSource: ['uncertain'], // "Uncertain" → human, same logic as prayer:most
+    // Not fasting Ramadan is NEVER an auto-reject — legitimate exemptions
+    // (illness, pregnancy, chronic conditions, travel). A human decides.
+    fasting: ['not_ramadan'],
   },
 };
 
@@ -75,8 +78,11 @@ function evaluateGate(answers, dob, rules = {}, ctx = {}) {
   // Short answers below minimum → a human looks (client enforces the
   // minimum, so hitting this means someone bypassed the app).
   const sa = answers?.shortAnswers || {};
-  for (const key of ['whyNow', 'deenRelationship']) {
-    if (((sa[key] || '').trim()).length < r.shortAnswerMinChars) {
+  // `timingReadiness` was `whyNow` before the questionnaire rewrite; accept the
+  // legacy key too so applications submitted from an older client still gate.
+  const timing = sa.timingReadiness ?? sa.whyNow;
+  for (const [key, val] of [['timingReadiness', timing], ['deenRelationship', sa.deenRelationship]]) {
+    if (((val || '').trim()).length < r.shortAnswerMinChars) {
       reasons.push(`manual_review:short_answer:${key}`);
     }
   }

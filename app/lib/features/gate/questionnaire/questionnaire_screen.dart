@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/widgets.dart';
 import '../../../providers/application_provider.dart';
+import '../location_data.dart';
 import '../selfie_capture_screen.dart';
 import 'questionnaire_models.dart';
 import 'questionnaire_widgets.dart';
@@ -31,23 +32,47 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
   XFile? _selfie;
 
   // Text controllers for free-text fields (kept alive across steps).
-  late final _city = TextEditingController(text: _a.city);
-  late final _country = TextEditingController(text: _a.country);
-  late final _countryOfOrigin = TextEditingController(text: _a.countryOfOrigin);
-  late final _height = TextEditingController();
   late final _languages = TextEditingController();
   late final _ethnicity = TextEditingController();
   late final _health = TextEditingController();
   late final _sect = TextEditingController();
   late final _madhhab = TextEditingController();
-  late final _whyNow = TextEditingController();
+  late final _town = TextEditingController();
+  late final _cityText = TextEditingController(); // fallback where no city list
+  late final _timing = TextEditingController();
   late final _deen = TextEditingController();
+
+  bool _heightImperial = true; // ft/in by default (India); toggle to cm
+
+  @override
+  void initState() {
+    super.initState();
+    // Geo-locale guess for location — a default the user can override.
+    final cc = WidgetsBinding.instance.platformDispatcher.locale.countryCode;
+    final guess = _countryFromCode(cc);
+    if (guess != null) {
+      _a.residenceCountry = guess;
+      _a.nationality = guess;
+    }
+  }
+
+  static String? _countryFromCode(String? code) {
+    const m = {
+      'IN': 'India', 'PK': 'Pakistan', 'BD': 'Bangladesh', 'AE': 'United Arab Emirates',
+      'SA': 'Saudi Arabia', 'QA': 'Qatar', 'KW': 'Kuwait', 'BH': 'Bahrain',
+      'OM': 'Oman', 'US': 'United States', 'GB': 'United Kingdom', 'CA': 'Canada',
+      'AU': 'Australia', 'MY': 'Malaysia', 'ID': 'Indonesia', 'TR': 'Turkey',
+      'LK': 'Sri Lanka', 'SG': 'Singapore', 'ZA': 'South Africa', 'NG': 'Nigeria',
+    };
+    final name = m[code];
+    return (name != null && kCountries.contains(name)) ? name : null;
+  }
 
   @override
   void dispose() {
     for (final c in [
-      _city, _country, _countryOfOrigin, _height, _languages, _ethnicity,
-      _health, _sect, _madhhab, _whyNow, _deen
+      _languages, _ethnicity, _health, _sect, _madhhab, _town, _cityText,
+      _timing, _deen
     ]) {
       c.dispose();
     }
@@ -215,18 +240,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          UnderlineField(
-              label: 'Height (cm)',
-              controller: _height,
-              keyboardType: TextInputType.number,
-              hint: 'e.g. 170',
-              maxLength: 3,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              onChanged: (v) {
-                final n = int.tryParse(v);
-                setState(() =>
-                    _a.heightCm = (n != null && n >= 120 && n <= 220) ? n : null);
-              }),
+          _heightPicker(),
           const QuestionLabel('Marital status'),
           OptionList(
               options: Choices.maritalStatus,
@@ -275,21 +289,49 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         eyebrow: 'Section C · Life & roots',
         title: 'Where life has placed you',
         children: [
-          UnderlineField(
+          _dropdown(
               label: 'Where you currently live — country',
-              controller: _country,
-              onChanged: (v) => setState(() => _a.country = v)),
-          const SizedBox(height: 20),
+              value: _a.residenceCountry.isEmpty ? null : _a.residenceCountry,
+              items: kCountries,
+              onChanged: (v) => setState(() {
+                    _a.residenceCountry = v ?? '';
+                    _a.residenceState = '';
+                    _a.residenceCity = '';
+                    _cityText.clear();
+                  })),
+          if (statesFor(_a.residenceCountry).isNotEmpty)
+            _dropdown(
+                label: 'State / region',
+                value: _a.residenceState.isEmpty ? null : _a.residenceState,
+                items: statesFor(_a.residenceCountry),
+                onChanged: (v) => setState(() {
+                      _a.residenceState = v ?? '';
+                      _a.residenceCity = '';
+                      _cityText.clear();
+                    })),
+          if (citiesFor(_a.residenceCountry, _a.residenceState).isNotEmpty)
+            _dropdown(
+                label: 'City',
+                value: _a.residenceCity.isEmpty ? null : _a.residenceCity,
+                items: citiesFor(_a.residenceCountry, _a.residenceState),
+                onChanged: (v) => setState(() => _a.residenceCity = v ?? ''))
+          else
+            UnderlineField(
+                label: 'City',
+                controller: _cityText,
+                hint: 'e.g. Hyderabad',
+                onChanged: (v) => setState(() => _a.residenceCity = v)),
+          const SizedBox(height: 12),
           UnderlineField(
-              label: 'City',
-              controller: _city,
-              hint: 'e.g. Hyderabad',
-              onChanged: (v) => setState(() => _a.city = v)),
-          const SizedBox(height: 20),
-          UnderlineField(
-              label: 'Where you are originally from — country',
-              controller: _countryOfOrigin,
-              onChanged: (v) => setState(() => _a.countryOfOrigin = v)),
+              label: 'Town / area (optional)',
+              controller: _town,
+              onChanged: (v) => setState(() => _a.residenceTown = v)),
+          const SizedBox(height: 12),
+          _dropdown(
+              label: 'Nationality — where you are from',
+              value: _a.nationality.isEmpty ? null : _a.nationality,
+              items: kCountries,
+              onChanged: (v) => setState(() => _a.nationality = v ?? '')),
           const QuestionLabel('Your residency status where you live'),
           OptionList(
               options: Choices.residencyStatus,
@@ -447,23 +489,169 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
 
   Widget _sectionD1() => _shortAnswer(
         step: 7,
-        title: 'Why nikah, and why now?',
-        prompt: 'A few sincere sentences. Minimum 100 characters.',
-        ctrl: _whyNow,
-        onChanged: (v) => _a.whyNow = v,
+        title: 'What makes now the right time?',
+        prompt: "Tell us what's happening in your life that's made this the "
+            "right time to look for a spouse. A few honest sentences. There's "
+            "no right answer — we're trying to understand where you are.",
+        ctrl: _timing,
+        onChanged: (v) => _a.timingReadiness = v,
         complete: _a.sectionD1Complete,
-        lengthNow: _a.whyNow.trim().length,
+        lengthNow: _a.timingReadiness.trim().length,
       );
 
   Widget _sectionD2() => _shortAnswer(
         step: 8,
-        title: 'Describe your relationship with your deen',
-        prompt: 'Where you are, where you are striving to be. '
-            'Minimum 100 characters.',
+        title: 'Describe your relationship with deen',
+        prompt: 'What part of your deen are you most consistent in, and what '
+            'are you still working on?',
         ctrl: _deen,
         onChanged: (v) => _a.deenRelationship = v,
         complete: _a.sectionD2Complete,
         lengthNow: _a.deenRelationship.trim().length,
+      );
+
+  // ---- Shared inputs: styled dropdown + dual-unit height picker ----
+  Widget _dropdown({
+    required String label,
+    required String? value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: AppType.inter(12.5, color: DarkTokens.muted())),
+          const SizedBox(height: 2),
+          DropdownButtonFormField<String>(
+            initialValue: (value != null && items.contains(value)) ? value : null,
+            isExpanded: true,
+            dropdownColor: DarkTokens.bg,
+            icon: Icon(Icons.expand_more, color: DarkTokens.muted(.7)),
+            style: AppType.inter(15, color: DarkTokens.ivory),
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 8),
+              enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: DarkTokens.hairline(.5))),
+              focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: DarkTokens.gold)),
+            ),
+            hint: Text('Select…',
+                style: AppType.inter(15, color: DarkTokens.muted(.5))),
+            items: [
+              for (final it in items)
+                DropdownMenuItem(
+                    value: it,
+                    child: Text(it,
+                        style: AppType.inter(15, color: DarkTokens.ivory))),
+            ],
+            onChanged: onChanged,
+          ),
+        ]),
+      );
+
+  Widget _heightPicker() {
+    final cm = _a.heightCm;
+    int? feet, inch;
+    if (cm != null) {
+      final t = (cm / 2.54).round();
+      feet = t ~/ 12;
+      inch = t % 12;
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(
+            child: Text('Height',
+                style: AppType.inter(12.5, color: DarkTokens.muted()))),
+        _unitPill('ft/in', true),
+        const SizedBox(width: 8),
+        _unitPill('cm', false),
+      ]),
+      const SizedBox(height: 4),
+      if (_heightImperial)
+        Row(children: [
+          Expanded(
+              child: _miniDropdown<int>(
+                  value: feet,
+                  items: [for (var f = 4; f <= 7; f++) f],
+                  labelOf: (v) => '$v ft',
+                  onChanged: (f) => _setImperial(f, inch ?? 0))),
+          const SizedBox(width: 12),
+          Expanded(
+              child: _miniDropdown<int>(
+                  value: inch,
+                  items: [for (var i = 0; i <= 11; i++) i],
+                  labelOf: (v) => '$v in',
+                  onChanged: (i) => _setImperial(feet ?? 5, i))),
+        ])
+      else
+        _miniDropdown<int>(
+            value: cm,
+            items: [for (var c = 140; c <= 210; c++) c],
+            labelOf: (v) => '$v cm',
+            onChanged: (c) => setState(() => _a.heightCm = c)),
+      if (cm != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text('${feet}\'$inch" ($cm cm)',
+              style: AppType.inter(13, color: DarkTokens.gold)),
+        ),
+    ]);
+  }
+
+  void _setImperial(int feet, int inch) =>
+      setState(() => _a.heightCm = ((feet * 12 + inch) * 2.54).round());
+
+  Widget _unitPill(String label, bool imperial) {
+    final on = _heightImperial == imperial;
+    return GestureDetector(
+      onTap: () => setState(() => _heightImperial = imperial),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: on ? DarkTokens.gold.withValues(alpha: .12) : null,
+          border: Border.all(
+              color: on ? DarkTokens.gold : DarkTokens.hairline(.5)),
+        ),
+        child: Text(label,
+            style: AppType.inter(12,
+                color: on ? DarkTokens.gold : DarkTokens.muted())),
+      ),
+    );
+  }
+
+  Widget _miniDropdown<T>({
+    required T? value,
+    required List<T> items,
+    required String Function(T) labelOf,
+    required ValueChanged<T> onChanged,
+  }) =>
+      DropdownButtonFormField<T>(
+        initialValue: (value != null && items.contains(value)) ? value : null,
+        isExpanded: true,
+        dropdownColor: DarkTokens.bg,
+        icon: Icon(Icons.expand_more, color: DarkTokens.muted(.7)),
+        style: AppType.inter(15, color: DarkTokens.ivory),
+        decoration: InputDecoration(
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+          enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: DarkTokens.hairline(.5))),
+          focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: DarkTokens.gold)),
+        ),
+        hint: Text('—', style: AppType.inter(15, color: DarkTokens.muted(.5))),
+        items: [
+          for (final it in items)
+            DropdownMenuItem(
+                value: it,
+                child: Text(labelOf(it),
+                    style: AppType.inter(15, color: DarkTokens.ivory))),
+        ],
+        onChanged: (v) {
+          if (v != null) onChanged(v);
+        },
       );
 
   // ---- E. Creed & finance ----
@@ -532,21 +720,26 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
               ),
             ]),
           ),
-          const QuestionLabel('Your relationship with the Quran'),
+          const QuestionLabel('Your Quran recitation'),
           OptionList(
-              options: Choices.quran,
-              selected: _a.quran,
-              onSelect: (v) => setState(() => _a.quran = v)),
+              options: Choices.quranEngagement,
+              selected: _a.quranEngagement,
+              onSelect: (v) => setState(() => _a.quranEngagement = v)),
+          const QuestionLabel('Quran memorization'),
+          OptionList(
+              options: Choices.quranMemorization,
+              selected: _a.quranMemorization,
+              onSelect: (v) => setState(() => _a.quranMemorization = v)),
           const QuestionLabel('Islamic study'),
           OptionList(
               options: Choices.islamicStudy,
               selected: _a.islamicStudy,
               onSelect: (v) => setState(() => _a.islamicStudy = v)),
-          const QuestionLabel('Fasting beyond Ramadan'),
+          const QuestionLabel('Fasting'),
           OptionList(
               options: Choices.fasting,
-              selected: _a.fastingBeyondRamadan,
-              onSelect: (v) => setState(() => _a.fastingBeyondRamadan = v)),
+              selected: _a.fasting,
+              onSelect: (v) => setState(() => _a.fasting = v)),
         ],
         onNext: _a.sectionFComplete ? _next : null,
       );

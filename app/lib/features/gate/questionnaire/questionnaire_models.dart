@@ -24,10 +24,13 @@ class QuestionnaireAnswers {
   bool? hasChildren;
   bool revert = false; // optional, celebrated not flagged
   int? heightCm; // 140–210
-  // Location — three questions, NO "livingAbroad" flag (PRD §0/§4.1).
-  String country = 'India'; // where I live NOW
-  String city = '';
-  String countryOfOrigin = 'India'; // where I'm FROM (distinct for diaspora)
+  // Location — structured dropdowns (reliably matchable, not free text).
+  // residence = where I live NOW; nationality = citizenship / where I'm FROM.
+  String residenceCountry = 'India';
+  String residenceState = '';
+  String residenceCity = '';
+  String residenceTown = ''; // optional, finer-grained than city
+  String nationality = 'India';
   String? residencyStatus; // citizen | permanent_resident | long_term_visa | work_visa | student_visa
   bool? willingToRelocate;
   String languages = ''; // comma-separated in UI → list on submit
@@ -41,7 +44,7 @@ class QuestionnaireAnswers {
   String healthDisclosure = ''; // optional; revealed at conversation stage
 
   // ---- D. Short answers ----
-  String whyNow = '';
+  String timingReadiness = ''; // was whyNow — "why now" read as a test
   String deenRelationship = '';
 
   // ---- E. Creed & finance affirmations ----
@@ -50,10 +53,14 @@ class QuestionnaireAnswers {
   String? e3RibaPractice; // none | exiting | continuing
   String? e4IncomeSource; // halal | uncertain | not_halal
 
-  // ---- F. Deen Detail (NON-GATING — matching signal only, → profile) ----
-  String? quran; // hafiz | regular | learning | seeking
+  // ---- F. Deen Detail (matching signal → profile; fasting also gates) ----
+  // Quran split into engagement (how you read) + memorization (how much held).
+  String? quranEngagement; // daily_recitation | weekly | ramadan_only | learning_to_read | seeking
+  String? quranMemorization; // hafiz | juz_amma_plus | some_surahs | learning
   String? islamicStudy; // formal | structured_self | casual | none
-  String? fastingBeyondRamadan; // regularly | sometimes | no
+  // Fasting covers Ramadan itself now, not just beyond it. 'not_ramadan' →
+  // MANUAL REVIEW (never auto-reject; exemptions exist), routed via gateRules.
+  String? fasting; // beyond_ramadan_regularly | beyond_ramadan_sometimes | ramadan_only | not_ramadan
 
   static const int shortAnswerMin = 100;
 
@@ -68,9 +75,9 @@ class QuestionnaireAnswers {
       // Children only required for divorced/widowed; never-married is auto-false.
       (maritalStatus == 'never_married' || hasChildren != null);
   bool get sectionC2Complete =>
-      country.trim().isNotEmpty &&
-      city.trim().isNotEmpty &&
-      countryOfOrigin.trim().isNotEmpty &&
+      residenceCountry.trim().isNotEmpty &&
+      residenceCity.trim().isNotEmpty &&   // town is optional
+      nationality.trim().isNotEmpty &&
       residencyStatus != null &&
       willingToRelocate != null &&
       languages.trim().isNotEmpty;
@@ -80,7 +87,7 @@ class QuestionnaireAnswers {
       familyType != null &&
       familyReligiosity != null &&
       dietPractice != null; // health optional
-  bool get sectionD1Complete => whyNow.trim().length >= shortAnswerMin;
+  bool get sectionD1Complete => timingReadiness.trim().length >= shortAnswerMin;
   bool get sectionD2Complete => deenRelationship.trim().length >= shortAnswerMin;
   bool get sectionEComplete =>
       e1Tawhid != null &&
@@ -88,7 +95,10 @@ class QuestionnaireAnswers {
       e3RibaPractice != null &&
       e4IncomeSource != null;
   bool get sectionFComplete =>
-      quran != null && islamicStudy != null && fastingBeyondRamadan != null;
+      quranEngagement != null &&
+      quranMemorization != null &&
+      islamicStudy != null &&
+      fasting != null;
 
   List<String> get languagesList => languages
       .split(',')
@@ -108,8 +118,11 @@ class QuestionnaireAnswers {
         'e2_riba': e2Riba,
         'e3_ribaPractice': e3RibaPractice,
         'e4_incomeSource': e4IncomeSource,
+        // fasting is a deen-detail signal but ALSO gates: 'not_ramadan' routes
+        // to manual review (config/gateRules.manualReviewAnswers.fasting).
+        'fasting': fasting,
         'shortAnswers': {
-          'whyNow': whyNow.trim(),
+          'timingReadiness': timingReadiness.trim(),
           'deenRelationship': deenRelationship.trim(),
         },
       };
@@ -118,9 +131,10 @@ class QuestionnaireAnswers {
   /// inputs that vary across the approved pool, so the deen weight has
   /// something to bite on (PRD §4.1 Section F — the deen-variance collapse).
   Map<String, dynamic> get deenDetailMap => {
-        'quran': quran,
+        'quranEngagement': quranEngagement,
+        'quranMemorization': quranMemorization,
         'islamicStudy': islamicStudy,
-        'fastingBeyondRamadan': fastingBeyondRamadan,
+        'fasting': fasting,
       };
 }
 
@@ -289,12 +303,21 @@ class Choices {
     Choice('no_preference', 'No preference'),
   ];
 
-  // ---- Section F (non-gating) ----
-  static const quran = [
-    Choice('hafiz', 'Hafiz'),
-    Choice('regular', 'I read regularly'),
-    Choice('learning', 'Learning to read'),
+  // ---- Section F ----
+  // Quran engagement (how you read) and memorization (how much held) — split
+  // so the card can show both and matching has finer signal.
+  static const quranEngagement = [
+    Choice('daily_recitation', 'Daily recitation'),
+    Choice('weekly', 'Weekly'),
+    Choice('ramadan_only', 'Mainly in Ramadan'),
+    Choice('learning_to_read', 'Learning to read'),
     Choice('seeking', 'Seeking to start'),
+  ];
+  static const quranMemorization = [
+    Choice('hafiz', 'Hafiz (complete)'),
+    Choice('juz_amma_plus', "Juz ʿAmma and more"),
+    Choice('some_surahs', 'Some surahs'),
+    Choice('learning', 'Just beginning'),
   ];
   static const islamicStudy = [
     Choice('formal', 'Formal (madrasa / ʿalim course)'),
@@ -302,9 +325,15 @@ class Choices {
     Choice('casual', 'Casual'),
     Choice('none', 'None yet'),
   ];
+  // Fasting — now covers Ramadan itself. 'not_ramadan' is NOT a rejection:
+  // it routes to manual review (legitimate exemptions — illness, pregnancy,
+  // chronic conditions, travel).
   static const fasting = [
-    Choice('regularly', 'Regularly (e.g. Mondays & Thursdays)'),
-    Choice('sometimes', 'Sometimes'),
-    Choice('no', 'Not beyond Ramadan currently'),
+    Choice('beyond_ramadan_regularly', 'Ramadan + regularly beyond it',
+        note: 'e.g. Mondays & Thursdays, white days'),
+    Choice('beyond_ramadan_sometimes', 'Ramadan + sometimes beyond it'),
+    Choice('ramadan_only', 'Ramadan only'),
+    Choice('not_ramadan', 'I do not fast Ramadan currently',
+        note: 'Exemptions are understood — this goes to a person, not a filter.'),
   ];
 }

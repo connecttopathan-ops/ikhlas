@@ -138,10 +138,16 @@ class ApplicationRepository {
       'profile.maritalStatus': a.maritalStatus,
       'profile.hasChildren': a.hasChildren,
       'profile.revert': a.revert,
-      'profile.height': a.heightCm,
-      'profile.country': a.country.trim(),
-      'profile.city': a.city.trim(),
-      'profile.countryOfOrigin': a.countryOfOrigin.trim(),
+      // Height — canonical cm int, single source of truth (never a string).
+      'profile.heightCm': a.heightCm,
+      // Structured location (matchable). residence = live NOW; nationality = FROM.
+      'profile.residence': {
+        'country': a.residenceCountry.trim(),
+        'state': a.residenceState.trim(),
+        'city': a.residenceCity.trim(),
+        if (a.residenceTown.trim().isNotEmpty) 'town': a.residenceTown.trim(),
+      },
+      'profile.nationality': a.nationality.trim(),
       'profile.residencyStatus': a.residencyStatus,
       'profile.willingToRelocate': a.willingToRelocate,
       'profile.languages': a.languagesList,

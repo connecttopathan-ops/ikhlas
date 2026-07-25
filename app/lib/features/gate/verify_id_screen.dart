@@ -6,8 +6,8 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
-import '../../data/repositories/application_repository.dart';
 import '../../providers/application_provider.dart';
+import 'id_capture_screen.dart';
 
 /// Mandatory government-ID verification (PRD Step 4A) — runs after gate
 /// approval, before pool entry. The applicant chooses exactly one document
@@ -29,6 +29,16 @@ class _VerifyIdScreenState extends ConsumerState<VerifyIdScreen> {
     final x = await ImagePicker().pickImage(
         source: source, imageQuality: 70, maxWidth: 1600);
     if (x != null) setState(() => _image = x);
+  }
+
+  // Rear-camera capture uses the custom document-frame screen (a live preview
+  // with a rounded guide sized per document type) instead of the OS picker, so
+  // applicants line the ID up correctly the first time.
+  Future<void> _captureFromCamera() async {
+    final shot = await Navigator.of(context).push<XFile>(
+      MaterialPageRoute(builder: (_) => IdCaptureScreen(docType: _type)),
+    );
+    if (shot != null) setState(() => _image = shot);
   }
 
   Future<void> _submit() async {
@@ -191,15 +201,19 @@ class _VerifyIdScreenState extends ConsumerState<VerifyIdScreen> {
       ]);
     }
     return Row(children: [
-      Expanded(child: _captureBtn('Camera', Icons.photo_camera_outlined, ImageSource.camera)),
+      Expanded(
+          child: _captureBtn(
+              'Camera', Icons.photo_camera_outlined, _captureFromCamera)),
       const SizedBox(width: 12),
-      Expanded(child: _captureBtn('Gallery', Icons.photo_library_outlined, ImageSource.gallery)),
+      Expanded(
+          child: _captureBtn('Gallery', Icons.photo_library_outlined,
+              () => _capture(ImageSource.gallery))),
     ]);
   }
 
-  Widget _captureBtn(String label, IconData icon, ImageSource source) => InkWell(
+  Widget _captureBtn(String label, IconData icon, VoidCallback onTap) => InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () => _capture(source),
+        onTap: onTap,
         child: Container(
           height: 96,
           decoration: BoxDecoration(
