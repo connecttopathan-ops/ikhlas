@@ -26,6 +26,28 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     _handoff();
   }
 
+  /// Resolves the RESTORED session, defending against both cold-start races:
+  ///  1. `currentUser` is null for a beat while the native SDK restores the
+  ///     persisted session (the original repeated-logout bug), and
+  ///  2. the firebase_auth plugin can emit a spurious `null` as the FIRST
+  ///     authStateChanges event with the real user arriving a moment later —
+  ///     so a null first event is NOT trusted as signed-out; it gets a grace
+  ///     window for the real restore to land before we conclude logged out.
+  /// A genuinely signed-out user emits null and then nothing, so the only
+  /// cost of the grace window is ~3s of extra splash for signed-out users.
+  static Future<User?> _restoredUser(FirebaseAuth auth) async {
+    if (auth.currentUser != null) return auth.currentUser;
+    final events = auth.authStateChanges();
+    final first = await events.first
+        .timeout(const Duration(seconds: 10), onTimeout: () => null);
+    if (first != null) return first;
+    debugPrint('[auth-guard] splash: first auth event null — grace window');
+    return events
+        .firstWhere((u) => u != null)
+        .timeout(const Duration(seconds: 3),
+            onTimeout: () => auth.currentUser);
+  }
+
   Future<void> _handoff() async {
     final auth = FirebaseAuth.instance;
     final t0 = DateTime.now();
@@ -37,19 +59,15 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     // any slower-than-2.6s restore as "signed out" and bounced a signed-in
     // member to /landing — the repeated-logout bug. No arbitrary deadline
     // now; the 10s ceiling is only a pathological-hang escape hatch.
-    final authReady = auth.currentUser != null
-        ? Future<User?>.value(auth.currentUser)
-        : auth
-            .authStateChanges()
-            .first
-            .timeout(const Duration(seconds: 10), onTimeout: () => null);
     final results = await Future.wait<Object?>([
-      authReady,
+      _restoredUser(auth),
       // Floor, not deadline: keeps the brand rite on screen even when auth
       // resolves instantly. Auth slower than this just extends the splash.
       Future<void>.delayed(const Duration(milliseconds: 2600)),
     ]);
-    final user = results[0] as User?;
+    // Last-chance synchronous re-check: the session may have restored during
+    // the animation floor even if the stream race concluded null.
+    final user = (results[0] as User?) ?? auth.currentUser;
     debugPrint('[auth-guard] splash: restored=${user != null} '
         'in ${DateTime.now().difference(t0).inMilliseconds}ms');
 
