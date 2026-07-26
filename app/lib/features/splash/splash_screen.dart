@@ -28,33 +28,53 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   Future<void> _handoff() async {
     final auth = FirebaseAuth.instance;
-    // On a cold start Firebase restores the persisted session ASYNCHRONOUSLY,
-    // so reading currentUser after a fixed delay can still see null and bounce
-    // a signed-in member to /landing. Wait for the first authoritative auth
-    // event, overlapped with the splash animation so there's no added delay:
-    // for a signed-in user this resolves as soon as the session restores; for
-    // a genuinely signed-out user it times out at the animation length and we
-    // fall through to /landing — no extra wait either way.
+    final t0 = DateTime.now();
+    // On a cold start Firebase restores the persisted session ASYNCHRONOUSLY.
+    // Wait for the FIRST authStateChanges event — that emission IS the
+    // authoritative restored state (a signed-out user gets null immediately;
+    // a signed-in user gets their session as soon as it restores). The old
+    // code waited for a NON-null event with a 2.6s timeout, which mislabelled
+    // any slower-than-2.6s restore as "signed out" and bounced a signed-in
+    // member to /landing — the repeated-logout bug. No arbitrary deadline
+    // now; the 10s ceiling is only a pathological-hang escape hatch.
     final authReady = auth.currentUser != null
         ? Future<User?>.value(auth.currentUser)
         : auth
             .authStateChanges()
-            .firstWhere((u) => u != null)
-            .timeout(const Duration(milliseconds: 2600), onTimeout: () => null);
+            .first
+            .timeout(const Duration(seconds: 10), onTimeout: () => null);
     final results = await Future.wait<Object?>([
       authReady,
+      // Floor, not deadline: keeps the brand rite on screen even when auth
+      // resolves instantly. Auth slower than this just extends the splash.
       Future<void>.delayed(const Duration(milliseconds: 2600)),
     ]);
     final user = results[0] as User?;
+    debugPrint('[auth-guard] splash: restored=${user != null} '
+        'in ${DateTime.now().difference(t0).inMilliseconds}ms');
 
-    // Already signed in → resume where they left off; otherwise the
-    // application landing. (No landing/login bounce for returning members.)
+    // Signed in → resume where they left off. If the entry-route lookup fails
+    // (offline blip), fall back to an IN-APP surface — never /landing, which
+    // reads as "signed out". The router guards re-route once the user doc
+    // stream heals.
     String route = '/landing';
     if (user != null) {
       try {
         route = await ApplicationRepository().resolveEntryRoute();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('[auth-guard] splash: resolveEntryRoute failed ($e) — '
+            'retrying once');
+        try {
+          await Future<void>.delayed(const Duration(seconds: 1));
+          route = await ApplicationRepository().resolveEntryRoute();
+        } catch (e2) {
+          debugPrint('[auth-guard] splash: retry failed ($e2) — '
+              'falling back to /home');
+          route = '/home';
+        }
+      }
     }
+    debugPrint('[auth-guard] splash: handoff -> $route');
     if (mounted) context.go(route);
   }
 

@@ -30,16 +30,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       const publicRoutes = {'/', '/landing', '/login'};
 
       // #9 — distinguish "auth still resolving" from "definitely logged out".
-      // On a cold start Firebase restores the session asynchronously; reading
-      // currentUser synchronously saw null and bounced a signed-in member to
-      // /landing (the repeated "signed out" bug). While auth is loading, never
-      // redirect — the splash ('/') holds and the notifier re-runs on resolve.
+      // On a cold start Firebase restores the session asynchronously. While
+      // auth is loading the ONLY safe surface is the splash: never /landing
+      // (reads as "signed out again"), and never an in-app route (would build
+      // against null auth). The notifier re-runs this the moment auth resolves.
       final authState = ref.read(authStateProvider);
-      if (authState.isLoading) return null;
+      if (authState.isLoading) {
+        _authLog('hold-loading loc=$loc');
+        return loc == '/' ? null : '/';
+      }
       final user = authState.valueOrNull;
 
       if (user == null) {
-        return publicRoutes.contains(loc) ? null : '/landing';
+        // Authoritative signed-out (authStateChanges emitted null) — the only
+        // state that may bounce to /landing.
+        if (publicRoutes.contains(loc)) return null;
+        _authLog('BOUNCE loc=$loc -> /landing (auth=null, authoritative)');
+        return '/landing';
       }
 
       // Signed in: gate status drives where you're allowed to be.
@@ -65,18 +72,29 @@ final routerProvider = Provider<GoRouter>((ref) {
         case 'soft_rejected':
           return loc == '/decision' ? null : '/decision';
         default:
-          // A signed-in member whose user doc is still loading must NOT be
-          // treated as 'applying' and bounced to /landing (#9). Hold instead.
+          // Status unknown. Distinguish WHY before treating as 'applying':
+          //  · doc still loading  → hold (#9)
+          //  · doc stream ERROR   → hold too. An offline blip / transient
+          //    Firestore error must never masquerade as "applying" and dump a
+          //    signed-in member on /landing — that IS the "signed out again"
+          //    bug. The stream retries; the notifier re-runs us when it heals.
           if (userDocAsync.isLoading) return null;
-          // 'applying' (or doc still loading): the application flow is fine,
-          // decision surfaces are not. /review-wait stays reachable — right
-          // after submission the client lands there while the gate engine
-          // is still flipping status server-side.
+          if (userDocAsync.hasError) {
+            _authLog('hold-docError loc=$loc err=${userDocAsync.error}');
+            return null;
+          }
+          // Doc genuinely loaded with no decided status → 'applying': the
+          // application flow is fine, decision surfaces are not. /review-wait
+          // stays reachable — right after submission the client lands there
+          // while the gate engine is still flipping status server-side.
           const gated = {
             '/welcome', '/profile-builder', '/decision', '/home', '/settings',
             '/conversations'
           };
-          if (gated.contains(loc) || loc.startsWith('/chat/')) return '/landing';
+          if (gated.contains(loc) || loc.startsWith('/chat/')) {
+            _authLog('BOUNCE loc=$loc -> /landing (applying, doc loaded)');
+            return '/landing';
+          }
           return null;
       }
     },
@@ -104,11 +122,33 @@ final routerProvider = Provider<GoRouter>((ref) {
   return router;
 });
 
+/// Diagnostic trail for the repeated-logout bug: every guard decision that
+/// could look like a logout is logged (visible in `adb logcat`, release
+/// builds included) so a repro pinpoints WHICH path bounced the user.
+void _authLog(String msg) =>
+    debugPrint('[auth-guard] ${DateTime.now().toIso8601String()} $msg');
+
 /// Re-runs the router redirect whenever auth or the user doc changes —
 /// this is how a gate decision made server-side moves the UI in realtime.
 class RouterNotifier extends ChangeNotifier {
   RouterNotifier(Ref ref) {
-    ref.listen(authStateProvider, (_, __) => notifyListeners());
-    ref.listen(userDocProvider, (_, __) => notifyListeners());
+    ref.listen(authStateProvider, (prev, next) {
+      _authLog('authState: ${_phase(prev)} -> ${_phase(next)}');
+      notifyListeners();
+    });
+    ref.listen(userDocProvider, (prev, next) {
+      final s = next.valueOrNull?.data()?['status'];
+      _authLog('userDoc: loading=${next.isLoading} '
+          'error=${next.hasError} status=$s');
+      notifyListeners();
+    });
   }
+
+  static String _phase(AsyncValue<dynamic>? v) => v == null
+      ? 'none'
+      : v.isLoading
+          ? 'loading'
+          : v.hasError
+              ? 'error'
+              : (v.valueOrNull == null ? 'signed-OUT' : 'signed-in');
 }
