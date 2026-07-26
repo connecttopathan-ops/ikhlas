@@ -658,8 +658,6 @@ function entrySnapshot(e) {
     bioPrompts: c.profile.bioPrompts || [],
     // Section D answers are shown on the profile to matches (disclosed to
     // the applicant at entry) as well as used for review.
-    timingReadiness: c.answers.shortAnswers?.timingReadiness
-      || c.answers.shortAnswers?.whyNow || null,
     deenRelationship: c.answers.shortAnswers?.deenRelationship || null,
     compatibility: e.why,           // "You both pray five daily" etc.
     band: e.band,                    // strong | good | some — the card headline
@@ -1526,8 +1524,6 @@ function chatProfile(userSnap, appSnap) {
     fasting: p.deenDetail?.fasting || null,
     ribaDisclosureBadge: u.ribaDisclosureBadge === true,
     bioPrompts: p.bioPrompts || [],
-    timingReadiness: a.shortAnswers?.timingReadiness
-      || a.shortAnswers?.whyNow || null,
     deenRelationship: a.shortAnswers?.deenRelationship || null,
     photoVisibility: photoVisOf(u),
     hasPhotos: (u.photos || []).length > 0,

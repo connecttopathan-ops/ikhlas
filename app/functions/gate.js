@@ -75,16 +75,13 @@ function evaluateGate(answers, dob, rules = {}, ctx = {}) {
     }
   }
 
-  // Short answers below minimum → a human looks (client enforces the
-  // minimum, so hitting this means someone bypassed the app).
+  // Short answer below minimum → a human looks (client enforces the
+  // minimum, so hitting this means someone bypassed the app). Deen
+  // relationship is the ONLY free-text now — the "right time" question
+  // was cut from the flow, so it no longer gates.
   const sa = answers?.shortAnswers || {};
-  // `timingReadiness` was `whyNow` before the questionnaire rewrite; accept the
-  // legacy key too so applications submitted from an older client still gate.
-  const timing = sa.timingReadiness ?? sa.whyNow;
-  for (const [key, val] of [['timingReadiness', timing], ['deenRelationship', sa.deenRelationship]]) {
-    if (((val || '').trim()).length < r.shortAnswerMinChars) {
-      reasons.push(`manual_review:short_answer:${key}`);
-    }
+  if (((sa.deenRelationship || '').trim()).length < r.shortAnswerMinChars) {
+    reasons.push('manual_review:short_answer:deenRelationship');
   }
 
   // Required structured answers missing entirely → human, never auto-pass.

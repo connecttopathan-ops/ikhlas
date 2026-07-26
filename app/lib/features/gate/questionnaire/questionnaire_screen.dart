@@ -27,7 +27,7 @@ class QuestionnaireScreen extends ConsumerStatefulWidget {
 }
 
 class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
-  static const _totalSteps = 12;
+  static const _totalSteps = 11;
   int _step = 1;
   final _a = QuestionnaireAnswers();
   bool _submitting = false;
@@ -46,7 +46,6 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
   late final _madhhab = TextEditingController();
   late final _town = TextEditingController();
   late final _cityText = TextEditingController(); // fallback where no city list
-  late final _timing = TextEditingController();
   late final _deen = TextEditingController();
 
   bool _heightImperial = true; // ft/in by default (India); toggle to cm
@@ -79,7 +78,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
   void dispose() {
     for (final c in [
       _languages, _ethnicity, _health, _sect, _madhhab, _town, _cityText,
-      _timing, _deen
+      _deen
     ]) {
       c.dispose();
     }
@@ -172,11 +171,10 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         4 => _sectionC2(),
         5 => _sectionC3(),
         6 => _sectionC4(),
-        7 => _sectionD1(),
-        8 => _sectionD2(),
-        9 => _sectionE(),
-        10 => _sectionF(),
-        11 => _selfieStep(),
+        7 => _sectionD2(),
+        8 => _sectionE(),
+        9 => _sectionF(),
+        10 => _selfieStep(),
         _ => _idStep(),
       },
     );
@@ -349,7 +347,12 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
                       _a.residenceCity = '';
                       _cityText.clear();
                     })),
-          if (citiesFor(_a.residenceCountry, _a.residenceState).isNotEmpty)
+          // India: city/town is FREE TEXT — Indian cities are too numerous and
+          // inconsistently spelled for a usable dropdown. Everywhere else the
+          // dropdown stays so the data remains matchable. Country and state
+          // are dropdowns for everyone.
+          if (_a.residenceCountry != 'India' &&
+              citiesFor(_a.residenceCountry, _a.residenceState).isNotEmpty)
             _dropdown(
                 label: 'City',
                 value: _a.residenceCity.isEmpty ? null : _a.residenceCity,
@@ -357,7 +360,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
                 onChanged: (v) => setState(() => _a.residenceCity = v ?? ''))
           else
             UnderlineField(
-                label: 'City',
+                label: _a.residenceCountry == 'India' ? 'City / town' : 'City',
                 controller: _cityText,
                 hint: 'e.g. Hyderabad',
                 onChanged: (v) => setState(() => _a.residenceCity = v)),
@@ -522,20 +525,8 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         onNext: complete ? _next : null,
       );
 
-  Widget _sectionD1() => _shortAnswer(
-        step: 7,
-        title: 'What makes now the right time?',
-        prompt: "Tell us what's happening in your life that's made this the "
-            "right time to look for a spouse. A few honest sentences. There's "
-            "no right answer — we're trying to understand where you are.",
-        ctrl: _timing,
-        onChanged: (v) => _a.timingReadiness = v,
-        complete: _a.sectionD1Complete,
-        lengthNow: _a.timingReadiness.trim().length,
-      );
-
   Widget _sectionD2() => _shortAnswer(
-        step: 8,
+        step: 7,
         title: 'Describe your relationship with deen',
         prompt: 'What part of your deen are you most consistent in, and what '
             'are you still working on?',
@@ -691,7 +682,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
 
   // ---- E. Creed & finance ----
   Widget _sectionE() => StepScaffold(
-        step: 9,
+        step: 8,
         totalSteps: _totalSteps,
         eyebrow: 'Section E · Creed & finance',
         title: 'Affirmations',
@@ -739,7 +730,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
 
   // ---- F. Deen Detail (NON-GATING — matching signal only) ----
   Widget _sectionF() => StepScaffold(
-        step: 10,
+        step: 9,
         totalSteps: _totalSteps,
         eyebrow: 'Section F · Deen detail',
         title: 'A little more, so we match you well',
@@ -789,7 +780,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
 
   // ---- Verification selfie (manual capture; liveness SDK later) ----
   Widget _selfieStep() => StepScaffold(
-        step: 11,
+        step: 10,
         totalSteps: _totalSteps,
         eyebrow: 'Verification · 1 of 2',
         title: 'One honest photo',
@@ -848,7 +839,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
   // moderator alongside eligibility — a single decision). Image goes only to
   // the admin-only quarantine bucket; never public, purged if declined. ----
   Widget _idStep() => StepScaffold(
-        step: 12,
+        step: 11,
         totalSteps: _totalSteps,
         eyebrow: 'Verification · 2 of 2',
         title: 'Verify your identity',
@@ -872,57 +863,64 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
                     _idType = v;
                   })),
           const SizedBox(height: 20),
-          Center(
-            child: Container(
-              width: 260,
-              height: 170,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.control),
-                border: Border.all(
-                    color: DarkTokens.gold
-                        .withOpacity(_idImage == null ? .45 : .9),
-                    width: 1),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: _idImage == null
-                  ? Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.badge_outlined,
-                            size: 40,
-                            color: DarkTokens.muted(_idType == null ? .3 : .7)),
-                        const SizedBox(height: 12),
-                        Text(
-                            _idType == null
-                                ? 'Choose a document first'
-                                : 'Take a photo or upload your ${_idType == 'passport' ? 'passport' : 'Aadhaar'}',
-                            textAlign: TextAlign.center,
-                            style: AppType.inter(13,
-                                color: DarkTokens.muted(.7))),
-                      ],
-                    )
-                  : Image.file(File(_idImage!.path), fit: BoxFit.cover),
+          // Preview / target zone — full width so it never reads cramped.
+          // The cue names the correct side: OCR + face-match need the front
+          // (photo + name), not the Aadhaar back (address).
+          Container(
+            width: double.infinity,
+            height: 210,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              border: Border.all(
+                  color: DarkTokens.gold
+                      .withOpacity(_idImage == null ? .45 : .9),
+                  width: 1),
             ),
+            clipBehavior: Clip.antiAlias,
+            child: _idImage == null
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.badge_outlined,
+                          size: 40,
+                          color: DarkTokens.muted(_idType == null ? .3 : .7)),
+                      const SizedBox(height: 12),
+                      Text(
+                          _idType == null
+                              ? 'Choose a document first'
+                              : 'A clear photo of your ${_idType == 'passport' ? 'passport' : 'Aadhaar'}',
+                          textAlign: TextAlign.center,
+                          style: AppType.inter(13,
+                              color: DarkTokens.muted(.7))),
+                      if (_idType != null) ...[
+                        const SizedBox(height: 5),
+                        Text(
+                            _idType == 'passport'
+                                ? 'The photo page.'
+                                : 'Front side — the one with your photo.',
+                            textAlign: TextAlign.center,
+                            style: AppType.inter(12.5,
+                                weight: FontWeight.w500,
+                                color: DarkTokens.gold.withOpacity(.9))),
+                      ],
+                    ],
+                  )
+                : Image.file(File(_idImage!.path), fit: BoxFit.cover),
           ),
           const SizedBox(height: 16),
-          // Two paths, both available: framed camera capture OR a device photo.
-          Row(children: [
-            Expanded(
-              child: _idActionButton(
-                _idImage == null ? 'Take photo' : 'Retake',
-                Icons.photo_camera_outlined,
-                _idType == null || _submitting ? null : _captureId,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _idActionButton(
-                'Upload from device',
-                Icons.upload_file_outlined,
-                _idType == null || _submitting ? null : _uploadId,
-              ),
-            ),
-          ]),
+          // Capture is the primary path (the overlay guide gives better OCR);
+          // device upload is the quiet fallback beneath it.
+          _idActionButton(
+            _idImage == null ? 'Take photo' : 'Retake photo',
+            Icons.photo_camera_outlined,
+            _idType == null || _submitting ? null : _captureId,
+          ),
+          const SizedBox(height: 12),
+          Center(
+            child: QuietLink(
+                linkText: 'Upload from device',
+                onTap: _idType == null || _submitting ? null : _uploadId),
+          ),
           const SizedBox(height: 22),
           Text(
             'Your application is reviewed by our team. Decisions are '

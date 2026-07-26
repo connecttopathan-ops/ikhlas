@@ -13,7 +13,6 @@ const GOOD_ANSWERS = {
   e4_incomeSource: 'halal',
   fasting: 'ramadan_only',
   shortAnswers: {
-    timingReadiness: 'x'.repeat(160),
     deenRelationship: 'y'.repeat(160),
   },
 };
@@ -64,10 +63,10 @@ test('fasting "not_ramadan" routes to manual review, never auto-reject', () => {
   assert.ok(v.reasons.some((r) => r.includes('fasting')));
 });
 
-test('legacy shortAnswers.whyNow still counts (older client compat)', () => {
+test('a legacy timing answer is ignored — deenRelationship alone gates', () => {
   const { shortAnswers, ...rest } = GOOD_ANSWERS;
   const v = evaluateGate(
-    { ...rest, shortAnswers: { whyNow: 'x'.repeat(160), deenRelationship: 'y'.repeat(160) } },
+    { ...rest, shortAnswers: { timingReadiness: 'short', deenRelationship: 'y'.repeat(160) } },
     ADULT, {}, SELFIE
   );
   assert.equal(v.result, 'auto_pass');
@@ -106,7 +105,7 @@ test('E4 "Uncertain" income routes to manual review (same logic as prayer:most)'
 
 test('short answers below minimum escalate to a human, never auto-decide', () => {
   const v = evaluateGate(
-    { ...GOOD_ANSWERS, shortAnswers: { timingReadiness: 'short', deenRelationship: 'short' } },
+    { ...GOOD_ANSWERS, shortAnswers: { deenRelationship: 'short' } },
     ADULT, {}, SELFIE
   );
   assert.equal(v.result, 'manual_review');

@@ -42,8 +42,8 @@ class QuestionnaireAnswers {
   String? familyReligiosity; // very_practising | practising | moderate | cultural
   String healthDisclosure = ''; // optional; revealed at conversation stage
 
-  // ---- D. Short answers ----
-  String timingReadiness = ''; // was whyNow — "why now" read as a test
+  // ---- D. Short answer (deen relationship is the only free-text; the
+  // "right time" question was cut — it read as a test) ----
   String deenRelationship = '';
 
   // ---- E. Creed & finance affirmations ----
@@ -84,7 +84,6 @@ class QuestionnaireAnswers {
       education != null && profession != null && incomeBand != null;
   bool get sectionC4Complete =>
       familyType != null && familyReligiosity != null; // health optional
-  bool get sectionD1Complete => timingReadiness.trim().length >= shortAnswerMin;
   bool get sectionD2Complete => deenRelationship.trim().length >= shortAnswerMin;
   bool get sectionEComplete =>
       e1Tawhid != null &&
@@ -119,7 +118,6 @@ class QuestionnaireAnswers {
         // to manual review (config/gateRules.manualReviewAnswers.fasting).
         'fasting': fasting,
         'shortAnswers': {
-          'timingReadiness': timingReadiness.trim(),
           'deenRelationship': deenRelationship.trim(),
         },
       };
@@ -239,9 +237,11 @@ class Choices {
         note: 'Hidden even after matching until you approve a request '
             'from your match.'),
   ];
+  // Labels read "agree" (plain speech, not a deposition); the stored values
+  // stay affirm/not_affirm — the gate keys off them.
   static const e1 = [
-    Choice('affirm', 'I affirm'),
-    Choice('not_affirm', 'I do not affirm'),
+    Choice('affirm', 'I agree'),
+    Choice('not_affirm', "I don't agree"),
   ];
   static const e3 = [
     Choice('none', 'I have none'),

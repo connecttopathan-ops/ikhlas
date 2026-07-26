@@ -279,10 +279,8 @@ class _ApplicationCardState extends State<_ApplicationCard> {
               ),
               const SizedBox(height: 18),
 
-              // ---- short answers ----
-              _ShortAnswer('Why nikah, why now',
-                  sa['timingReadiness'] ?? sa['whyNow']),
-              const SizedBox(height: 12),
+              // ---- short answer (deen relationship is the only free-text
+              // since the "right time" question was cut) ----
               _ShortAnswer('Relationship with deen', sa['deenRelationship']),
               const SizedBox(height: 18),
 

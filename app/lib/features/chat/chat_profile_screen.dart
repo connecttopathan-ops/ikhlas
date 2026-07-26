@@ -170,27 +170,14 @@ class ChatProfileScreen extends StatelessWidget {
                       ),
                 ],
 
-                if ((e['timingReadiness'] ?? '').toString().isNotEmpty ||
-                    (e['deenRelationship'] ?? '').toString().isNotEmpty) ...[
+                if ((e['deenRelationship'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 22),
                   const Hairline(),
                   const SizedBox(height: 18),
                   Text('ON SEEKING NIKAH',
                       style: AppType.eyebrow(DarkTokens.gold)),
                   const SizedBox(height: 12),
-                  if ((e['timingReadiness'] ?? '').toString().isNotEmpty) ...[
-                    Text('Why this is the right time',
-                        style: AppType.inter(11.5,
-                            color: DarkTokens.muted(), weight: FontWeight.w500)),
-                    const SizedBox(height: 4),
-                    Text('“${e['timingReadiness']}”',
-                        style: AppType.fraunces(15.5,
-                            color: DarkTokens.ivory,
-                            style: FontStyle.italic,
-                            height: 1.5)),
-                    const SizedBox(height: 16),
-                  ],
-                  if ((e['deenRelationship'] ?? '').toString().isNotEmpty) ...[
+                  ...[
                     Text('Their relationship with the deen',
                         style: AppType.inter(11.5,
                             color: DarkTokens.muted(), weight: FontWeight.w500)),
