@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -35,17 +38,46 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   ///     window for the real restore to land before we conclude logged out.
   /// A genuinely signed-out user emits null and then nothing, so the only
   /// cost of the grace window is ~3s of extra splash for signed-out users.
-  static Future<User?> _restoredUser(FirebaseAuth auth) async {
-    if (auth.currentUser != null) return auth.currentUser;
+  // Cold-start diagnostics (TEMPORARY, closed testing): posted to the
+  // clientDiag function so device behaviour is visible without adb.
+  bool _diagUserAtInit = false;
+  bool _diagNullFirst = false;
+  bool _diagTimedOut = false;
+
+  Future<User?> _restoredUser(FirebaseAuth auth) async {
+    if (auth.currentUser != null) {
+      _diagUserAtInit = true;
+      return auth.currentUser;
+    }
     final events = auth.authStateChanges();
-    final first = await events.first
-        .timeout(const Duration(seconds: 10), onTimeout: () => null);
+    final first = await events.first.timeout(const Duration(seconds: 10),
+        onTimeout: () {
+      _diagTimedOut = true;
+      return null;
+    });
     if (first != null) return first;
+    _diagNullFirst = true;
     debugPrint('[auth-guard] splash: first auth event null — grace window');
     return events
         .firstWhere((u) => u != null)
         .timeout(const Duration(seconds: 3),
             onTimeout: () => auth.currentUser);
+  }
+
+  /// Fire-and-forget POST to the clientDiag function (TEMPORARY — removed
+  /// when the logout bug is closed). Never blocks or throws into the flow.
+  static void _postDiag(Map<String, Object?> data) {
+    Future(() async {
+      try {
+        final c = HttpClient();
+        final r = await c.postUrl(Uri.parse(
+            'https://asia-south1-ikhlas-caecf.cloudfunctions.net/clientDiag'));
+        r.headers.contentType = ContentType.json;
+        r.write(jsonEncode(data));
+        await (await r.close()).drain<void>();
+        c.close();
+      } catch (_) {}
+    });
   }
 
   Future<void> _handoff() async {
@@ -93,6 +125,18 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       }
     }
     debugPrint('[auth-guard] splash: handoff -> $route');
+    _postDiag({
+      'tag': 'coldstart',
+      'build': 'diag1',
+      'userAtInit': _diagUserAtInit,
+      'nullFirstEvent': _diagNullFirst,
+      'streamTimedOut': _diagTimedOut,
+      'restored': user != null,
+      'uid': user?.uid,
+      'provider': user?.providerData.map((p) => p.providerId).join(','),
+      'ms': DateTime.now().difference(t0).inMilliseconds,
+      'route': route,
+    });
     if (mounted) context.go(route);
   }
 
