@@ -23,7 +23,7 @@ class ProfileBuilderScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
-  static const _totalSteps = 5;
+  static const _totalSteps = 7;
   int _step = 1;
   bool _saving = false;
 
@@ -33,16 +33,44 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   // Step 2 — photo visibility (PRD §4.2: default on_mutual_blur)
   String _privacy = 'on_mutual_blur';
 
-  // Step 3 — guided bio prompts
+  // Step 3 — guided bio prompts. "What I'm looking for" is split out into two
+  // dedicated fields on the Family step, so it is no longer a bio prompt.
+  // ($1 id · $2 prompt · $3 placeholder example)
   static const _prompts = [
-    ('first_year', 'My ideal first year of marriage looks like…'),
-    ('deen_consistent', 'The deen practice I am most consistent in…'),
-    ('looking_for', 'What I am looking for in a spouse…'),
+    (
+      'first_year',
+      'My ideal first year of marriage looks like…',
+      'e.g. settling into steady habits together — salah on time, a calm '
+          'home, learning our deen side by side.'
+    ),
+    (
+      'deen_consistent',
+      'The deen practice I am most consistent in…',
+      'e.g. I rarely miss Fajr in congregation, and I keep the morning '
+          'and evening adhkar.'
+    ),
   ];
   final _promptCtrls =
-      List.generate(3, (_) => TextEditingController(), growable: false);
+      List.generate(2, (_) => TextEditingController(), growable: false);
 
-  // Step 4 — preferences
+  // Step 4 — appearance
+  int? _weightKg;
+  bool _weightMetric = true; // kg by default; toggle to lb
+  String? _build;
+  String? _beard; // brothers
+  String? _hijab; // sisters
+  final _dressing = TextEditingController();
+
+  // Step 5 — beliefs & family
+  String? _aqidah;
+  final _islamicPractice = TextEditingController();
+  final _scholars = TextEditingController();
+  final _aboutFamily = TextEditingController();
+  String? _livingArrangement;
+  final _lookingForSpouse = TextEditingController();
+  final _lookingForFamily = TextEditingController();
+
+  // Step 6 — preferences
   RangeValues _ageRange = const RangeValues(21, 35);
   bool _acceptDivorced = true;
   bool _acceptWidowed = true;
@@ -56,7 +84,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   String? _deenPrefRiba;
   RangeValues? _heightRange; // nullable — off unless the user sets it
 
-  // Step 5 — wali
+  // Step 7 — wali
   final _waliName = TextEditingController();
   String? _waliRelationship;
   final _waliPhone = TextEditingController();
@@ -136,6 +164,18 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
         ],
         preferences: _prefsMap(),
         financialExpectation: _financialExpectation,
+        weightKg: _weightKg,
+        buildType: _build,
+        beard: _beard,
+        hijab: _hijab,
+        dressingStyle: _dressing.text,
+        aqidah: _aqidah,
+        islamicPractice: _islamicPractice.text,
+        scholars: _scholars.text,
+        aboutFamily: _aboutFamily.text,
+        livingArrangement: _livingArrangement,
+        lookingForSpouse: _lookingForSpouse.text,
+        lookingForFamily: _lookingForFamily.text,
         wali: withWali && _waliValid
             ? {
                 'name': _waliName.text.trim(),
@@ -168,7 +208,9 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
         1 => _photosStep(),
         2 => _privacyStep(),
         3 => _promptsStep(),
-        4 => _preferencesStep(),
+        4 => _appearanceStep(),
+        5 => _beliefsFamilyStep(),
+        6 => _preferencesStep(),
         _ => _waliStep(),
       },
     );
@@ -282,37 +324,249 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
         children: [
           for (var i = 0; i < _prompts.length; i++) ...[
             QuestionLabel(_prompts[i].$2),
+            const SizedBox(height: 4),
             TextField(
               controller: _promptCtrls[i],
               onChanged: (_) => setState(() {}),
-              maxLines: 3,
+              maxLines: 4,
+              minLines: 3,
               style: AppType.inter(14.5, color: DarkTokens.ivory, height: 1.6),
               cursorColor: DarkTokens.gold,
               decoration: InputDecoration(
-                enabledBorder: UnderlineInputBorder(
+                hintText: _prompts[i].$3,
+                hintStyle: AppType.inter(13.5,
+                    color: DarkTokens.muted(.45), height: 1.5),
+                contentPadding: const EdgeInsets.all(14),
+                enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.control),
                     borderSide:
-                        BorderSide(color: DarkTokens.gold.withOpacity(.5))),
-                focusedBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: DarkTokens.gold)),
+                        BorderSide(color: DarkTokens.gold.withOpacity(.35))),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                    borderSide:
+                        BorderSide(color: DarkTokens.gold.withOpacity(.8))),
               ),
             ),
             const SizedBox(height: 6),
             Builder(builder: (_) {
               final len = _promptCtrls[i].text.trim().length;
-              return Text(
-                  len >= _minPromptChars
-                      ? 'Looks good'
-                      : '${_minPromptChars - len} more characters needed',
-                  style: AppType.inter(11.5, color: DarkTokens.muted()));
+              // Reads as a gentle minimum hint before typing, a confirmation
+              // once met — never an error state.
+              final ok = len >= _minPromptChars;
+              return Row(children: [
+                Icon(ok ? Icons.check_circle_outline : Icons.edit_outlined,
+                    size: 13, color: DarkTokens.muted(.7)),
+                const SizedBox(width: 6),
+                Text(
+                    ok
+                        ? 'Looks good'
+                        : len == 0
+                            ? 'At least $_minPromptChars characters'
+                            : '${_minPromptChars - len} more characters',
+                    style: AppType.inter(11.5, color: DarkTokens.muted())),
+              ]);
             }),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
           ],
         ],
         onNext: _promptsOk ? _next : null,
       );
 
+  // ---- Step 4 · Appearance (physical descriptors — never skin tone, §0) ----
+  Widget _appearanceStep() {
+    final isSister = ref.watch(userDocProvider).value?.data()?['gender'] ==
+        'female';
+    return StepScaffold(
+      step: 4,
+      totalSteps: _totalSteps,
+      eyebrow: 'Your profile · Appearance',
+      title: 'A little about you',
+      intro: 'Optional, but it helps a match picture you. All curves — never '
+          'a measure of worth.',
+      children: [
+        _weightPicker(),
+        const QuestionLabel('Build'),
+        OptionList(
+            options: Choices.build,
+            selected: _build,
+            onSelect: (v) => setState(() => _build = v)),
+        if (isSister) ...[
+          const QuestionLabel('Hijab'),
+          OptionList(
+              options: Choices.hijab,
+              selected: _hijab,
+              onSelect: (v) => setState(() => _hijab = v)),
+        ] else ...[
+          const QuestionLabel('Beard'),
+          OptionList(
+              options: Choices.beard,
+              selected: _beard,
+              onSelect: (v) => setState(() => _beard = v)),
+        ],
+        const QuestionLabel('Describe your dressing (optional)'),
+        _freeText(_dressing,
+            'e.g. modest and simple — thobe or kurta most days.',
+            minLines: 2),
+      ],
+      onNext: _next,
+    );
+  }
+
+  // ---- Step 5 · Beliefs, practice & family ----
+  Widget _beliefsFamilyStep() => StepScaffold(
+        step: 5,
+        totalSteps: _totalSteps,
+        eyebrow: 'Your profile · Beliefs & family',
+        title: 'Your deen and your people',
+        children: [
+          const QuestionLabel('Aqidah (optional)'),
+          OptionList(
+              options: Choices.aqidah,
+              selected: _aqidah,
+              onSelect: (v) => setState(() => _aqidah = v)),
+          const QuestionLabel('Describe your Islamic practice'),
+          _freeText(_islamicPractice,
+              'e.g. I pray in congregation when I can, seek knowledge weekly, '
+              'and try to keep good character above all.'),
+          const QuestionLabel('Scholars and speakers you listen to'),
+          _freeText(_scholars,
+              'e.g. names of scholars, teachers or reciters whose approach '
+              'you follow.',
+              minLines: 2),
+          const QuestionLabel('About your family'),
+          _freeText(_aboutFamily,
+              'e.g. practising household, based in Hyderabad, close-knit.'),
+          const QuestionLabel('Living arrangement after marriage'),
+          OptionList(
+              options: Choices.livingArrangement,
+              selected: _livingArrangement,
+              onSelect: (v) => setState(() => _livingArrangement = v)),
+          const QuestionLabel("What I'm looking for in my spouse"),
+          _freeText(_lookingForSpouse,
+              'e.g. someone God-conscious, kind, and serious about building '
+              'a home on the sunnah.'),
+          const QuestionLabel("What I'm looking for in their family"),
+          _freeText(_lookingForFamily,
+              'e.g. supportive, practising, and welcoming of a new member.',
+              minLines: 2),
+        ],
+        onNext: _next,
+      );
+
+  /// Outlined free-text field mirroring the gate's short-answer look.
+  Widget _freeText(TextEditingController ctrl, String hint,
+          {int minLines = 3}) =>
+      Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: TextField(
+          controller: ctrl,
+          onChanged: (_) => setState(() {}),
+          minLines: minLines,
+          maxLines: minLines + 2,
+          style: AppType.inter(14.5, color: DarkTokens.ivory, height: 1.6),
+          cursorColor: DarkTokens.gold,
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle:
+                AppType.inter(13.5, color: DarkTokens.muted(.45), height: 1.5),
+            contentPadding: const EdgeInsets.all(14),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.control),
+                borderSide: BorderSide(color: DarkTokens.gold.withOpacity(.35))),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadius.control),
+                borderSide: BorderSide(color: DarkTokens.gold.withOpacity(.8))),
+          ),
+        ),
+      );
+
+  /// Weight with a kg/lb toggle — mirrors the height ft/cm pattern. Stored as
+  /// kg (int, single source of truth); lb is display-only.
+  Widget _weightPicker() {
+    final kg = _weightKg;
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(
+            child: Text('Weight (optional)',
+                style: AppType.inter(12.5, color: DarkTokens.muted()))),
+        _weightUnitPill('kg', true),
+        const SizedBox(width: 8),
+        _weightUnitPill('lb', false),
+      ]),
+      const SizedBox(height: 4),
+      if (_weightMetric)
+        _pbDropdown<int>(
+            value: kg,
+            items: [for (var w = 40; w <= 150; w++) w],
+            labelOf: (v) => '$v kg',
+            onChanged: (v) => setState(() => _weightKg = v))
+      else
+        _pbDropdown<int>(
+            value: kg == null ? null : (kg * 2.20462).round(),
+            items: [for (var w = 90; w <= 330; w++) w],
+            labelOf: (v) => '$v lb',
+            onChanged: (lb) => setState(
+                () => _weightKg = lb == null ? null : (lb / 2.20462).round())),
+      if (kg != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text('$kg kg (${(kg * 2.20462).round()} lb)',
+              style: AppType.inter(13, color: DarkTokens.gold)),
+        ),
+    ]);
+  }
+
+  Widget _weightUnitPill(String label, bool metric) {
+    final on = _weightMetric == metric;
+    return GestureDetector(
+      onTap: () => setState(() => _weightMetric = metric),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: on ? DarkTokens.gold.withOpacity(.12) : null,
+          border: Border.all(
+              color: on ? DarkTokens.gold : DarkTokens.hairline(.5)),
+        ),
+        child: Text(label,
+            style: AppType.inter(12,
+                color: on ? DarkTokens.gold : DarkTokens.muted())),
+      ),
+    );
+  }
+
+  Widget _pbDropdown<T>({
+    required T? value,
+    required List<T> items,
+    required String Function(T) labelOf,
+    required ValueChanged<T?> onChanged,
+  }) =>
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.control),
+          border: Border.all(color: DarkTokens.gold.withOpacity(.4)),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<T>(
+            value: value,
+            isExpanded: true,
+            dropdownColor: DarkTokens.bg,
+            icon: Icon(Icons.expand_more, color: DarkTokens.muted(.7)),
+            hint: Text('Select',
+                style: AppType.inter(14, color: DarkTokens.muted(.5))),
+            style: AppType.inter(14.5, color: DarkTokens.ivory),
+            items: [
+              for (final it in items)
+                DropdownMenuItem<T>(value: it, child: Text(labelOf(it))),
+            ],
+            onChanged: onChanged,
+          ),
+        ),
+      );
+
   Widget _preferencesStep() => StepScaffold(
-        step: 4,
+        step: 6,
         totalSteps: _totalSteps,
         eyebrow: 'Your profile · Preferences',
         title: 'Who are you open to?',
@@ -431,7 +685,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
     final userDoc = ref.watch(userDocProvider).value;
     final isSister = userDoc?.data()?['gender'] == 'female';
     return StepScaffold(
-      step: 5,
+      step: 7,
       totalSteps: _totalSteps,
       eyebrow: 'Your profile · Wali',
       title: isSister ? 'Your Wali walks with you' : 'Involve a guardian?',

@@ -21,7 +21,7 @@ class _DeclarationScreenState extends ConsumerState<DeclarationScreen> {
 
   static const _affirmations = [
     'I am seeking nikah, and I intend to marry within a reasonable timeframe.',
-    'I am not currently married.',
+    'I am not currently married. (we currently do not support polygyny)',
     'I understand Ikhlaas is not for casual chatting or friendship.',
   ];
 

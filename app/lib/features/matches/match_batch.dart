@@ -233,21 +233,26 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
             const SizedBox(height: 14),
           ],
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            // Photo through the server pipeline — blurred/watermarked per
-            // the member's privacy mode, girih silhouette when hidden.
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: DarkTokens.hairline(.4)),
+            // Photo through the server pipeline — blurred/watermarked per the
+            // member's privacy mode. Consistent lozenge placeholder + reason
+            // when there's no photo or it's gated pending mutual interest.
+            if (e['hasPhotos'] != true)
+              const HiddenPhotoPlaceholder(
+                  width: 84, height: 104, radius: 10, lozengeSize: 40,
+                  reason: 'No photo')
+            else if (e['photoVisibility'] == 'on_mutual_hidden')
+              const HiddenPhotoPlaceholder(
+                  width: 84, height: 104, radius: 10, lozengeSize: 40,
+                  reason: 'On mutual interest')
+            else
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: DarkTokens.hairline(.4)),
+                ),
+                child:
+                    MemberPhoto(ownerUid: widget.doc.id, width: 84, height: 104),
               ),
-              child: e['hasPhotos'] == true
-                  ? MemberPhoto(
-                      ownerUid: widget.doc.id, width: 84, height: 104)
-                  : const SizedBox(
-                      width: 84,
-                      height: 104,
-                      child: Center(child: LozengeMark(size: 44, opacity: .55))),
-            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(

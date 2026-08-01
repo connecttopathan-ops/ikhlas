@@ -37,6 +37,34 @@ class ChatProfileScreen extends StatelessWidget {
     'divorced': 'Divorced',
     'widowed': 'Widowed',
   };
+  static const _buildLabel = {
+    'slim': 'Slim', 'athletic': 'Athletic', 'average': 'Average',
+    'stocky': 'Stocky', 'heavy': 'Heavy-set',
+  };
+  static const _beardLabel = {
+    'full': 'Full beard', 'fist_length': 'Fist-length',
+    'trimmed': 'Trimmed / short', 'clean_shaven': 'Clean-shaven',
+  };
+  static const _hijabLabel = {
+    'niqab': 'Niqab', 'hijab': 'Hijab',
+    'modest_no_hijab': 'Modest, no hijab yet',
+  };
+  static const _aqidahLabel = {
+    'athari_salafi': 'Athari / Salafi', 'ashari': 'Ashʿari',
+    'maturidi': 'Maturidi', 'just_muslim': 'Just Muslim',
+    'still_learning': 'Still learning',
+  };
+  static const _livingLabel = {
+    'joint': 'Joint family', 'nuclear': 'Nuclear household',
+    'flexible': 'Flexible / open',
+  };
+  static String? _heightLabel(dynamic cm) {
+    if (cm is! int || cm <= 0) return null;
+    final t = (cm / 2.54).round();
+    return '${t ~/ 12}\'${t % 12}" ($cm cm)';
+  }
+  static String? _weightLabel(dynamic kg) =>
+      (kg is! int || kg <= 0) ? null : '$kg kg (${(kg * 2.20462).round()} lb)';
 
   @override
   Widget build(BuildContext context) {
@@ -68,41 +96,41 @@ class ChatProfileScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(
                   AppSpace.screenMargin, 8, AppSpace.screenMargin, 24),
               children: [
-                Center(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: DarkTokens.hairline(.4)),
+                if (!hasPhotos)
+                  // Same shared placeholder + reason as the match card, so the
+                  // state is never a bare, unexplained illustration.
+                  const Center(
+                      child: HiddenPhotoPlaceholder(reason: 'No photo'))
+                else if (e['photoVisibility'] == 'on_mutual_hidden' &&
+                    !photoRevealed)
+                  const Center(
+                      child: HiddenPhotoPlaceholder(
+                          reason: 'Private photos — revealed by request'))
+                else ...[
+                  Center(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: DarkTokens.hairline(.4)),
+                      ),
+                      child: MemberPhoto(
+                          ownerUid: ownerUid,
+                          width: 240, height: 300, radius: 14,
+                          cacheBust: _photoCacheBust(e['photoVisibility'])),
                     ),
-                    child: hasPhotos
-                        ? MemberPhoto(
-                            ownerUid: ownerUid,
-                            width: 240, height: 300, radius: 14,
-                            // Only diverge from the batch's cache when the served
-                            // image actually differs: blur→clear on match, or a
-                            // hidden reveal. Public photos are clear in both, so
-                            // we reuse the batch's cache (no extra fetch/latency).
-                            cacheBust: _photoCacheBust(e['photoVisibility']))
-                        : const SizedBox(
-                            width: 240, height: 300,
-                            child: Center(
-                                child: GirihMark(size: 96, opacity: .5))),
                   ),
-                ),
-                if (hasPhotos)
                   Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                         e['photoVisibility'] == 'on_mutual_blur'
                             ? 'Photos reveal now that you have matched.'
                             : e['photoVisibility'] == 'on_mutual_hidden'
-                                ? (photoRevealed
-                                    ? 'Photos shared with you.'
-                                    : 'Private photos — revealed by request.')
+                                ? 'Photos shared with you.'
                                 : '',
                         textAlign: TextAlign.center,
                         style: AppType.inter(11.5, color: DarkTokens.muted())),
                   ),
+                ],
                 const SizedBox(height: 22),
                 Text(
                     '${_prayerLabel[e['prayer']] ?? 'Deen-focused'}'
@@ -130,6 +158,41 @@ class ChatProfileScreen extends StatelessWidget {
                   ]),
                 ],
 
+                // DEEN extras (aqidah + free-text) surfaced above basics.
+                if (_aqidahLabel[e['aqidah']] != null ||
+                    (e['islamicPractice'] ?? '').toString().isNotEmpty ||
+                    (e['scholars'] ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  const Hairline(),
+                  const SizedBox(height: 18),
+                  Text('DEEN', style: AppType.eyebrow(DarkTokens.gold)),
+                  const SizedBox(height: 12),
+                  _fact('Aqidah', _aqidahLabel[e['aqidah']]),
+                  _fact('Madhhab', e['madhhab']),
+                  _prose('Their Islamic practice', e['islamicPractice']),
+                  _prose('Scholars they listen to', e['scholars']),
+                ],
+
+                // APPEARANCE (never skin tone — §0).
+                if (_heightLabel(e['height']) != null ||
+                    _weightLabel(e['weightKg']) != null ||
+                    _buildLabel[e['build']] != null ||
+                    _beardLabel[e['beard']] != null ||
+                    _hijabLabel[e['hijab']] != null ||
+                    (e['dressingStyle'] ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  const Hairline(),
+                  const SizedBox(height: 18),
+                  Text('APPEARANCE', style: AppType.eyebrow(DarkTokens.gold)),
+                  const SizedBox(height: 12),
+                  _fact('Height', _heightLabel(e['height'])),
+                  _fact('Weight', _weightLabel(e['weightKg'])),
+                  _fact('Build', _buildLabel[e['build']]),
+                  _fact('Beard', _beardLabel[e['beard']]),
+                  _fact('Hijab', _hijabLabel[e['hijab']]),
+                  _fact('Dressing', e['dressingStyle']),
+                ],
+
                 const SizedBox(height: 22),
                 const Hairline(),
                 const SizedBox(height: 18),
@@ -140,7 +203,22 @@ class ChatProfileScreen extends StatelessWidget {
                 _fact('Education', e['education']),
                 _fact('Profession', e['profession']),
                 _fact('Languages', langs.isEmpty ? null : langs.join(', ')),
-                _fact('Madhhab', e['madhhab']),
+
+                // FAMILY.
+                if ((e['aboutFamily'] ?? '').toString().isNotEmpty ||
+                    _livingLabel[e['livingArrangement']] != null ||
+                    (e['lookingForSpouse'] ?? '').toString().isNotEmpty ||
+                    (e['lookingForFamily'] ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  const Hairline(),
+                  const SizedBox(height: 18),
+                  Text('FAMILY', style: AppType.eyebrow(DarkTokens.gold)),
+                  const SizedBox(height: 12),
+                  _fact('Living after nikah', _livingLabel[e['livingArrangement']]),
+                  _prose('About their family', e['aboutFamily']),
+                  _prose('Looking for in a spouse', e['lookingForSpouse']),
+                  _prose('Looking for in their family', e['lookingForFamily']),
+                ],
 
                 if (prompts.isNotEmpty) ...[
                   const SizedBox(height: 22),
@@ -223,6 +301,22 @@ class ChatProfileScreen extends StatelessWidget {
       default:
         return '';
     }
+  }
+
+  Widget _prose(String label, dynamic value) {
+    if (value == null || '$value'.trim().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: AppType.inter(11.5,
+                color: DarkTokens.muted(), weight: FontWeight.w500)),
+        const SizedBox(height: 4),
+        Text('“$value”',
+            style: AppType.fraunces(15,
+                color: DarkTokens.ivory, style: FontStyle.italic, height: 1.5)),
+      ]),
+    );
   }
 
   Widget _fact(String label, dynamic value) {

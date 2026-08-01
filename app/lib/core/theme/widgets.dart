@@ -321,6 +321,47 @@ class RoundBullet extends StatelessWidget {
   }
 }
 
+/// Shared hidden/absent-photo placeholder — a curved lozenge in a rounded
+/// frame with a one-line reason beneath, so the viewer always knows WHICH
+/// state they're seeing (gated pending mutual interest, or no photo at all).
+/// Used identically on the match card and the profile/DP screen. Curves only.
+class HiddenPhotoPlaceholder extends StatelessWidget {
+  final double width;
+  final double height;
+  final double radius;
+  final String reason;
+  final double lozengeSize;
+  const HiddenPhotoPlaceholder({
+    super.key,
+    this.width = 240,
+    this.height = 300,
+    this.radius = 14,
+    required this.reason,
+    this.lozengeSize = 96,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final hair = isDark ? DarkTokens.hairline(.4) : LightTokens.hairline;
+    final muted = isDark ? DarkTokens.muted() : LightTokens.muted();
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(color: hair),
+        ),
+        child: Center(child: LozengeMark(size: lozengeSize, opacity: .5)),
+      ),
+      const SizedBox(height: 6),
+      Text(reason,
+          textAlign: TextAlign.center,
+          style: AppType.inter(11.5, color: muted)),
+    ]);
+  }
+}
+
 /// ============================================================
 /// Noise overlay ~3–3.5% grain (approximates the spec's fractal-noise SVG).
 /// Rendered as a single drawPoints batch, alpha folded into the point

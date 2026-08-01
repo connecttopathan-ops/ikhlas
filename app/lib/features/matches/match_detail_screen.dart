@@ -65,6 +65,32 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     final inch = totalIn % 12;
     return '$ft\'$inch" ($cm cm)';
   }
+  // Weight stored as kg (int); shown in both units.
+  static String? _weightLabel(dynamic kg) {
+    if (kg is! int || kg <= 0) return null;
+    return '$kg kg (${(kg * 2.20462).round()} lb)';
+  }
+  static const _buildLabel = {
+    'slim': 'Slim', 'athletic': 'Athletic', 'average': 'Average',
+    'stocky': 'Stocky', 'heavy': 'Heavy-set',
+  };
+  static const _beardLabel = {
+    'full': 'Full beard', 'fist_length': 'Fist-length',
+    'trimmed': 'Trimmed / short', 'clean_shaven': 'Clean-shaven',
+  };
+  static const _hijabLabel = {
+    'niqab': 'Niqab', 'hijab': 'Hijab',
+    'modest_no_hijab': 'Modest, no hijab yet',
+  };
+  static const _aqidahLabel = {
+    'athari_salafi': 'Athari / Salafi', 'ashari': 'Ashʿari',
+    'maturidi': 'Maturidi', 'just_muslim': 'Just Muslim',
+    'still_learning': 'Still learning',
+  };
+  static const _livingLabel = {
+    'joint': 'Joint family', 'nuclear': 'Nuclear household',
+    'flexible': 'Flexible / open',
+  };
   static const _timeframeLabel = {
     '6m': 'Nikah within 6 months',
     '6_12m': 'Nikah in 6–12 months',
@@ -122,18 +148,21 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     final vis = e['photoVisibility'] as String? ?? 'on_mutual_blur';
     const w = 240.0, h = 300.0;
 
-    Widget lozenge() => const SizedBox(
-        width: w, height: h,
-        child: Center(child: LozengeMark(size: 96, opacity: .5)));
+    // No photo uploaded, or hidden-until-request → the shared lozenge
+    // placeholder with a one-line reason so the state is never ambiguous.
+    if (!hasPhotos) {
+      return const Center(
+          child: HiddenPhotoPlaceholder(
+              width: w, height: h, reason: 'No photo'));
+    }
+    if (vis == 'on_mutual_hidden') {
+      return const Center(
+          child: HiddenPhotoPlaceholder(
+              width: w, height: h, reason: 'Photo shared on mutual interest'));
+    }
 
-    // No photos, or hidden-until-request → the curved lozenge motif.
-    final showLozenge = !hasPhotos || vis == 'on_mutual_hidden';
-    final caption = !hasPhotos
-        ? null
-        : (vis == 'on_mutual_blur' || vis == 'on_mutual_hidden')
-            ? 'Photo shared on mutual interest'
-            : null;
-
+    // public → clear; on_mutual_blur → server returns a blur pre-match, with
+    // the same "shared on mutual interest" reason beneath.
     return Column(children: [
       Center(
         child: Container(
@@ -141,17 +170,14 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(color: DarkTokens.hairline(.4)),
           ),
-          child: showLozenge
-              ? lozenge()
-              // public → clear; on_mutual_blur → server returns a blur pre-match.
-              : MemberPhoto(
-                  ownerUid: widget.entryId, width: w, height: h, radius: 14),
+          child: MemberPhoto(
+              ownerUid: widget.entryId, width: w, height: h, radius: 14),
         ),
       ),
-      if (caption != null)
+      if (vis == 'on_mutual_blur')
         Padding(
           padding: const EdgeInsets.only(top: 6),
-          child: Text(caption,
+          child: Text('Photo shared on mutual interest',
               textAlign: TextAlign.center,
               style: AppType.inter(11.5, color: DarkTokens.muted())),
         ),
@@ -264,14 +290,37 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 Text('DEEN', style: AppType.eyebrow(DarkTokens.gold)),
                 const SizedBox(height: 12),
                 _fact('Prayer', _prayerLabel[e['prayer']]),
+                _fact('Aqidah', _aqidahLabel[e['aqidah']]),
                 _fact('Quran', _quranEngagementLabel[e['quranEngagement']]),
                 _fact('Memorization',
                     _quranMemLabel[e['quranMemorization']]),
                 _fact('Islamic study', _islamicStudyLabel[e['islamicStudy']]),
                 _fact('Fasting', _fastingLabel[e['fasting']]),
                 _fact('Madhhab', e['madhhab']),
+                _prose('Their Islamic practice', e['islamicPractice']),
+                _prose('Scholars they listen to', e['scholars']),
 
-                // A3 — BASICS, now with Height (madhhab moved to Deen).
+                // Appearance (physical descriptors — never skin tone, §0).
+                if (_heightLabel(e['height']) != null ||
+                    _weightLabel(e['weightKg']) != null ||
+                    _buildLabel[e['build']] != null ||
+                    _beardLabel[e['beard']] != null ||
+                    _hijabLabel[e['hijab']] != null ||
+                    (e['dressingStyle'] ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  const Hairline(),
+                  const SizedBox(height: 18),
+                  Text('APPEARANCE', style: AppType.eyebrow(DarkTokens.gold)),
+                  const SizedBox(height: 12),
+                  _fact('Height', _heightLabel(e['height'])),
+                  _fact('Weight', _weightLabel(e['weightKg'])),
+                  _fact('Build', _buildLabel[e['build']]),
+                  _fact('Beard', _beardLabel[e['beard']]),
+                  _fact('Hijab', _hijabLabel[e['hijab']]),
+                  _fact('Dressing', e['dressingStyle']),
+                ],
+
+                // BASICS.
                 const SizedBox(height: 22),
                 const Hairline(),
                 const SizedBox(height: 18),
@@ -279,11 +328,26 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
                 const SizedBox(height: 12),
                 _fact('Seeking', _timeframeLabel[e['timeframe']]),
                 _fact('Marital status', _maritalLabel[e['maritalStatus']]),
-                _fact('Height', _heightLabel(e['height'])),
                 _fact('Education', _eduLabel[e['education']] ?? e['education']),
                 _fact('Profession',
                     _profLabel[e['profession']] ?? e['profession']),
                 _fact('Languages', langs.isEmpty ? null : langs.join(', ')),
+
+                // FAMILY.
+                if ((e['aboutFamily'] ?? '').toString().isNotEmpty ||
+                    _livingLabel[e['livingArrangement']] != null ||
+                    (e['lookingForSpouse'] ?? '').toString().isNotEmpty ||
+                    (e['lookingForFamily'] ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  const Hairline(),
+                  const SizedBox(height: 18),
+                  Text('FAMILY', style: AppType.eyebrow(DarkTokens.gold)),
+                  const SizedBox(height: 12),
+                  _fact('Living after nikah', _livingLabel[e['livingArrangement']]),
+                  _prose('About their family', e['aboutFamily']),
+                  _prose('Looking for in a spouse', e['lookingForSpouse']),
+                  _prose('Looking for in their family', e['lookingForFamily']),
+                ],
 
                 // A4 — the one honest divergence, below BASICS (PRD §4.2).
                 if (divergence.isNotEmpty) ...[
@@ -402,6 +466,24 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
       default:
         return '';
     }
+  }
+
+  /// A labelled free-text block (bio-style) — used for the new descriptive
+  /// profile fields (Islamic practice, scholars, about family, looking-for).
+  Widget _prose(String label, dynamic value) {
+    if (value == null || '$value'.trim().isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: AppType.inter(11.5,
+                color: DarkTokens.muted(), weight: FontWeight.w500)),
+        const SizedBox(height: 4),
+        Text('“$value”',
+            style: AppType.fraunces(15,
+                color: DarkTokens.ivory, style: FontStyle.italic, height: 1.5)),
+      ]),
+    );
   }
 
   Widget _fact(String label, dynamic value) {

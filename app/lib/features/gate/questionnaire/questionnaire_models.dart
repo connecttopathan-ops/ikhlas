@@ -320,4 +320,41 @@ class Choices {
     Choice('not_ramadan', 'I do not fast Ramadan currently',
         note: 'Exemptions are understood — this goes to a person, not a filter.'),
   ];
+
+  // ---- Profile builder · Appearance (physical descriptors; NOT skin tone,
+  // which is never captured or shown — §0). ----
+  static const build = [
+    Choice('slim', 'Slim'),
+    Choice('athletic', 'Athletic'),
+    Choice('average', 'Average'),
+    Choice('stocky', 'Stocky'),
+    Choice('heavy', 'Heavy-set'),
+  ];
+  static const beard = [
+    Choice('full', 'Full beard'),
+    Choice('fist_length', 'Fist-length'),
+    Choice('trimmed', 'Trimmed / short'),
+    Choice('clean_shaven', 'Clean-shaven'),
+  ];
+  static const hijab = [
+    Choice('niqab', 'Niqab'),
+    Choice('hijab', 'Hijab'),
+    Choice('modest_no_hijab', 'Dresses modestly, no hijab yet'),
+  ];
+
+  // ---- Profile builder · Beliefs & practice ----
+  static const aqidah = [
+    Choice('athari_salafi', 'Athari / Salafi'),
+    Choice('ashari', 'Ashʿari'),
+    Choice('maturidi', 'Maturidi'),
+    Choice('just_muslim', 'Just Muslim'),
+    Choice('still_learning', 'Still learning'),
+  ];
+
+  // ---- Profile builder · Family ----
+  static const livingArrangement = [
+    Choice('joint', 'Joint family'),
+    Choice('nuclear', 'Nuclear household'),
+    Choice('flexible', 'Flexible / open'),
+  ];
 }

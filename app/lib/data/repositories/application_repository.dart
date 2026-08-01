@@ -204,7 +204,24 @@ class ApplicationRepository {
     // The member's OWN financial stance — lives on the profile and is
     // scored as expectation ALIGNMENT by matching.js (never an income floor).
     String? financialExpectation,
+    // Appearance (physical descriptors — never skin tone, §0).
+    int? weightKg,
+    String? buildType,
+    String? beard, // brothers
+    String? hijab, // sisters
+    String? dressingStyle,
+    // Beliefs & practice.
+    String? aqidah,
+    String? islamicPractice,
+    String? scholars,
+    // Family.
+    String? aboutFamily,
+    String? livingArrangement,
+    String? lookingForSpouse,
+    String? lookingForFamily,
   }) async {
+    String? clean(String? s) =>
+        (s != null && s.trim().isNotEmpty) ? s.trim() : null;
     await _db.collection('users').doc(_uid).update({
       'photos': [
         for (var i = 0; i < photoPaths.length; i++)
@@ -214,6 +231,25 @@ class ApplicationRepository {
       'profile.bioPrompts': bioPrompts,
       if (financialExpectation != null)
         'profile.financialExpectation': financialExpectation,
+      // Appearance
+      if (weightKg != null) 'profile.weightKg': weightKg,
+      if (buildType != null) 'profile.build': buildType,
+      if (beard != null) 'profile.beard': beard,
+      if (hijab != null) 'profile.hijab': hijab,
+      if (clean(dressingStyle) != null) 'profile.dressingStyle': clean(dressingStyle),
+      // Beliefs & practice
+      if (aqidah != null) 'profile.aqidah': aqidah,
+      if (clean(islamicPractice) != null)
+        'profile.islamicPractice': clean(islamicPractice),
+      if (clean(scholars) != null) 'profile.scholars': clean(scholars),
+      // Family
+      if (clean(aboutFamily) != null) 'profile.aboutFamily': clean(aboutFamily),
+      if (livingArrangement != null)
+        'profile.livingArrangement': livingArrangement,
+      if (clean(lookingForSpouse) != null)
+        'profile.lookingForSpouse': clean(lookingForSpouse),
+      if (clean(lookingForFamily) != null)
+        'profile.lookingForFamily': clean(lookingForFamily),
       'preferences': preferences,
       'wali': wali,
       'profileComplete': true,
