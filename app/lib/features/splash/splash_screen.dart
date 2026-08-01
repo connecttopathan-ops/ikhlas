@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/build_info.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
 import '../../data/repositories/application_repository.dart';
@@ -38,30 +40,45 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
   ///     window for the real restore to land before we conclude logged out.
   /// A genuinely signed-out user emits null and then nothing, so the only
   /// cost of the grace window is ~3s of extra splash for signed-out users.
-  // Cold-start diagnostics (TEMPORARY, closed testing): posted to the
-  // clientDiag function so device behaviour is visible without adb.
+  // Cold-start diagnostics (TEMPORARY, closed testing): posted to clientDiag.
   bool _diagUserAtInit = false;
   bool _diagNullFirst = false;
   bool _diagTimedOut = false;
+  int _diagEvents = 0;
+  int _diagRestoreMs = -1; // ms until the persisted user first arrived (-1 = never)
 
+  /// Waits for the restored session. Cold-start data showed authStateChanges
+  /// emits null first and the real user (if any) can arrive later than the old
+  /// 3s grace allowed — which read as "logged out". Now we wait up to 9s for a
+  /// non-null user and record exactly when it lands, so we can tell a SLOW
+  /// restore (fixable by waiting) from a session that is genuinely not
+  /// persisted (needs a native fix). A truly signed-out user just costs the
+  /// full window of splash — acceptable for this diagnostic build.
   Future<User?> _restoredUser(FirebaseAuth auth) async {
     if (auth.currentUser != null) {
       _diagUserAtInit = true;
+      _diagRestoreMs = 0;
       return auth.currentUser;
     }
-    final events = auth.authStateChanges();
-    final first = await events.first.timeout(const Duration(seconds: 10),
+    final sw = Stopwatch()..start();
+    final done = Completer<User?>();
+    late final StreamSubscription<User?> sub;
+    sub = auth.authStateChanges().listen((u) {
+      _diagEvents++;
+      if (u == null) {
+        if (_diagEvents == 1) _diagNullFirst = true;
+        return;
+      }
+      _diagRestoreMs = sw.elapsedMilliseconds;
+      if (!done.isCompleted) done.complete(u);
+    });
+    final user = await done.future.timeout(const Duration(seconds: 9),
         onTimeout: () {
       _diagTimedOut = true;
-      return null;
+      return auth.currentUser; // last-chance sync read
     });
-    if (first != null) return first;
-    _diagNullFirst = true;
-    debugPrint('[auth-guard] splash: first auth event null — grace window');
-    return events
-        .firstWhere((u) => u != null)
-        .timeout(const Duration(seconds: 3),
-            onTimeout: () => auth.currentUser);
+    await sub.cancel();
+    return user;
   }
 
   /// Fire-and-forget POST to the clientDiag function (TEMPORARY — removed
@@ -127,10 +144,12 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     debugPrint('[auth-guard] splash: handoff -> $route');
     _postDiag({
       'tag': 'coldstart',
-      'build': 'diag1',
+      'build': kBuildTag,
       'userAtInit': _diagUserAtInit,
       'nullFirstEvent': _diagNullFirst,
       'streamTimedOut': _diagTimedOut,
+      'events': _diagEvents,
+      'restoreMs': _diagRestoreMs,
       'restored': user != null,
       'uid': user?.uid,
       'provider': user?.providerData.map((p) => p.providerId).join(','),
@@ -172,6 +191,12 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 Text('Where nikah begins with deen',
                     style: AppType.fraunces(15,
                         color: DarkTokens.muted(.7), style: FontStyle.italic))),
+            const SizedBox(height: 10),
+            // TEMPORARY build marker (closed testing) — lets the tester confirm
+            // at a glance which build is actually installed. Remove later.
+            _rise(0.6, 1.0,
+                Text(kBuildTag,
+                    style: AppType.inter(11, color: DarkTokens.muted(.5)))),
           ],
         ),
       ),

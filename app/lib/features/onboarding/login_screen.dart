@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/build_info.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
 import '../../data/auth/auth_service.dart';
@@ -217,6 +218,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ]),
             ],
             const Spacer(),
+            // TEMPORARY build marker (closed testing) — confirms which build
+            // is installed when diagnosing the logout report. Remove later.
+            Center(
+              child: Text(kBuildTag,
+                  style: AppType.inter(11, color: DarkTokens.muted(.45))),
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
