@@ -1662,27 +1662,3 @@ exports.verifyEmailOtp = onCall({ region: REGION }, async (request) => {
   const token = await auth.createCustomToken(uid);
   return { token };
 });
-
-// ============================================================
-// TEMPORARY (closed testing): unauthenticated client diagnostics for the
-// repeated-logout investigation. The splash posts its cold-start auth state
-// here so device behaviour is visible without adb. Payload capped; writes go
-// to the admin-only diagLogs collection. REMOVE once the bug is closed.
-// ============================================================
-exports.clientDiag = onRequest({ region: REGION, cors: true }, async (req, res) => {
-  try {
-    if (req.method !== 'POST') return res.status(405).send('POST only');
-    if (JSON.stringify(req.body || {}).length > 2048) {
-      return res.status(413).send('too big');
-    }
-    await db.collection('diagLogs').add({
-      at: FieldValue.serverTimestamp(),
-      ip: req.get('x-forwarded-for') || null,
-      data: req.body || {},
-    });
-    return res.status(200).json({ ok: true });
-  } catch (e) {
-    console.error('clientDiag', e?.message);
-    return res.status(500).send('err');
-  }
-});
