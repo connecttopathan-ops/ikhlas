@@ -143,19 +143,96 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
     if (file != null) setState(() => _idImage = file);
   }
 
-  Future<void> _pickDob() async {
-    final now = DateTime.now();
-    // 18+ is a hard gate — the picker can't select a younger birthdate.
-    final eighteen = DateTime(now.year - 18, now.month, now.day);
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _a.dob ?? DateTime(now.year - 25, now.month, now.day),
-      firstDate: DateTime(now.year - 80),
-      lastDate: eighteen,
-      helpText: 'Date of birth (18+)',
-    );
-    if (picked != null) setState(() => _a.dob = picked);
+  // DOB as three plain dropdowns (day / month / year) — far clearer than a
+  // calendar you must page ~24 years back for a birthdate.
+  int? _dobD, _dobM, _dobY;
+  static const _monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June', 'July',
+    'August', 'September', 'October', 'November', 'December',
+  ];
+
+  void _syncDob() {
+    if (_dobD != null && _dobM != null && _dobY != null) {
+      final maxDay = DateUtils.getDaysInMonth(_dobY!, _dobM!);
+      _a.dob = DateTime(_dobY!, _dobM!, _dobD!.clamp(1, maxDay));
+    } else {
+      _a.dob = null;
+    }
   }
+
+  /// True when a full date is chosen but the person is under 18.
+  bool get _dobUnder18 {
+    final dob = _a.dob;
+    if (dob == null) return false;
+    final now = DateTime.now();
+    return dob.isAfter(DateTime(now.year - 18, now.month, now.day));
+  }
+
+  Widget _dobPicker() {
+    final now = DateTime.now();
+    final maxYear = now.year - 18; // 18+ gate — no younger year is offered
+    final years = [for (var y = maxYear; y >= now.year - 80; y--) y];
+    final daysInMonth = (_dobM != null && _dobY != null)
+        ? DateUtils.getDaysInMonth(_dobY!, _dobM!)
+        : 31;
+    final days = [for (var d = 1; d <= daysInMonth; d++) d];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        Expanded(
+          flex: 3,
+          child: _dobField('Day',
+              _miniDropdown<int>(
+                  value: _dobD,
+                  items: days,
+                  labelOf: (v) => '$v',
+                  onChanged: (v) => setState(() {
+                        _dobD = v;
+                        _syncDob();
+                      }))),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 5,
+          child: _dobField('Month',
+              _miniDropdown<int>(
+                  value: _dobM,
+                  items: const [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+                  labelOf: (v) => _monthNames[v - 1],
+                  onChanged: (v) => setState(() {
+                        _dobM = v;
+                        _syncDob();
+                      }))),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 4,
+          child: _dobField('Year',
+              _miniDropdown<int>(
+                  value: _dobY,
+                  items: years,
+                  labelOf: (v) => '$v',
+                  onChanged: (v) => setState(() {
+                        _dobY = v;
+                        _syncDob();
+                      }))),
+        ),
+      ]),
+      if (_dobUnder18)
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Text('You must be 18 or older to apply.',
+              style: AppType.inter(12.5, color: DarkTokens.gold)),
+        ),
+    ]);
+  }
+
+  Widget _dobField(String label, Widget field) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AppType.inter(11.5, color: DarkTokens.muted())),
+          field,
+        ],
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -249,34 +326,8 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
               options: Choices.gender,
               selected: _a.gender,
               onSelect: (v) => setState(() => _a.gender = v)),
-          const QuestionLabel('Date of birth'),
-          InkWell(
-            onTap: _pickDob,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                border: Border(
-                    bottom: BorderSide(
-                        color: DarkTokens.gold.withOpacity(.65))),
-              ),
-              child: Row(children: [
-                Expanded(
-                  child: Text(
-                    _a.dob == null
-                        ? 'Select your date of birth'
-                        : '${_a.dob!.day.toString().padLeft(2, '0')} / '
-                            '${_a.dob!.month.toString().padLeft(2, '0')} / '
-                            '${_a.dob!.year}',
-                    style: AppType.inter(16,
-                        color: _a.dob == null
-                            ? DarkTokens.muted(.4)
-                            : DarkTokens.ivory),
-                  ),
-                ),
-                const DiamondBullet(size: 6),
-              ]),
-            ),
-          ),
+          const QuestionLabel('Date of birth (18+)'),
+          _dobPicker(),
           const SizedBox(height: 20),
           _heightPicker(),
           const QuestionLabel('Marital status'),
@@ -317,7 +368,7 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
             ]),
           ),
         ],
-        onNext: _a.sectionC1Complete ? _next : null,
+        onNext: _a.sectionC1Complete && !_dobUnder18 ? _next : null,
       );
 
   // ---- C2. Life & roots ----
