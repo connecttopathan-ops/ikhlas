@@ -1,7 +1,7 @@
 name: ikhlas
 description: Ikhlas — where nikah begins with deen.
 publish_to: "none"
-version: 0.1.2+3
+version: 0.1.3+4
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -17,12 +17,12 @@ dependencies:
   go_router: ^14.2.0
 
   # Firebase
-  firebase_core: ^3.3.0
-  firebase_auth: ^5.1.4
-  cloud_firestore: ^5.2.1
-  firebase_storage: ^12.1.3
-  firebase_messaging: ^15.1.3
-  cloud_functions: ^5.1.3
+  firebase_core: ^4.12.1
+  firebase_auth: ^6.5.6
+  cloud_firestore: ^6.7.1
+  firebase_storage: ^13.4.5
+  firebase_messaging: ^16.4.3
+  cloud_functions: ^6.3.5
   # Android/iOS don't display an FCM notification payload while the app is in
   # the foreground — we show it ourselves through this plugin (heads-up + tap).
   flutter_local_notifications: ^18.0.1
