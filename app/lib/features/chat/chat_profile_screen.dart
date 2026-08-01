@@ -96,14 +96,16 @@ class ChatProfileScreen extends StatelessWidget {
                   AppSpace.screenMargin, 8, AppSpace.screenMargin, 24),
               children: [
                 if (!hasPhotos)
-                  // Same shared placeholder + reason as the match card, so the
-                  // state is never a bare, unexplained illustration.
-                  const Center(
-                      child: HiddenPhotoPlaceholder(reason: 'No photo'))
+                  // Same shared gender-avatar placeholder + reason as the match
+                  // card — never a bare, unexplained illustration.
+                  Center(
+                      child: HiddenPhotoPlaceholder(
+                          gender: e['gender'] as String?, reason: 'No photo'))
                 else if (e['photoVisibility'] == 'on_mutual_hidden' &&
                     !photoRevealed)
-                  const Center(
+                  Center(
                       child: HiddenPhotoPlaceholder(
+                          gender: e['gender'] as String?,
                           reason: 'Private photos — revealed by request'))
                 else ...[
                   Center(

@@ -148,17 +148,19 @@ class _MatchDetailScreenState extends ConsumerState<MatchDetailScreen> {
     final vis = e['photoVisibility'] as String? ?? 'on_mutual_blur';
     const w = 240.0, h = 300.0;
 
-    // No photo uploaded, or hidden-until-request → the shared lozenge
+    // No photo uploaded, or hidden-until-request → the shared gender-avatar
     // placeholder with a one-line reason so the state is never ambiguous.
+    final gender = e['gender'] as String?;
     if (!hasPhotos) {
-      return const Center(
+      return Center(
           child: HiddenPhotoPlaceholder(
-              width: w, height: h, reason: 'No photo'));
+              width: w, height: h, gender: gender, reason: 'No photo'));
     }
     if (vis == 'on_mutual_hidden') {
-      return const Center(
+      return Center(
           child: HiddenPhotoPlaceholder(
-              width: w, height: h, reason: 'Photo shared on mutual interest'));
+              width: w, height: h, gender: gender,
+              reason: 'Photo shared on mutual interest'));
     }
 
     // public → clear; on_mutual_blur → server returns a blur pre-match, with

@@ -1520,6 +1520,7 @@ function chatProfile(userSnap, appSnap) {
   return {
     displayName: p.displayName || 'Member',
     age,
+    gender: u.gender || null, // picks the brother / sister hidden-photo avatar
     city: p.residence?.city || p.city || null,
     country: p.residence?.country || p.country || null,
     profession: p.profession || null,

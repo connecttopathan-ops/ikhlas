@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'app_theme.dart';
 
 /// ============================================================
@@ -321,38 +322,43 @@ class RoundBullet extends StatelessWidget {
   }
 }
 
-/// Shared hidden/absent-photo placeholder — a curved lozenge in a rounded
-/// frame with a one-line reason beneath, so the viewer always knows WHICH
-/// state they're seeing (gated pending mutual interest, or no photo at all).
-/// Used identically on the match card and the profile/DP screen. Curves only.
+/// Shared hidden/absent-photo placeholder — a faceless gender avatar (brand
+/// SVG, curved/circular) with a one-line reason beneath, so the viewer always
+/// knows WHICH state they're seeing (gated pending mutual interest, or no
+/// photo at all). ONE widget, used identically on the match card and the
+/// profile/DP screen. Curves only. Pass the profile's gender to pick the
+/// brother / sister avatar.
 class HiddenPhotoPlaceholder extends StatelessWidget {
   final double width;
   final double height;
-  final double radius;
   final String reason;
-  final double lozengeSize;
+  final String? gender; // 'female' → sister, else → brother
   const HiddenPhotoPlaceholder({
     super.key,
     this.width = 240,
     this.height = 300,
-    this.radius = 14,
     required this.reason,
-    this.lozengeSize = 96,
+    this.gender,
   });
+
+  static String avatarAsset(String? gender) => gender == 'female'
+      ? 'assets/avatars/avatar-sister.svg'
+      : 'assets/avatars/avatar-brother.svg';
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final hair = isDark ? DarkTokens.hairline(.4) : LightTokens.hairline;
     final muted = isDark ? DarkTokens.muted() : LightTokens.muted();
+    // Circular avatar sized to fit the photo slot (the SVG carries its own
+    // sage circle — no square frame). Caption always shown beneath.
+    final d = math.min(width, height) * 0.92;
     return Column(mainAxisSize: MainAxisSize.min, children: [
-      Container(
+      SizedBox(
         width: width,
         height: height,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: hair),
+        child: Center(
+          child: SvgPicture.asset(avatarAsset(gender), width: d, height: d),
         ),
-        child: Center(child: LozengeMark(size: lozengeSize, opacity: .5)),
       ),
       const SizedBox(height: 6),
       Text(reason,

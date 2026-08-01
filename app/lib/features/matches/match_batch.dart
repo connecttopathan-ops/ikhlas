@@ -235,15 +235,17 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
           ],
           Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             // Photo through the server pipeline — blurred/watermarked per the
-            // member's privacy mode. Consistent lozenge placeholder + reason
-            // when there's no photo or it's gated pending mutual interest.
+            // member's privacy mode. Gender avatar placeholder + reason when
+            // there's no photo or it's gated pending mutual interest.
             if (e['hasPhotos'] != true)
-              const HiddenPhotoPlaceholder(
-                  width: 84, height: 104, radius: 10, lozengeSize: 40,
+              HiddenPhotoPlaceholder(
+                  width: 84, height: 104,
+                  gender: e['gender'] as String?,
                   reason: 'No photo')
             else if (e['photoVisibility'] == 'on_mutual_hidden')
-              const HiddenPhotoPlaceholder(
-                  width: 84, height: 104, radius: 10, lozengeSize: 40,
+              HiddenPhotoPlaceholder(
+                  width: 84, height: 104,
+                  gender: e['gender'] as String?,
                   reason: 'On mutual interest')
             else
               Container(

@@ -1,7 +1,7 @@
 name: ikhlas
 description: Ikhlas — where nikah begins with deen.
 publish_to: "none"
-version: 0.1.7+8
+version: 0.1.8+9
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -51,6 +51,10 @@ dependencies:
   # views across the batch/detail/chat don't re-invoke it.
   cached_network_image: ^3.3.1
 
+  # Hidden-photo gender avatars (faceless brand SVGs) rendered as the photo
+  # placeholder across the app.
+  flutter_svg: ^2.0.10
+
 dev_dependencies:
   flutter_launcher_icons: ^0.14.1
   flutter_lints: ^4.0.0
@@ -70,6 +74,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/brand/
+    - assets/avatars/
   # Fonts bundled locally (no runtime fetch → sharp on first frame, offline,
   # no dependency on Google's servers). Fraunces = display serif,
   # Inter = UI, Amiri = Arabic reverence-critical text.

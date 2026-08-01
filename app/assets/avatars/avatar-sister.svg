@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Sister avatar — photo private">
+  <circle cx="256" cy="256" r="256" fill="#E4EAE2"></circle>
+  <path d="M256 78c-86 0-142 64-142 152v76c0 32-11 49-28 68-21 23-15 54 11 71 41 28 99 42 159 42s118-14 159-42c26-17 32-48 11-71-17-19-28-36-28-68v-76c0-88-56-152-142-152z" fill="#183C28"></path>
+  <ellipse cx="256" cy="264" rx="82" ry="94" fill="#E9C6A9"></ellipse>
+  <path d="M256 148c-54 0-96 32-108 78 25-36 62-55 108-55s83 19 108 55c-12-46-54-78-108-78z" fill="#2E6045"></path>
+</svg>

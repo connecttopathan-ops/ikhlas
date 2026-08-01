@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Brother avatar — photo private">
+  <circle cx="256" cy="256" r="256" fill="#E4EAE2"></circle>
+  <path d="M256 322c-88 0-156 54-156 124v66h312v-66c0-70-68-124-156-124z" fill="#2E6045"></path>
+  <path d="M256 120c-50 0-84 34-84 90v40c0 62 34 104 84 104s84-42 84-104v-40c0-56-34-90-84-90z" fill="#E9C6A9"></path>
+  <path d="M172 236c0 76 34 118 84 118s84-42 84-118c-14 28-44 38-84 38s-70-10-84-38z" fill="#22362A"></path>
+  <path d="M178 158c0-46 34-74 78-74s78 28 78 74v18c-24-11-49-16-78-16s-54 5-78 16z" fill="#F6F2E7"></path>
+</svg>
