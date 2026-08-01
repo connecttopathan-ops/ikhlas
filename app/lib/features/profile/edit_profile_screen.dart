@@ -45,23 +45,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final List<_Photo> _photos = [];
   String _privacy = 'on_mutual_blur';
 
-  static const _prompts = [
-    (
-      'first_year',
-      'My ideal first year of marriage looks like…',
-      'e.g. settling into steady habits together — salah on time, a calm '
-          'home, learning our deen side by side.'
-    ),
-    (
-      'deen_consistent',
-      'The deen practice I am most consistent in…',
-      'e.g. I rarely miss Fajr in congregation, and I keep the morning '
-          'and evening adhkar.'
-    ),
-  ];
-  final _promptCtrls =
-      List.generate(2, (_) => TextEditingController(), growable: false);
-
   // Appearance
   int? _weightKg;
   bool _weightMetric = true;
@@ -95,13 +78,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String? _waliRelationship;
   final _waliPhone = TextEditingController();
 
-  static const _minPromptChars = 40;
 
   @override
   void dispose() {
-    for (final c in _promptCtrls) {
-      c.dispose();
-    }
     for (final c in [
       _dressing, _islamicPractice, _scholars, _aboutFamily,
       _lookingForSpouse, _lookingForFamily,
@@ -132,14 +111,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         visMap[d['photoPrivacy']] ??
         'on_mutual_blur';
 
-    final bio = ((d['profile'] as Map?)?['bioPrompts'] as List?) ?? [];
-    for (var i = 0; i < _prompts.length; i++) {
-      final match = bio.firstWhere(
-        (b) => (b as Map)['promptId'] == _prompts[i].$1,
-        orElse: () => null,
-      );
-      if (match != null) _promptCtrls[i].text = (match['answer'] ?? '') as String;
-    }
 
     final prefs = (d['preferences'] as Map?) ?? {};
     _ageRange = RangeValues(
@@ -189,8 +160,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   bool get _photosOk => _photos.isNotEmpty;
-  bool get _promptsOk =>
-      _promptCtrls.every((c) => c.text.trim().length >= _minPromptChars);
   bool get _waliEmpty =>
       _waliName.text.trim().isEmpty &&
       _waliPhone.text.trim().isEmpty &&
@@ -200,7 +169,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       _waliRelationship != null &&
       RegExp(r'^[6-9]\d{9}$').hasMatch(_waliPhone.text.trim());
   bool get _waliOk => _waliEmpty || _waliValid;
-  bool get _canSave => _photosOk && _promptsOk && _waliOk && !_saving;
+  bool get _canSave => _photosOk && _waliOk && !_saving;
 
   Future<void> _addPhotos() async {
     if (_photos.length >= 6) return;
@@ -247,10 +216,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       await repo.saveProfileBuilder(
         photoPaths: paths,
         photoVisibility: _privacy,
-        bioPrompts: [
-          for (var i = 0; i < _prompts.length; i++)
-            {'promptId': _prompts[i].$1, 'answer': _promptCtrls[i].text.trim()},
-        ],
         preferences: {
           'ageMin': _ageRange.start.round(),
           'ageMax': _ageRange.end.round(),
@@ -357,34 +322,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 onSelect: (v) => setState(() => _privacy = v),
               ),
 
-              const SizedBox(height: 28),
-              _section('In your words'),
-              for (var i = 0; i < _prompts.length; i++) ...[
-                QuestionLabel(_prompts[i].$2),
-                const SizedBox(height: 4),
-                _freeText(_promptCtrls[i], _prompts[i].$3),
-                const SizedBox(height: 6),
-                Builder(builder: (_) {
-                  final len = _promptCtrls[i].text.trim().length;
-                  final ok = len >= _minPromptChars;
-                  return Row(children: [
-                    Icon(ok ? Icons.check_circle_outline : Icons.edit_outlined,
-                        size: 13, color: DarkTokens.muted(.7)),
-                    const SizedBox(width: 6),
-                    Text(
-                        ok
-                            ? 'Looks good'
-                            : len == 0
-                                ? 'At least $_minPromptChars characters'
-                                : '${_minPromptChars - len} more characters',
-                        style: AppType.inter(11.5, color: DarkTokens.muted())),
-                  ]);
-                }),
-                const SizedBox(height: 12),
-              ],
-
               // ---- Appearance ----
-              const SizedBox(height: 16),
+              const SizedBox(height: 28),
               _section('Appearance'),
               _weightPicker(),
               const QuestionLabel('Build'),
@@ -571,10 +510,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               const SizedBox(height: 8),
               if (!_photosOk)
                 Text('Add at least one photo.',
-                    style: AppType.inter(12.5, color: DarkTokens.muted())),
-              if (!_promptsOk)
-                Text('Each of the three prompts needs at least '
-                    '$_minPromptChars characters.',
                     style: AppType.inter(12.5, color: DarkTokens.muted())),
             ],
           ),

@@ -669,7 +669,6 @@ function entrySnapshot(e) {
     ribaDisclosureBadge: c.ribaBadge,
     hasPhotos: c.hasPhotos === true,
     photoVisibility: c.photoVisibility || 'on_mutual_blur',
-    bioPrompts: c.profile.bioPrompts || [],
     // Section D answers are shown on the profile to matches (disclosed to
     // the applicant at entry) as well as used for review.
     deenRelationship: c.answers.shortAnswers?.deenRelationship || null,
@@ -1549,7 +1548,6 @@ function chatProfile(userSnap, appSnap) {
     lookingForSpouse: p.lookingForSpouse || null,
     lookingForFamily: p.lookingForFamily || null,
     ribaDisclosureBadge: u.ribaDisclosureBadge === true,
-    bioPrompts: p.bioPrompts || [],
     deenRelationship: a.shortAnswers?.deenRelationship || null,
     photoVisibility: photoVisOf(u),
     hasPhotos: (u.photos || []).length > 0,

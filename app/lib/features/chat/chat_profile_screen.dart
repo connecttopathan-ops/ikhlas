@@ -69,7 +69,6 @@ class ChatProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final e = profile;
-    final prompts = (e['bioPrompts'] as List?) ?? [];
     final langs = (e['languages'] as List?)?.cast<String>() ?? [];
     final hasPhotos = e['hasPhotos'] == true;
 
@@ -158,9 +157,8 @@ class ChatProfileScreen extends StatelessWidget {
                   ]),
                 ],
 
-                // DEEN extras (aqidah + free-text) surfaced above basics.
+                // DEEN extras (aqidah + scholars) surfaced above basics.
                 if (_aqidahLabel[e['aqidah']] != null ||
-                    (e['islamicPractice'] ?? '').toString().isNotEmpty ||
                     (e['scholars'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 22),
                   const Hairline(),
@@ -169,7 +167,6 @@ class ChatProfileScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   _fact('Aqidah', _aqidahLabel[e['aqidah']]),
                   _fact('Madhhab', e['madhhab']),
-                  _prose('Their Islamic practice', e['islamicPractice']),
                   _prose('Scholars they listen to', e['scholars']),
                 ],
 
@@ -204,48 +201,32 @@ class ChatProfileScreen extends StatelessWidget {
                 _fact('Profession', e['profession']),
                 _fact('Languages', langs.isEmpty ? null : langs.join(', ')),
 
-                // FAMILY.
-                if ((e['aboutFamily'] ?? '').toString().isNotEmpty ||
-                    _livingLabel[e['livingArrangement']] != null ||
-                    (e['lookingForSpouse'] ?? '').toString().isNotEmpty ||
-                    (e['lookingForFamily'] ?? '').toString().isNotEmpty) ...[
+                // FAMILY (descriptive free-text lives under IN THEIR WORDS).
+                if (_livingLabel[e['livingArrangement']] != null) ...[
                   const SizedBox(height: 22),
                   const Hairline(),
                   const SizedBox(height: 18),
                   Text('FAMILY', style: AppType.eyebrow(DarkTokens.gold)),
                   const SizedBox(height: 12),
                   _fact('Living after nikah', _livingLabel[e['livingArrangement']]),
-                  _prose('About their family', e['aboutFamily']),
-                  _prose('Looking for in a spouse', e['lookingForSpouse']),
-                  _prose('Looking for in their family', e['lookingForFamily']),
                 ],
 
-                if (prompts.isNotEmpty) ...[
+                // IN THEIR WORDS — sourced from the surviving profile free-text
+                // (the standalone bio-prompts page was removed as redundant).
+                if ((e['islamicPractice'] ?? '').toString().isNotEmpty ||
+                    (e['lookingForSpouse'] ?? '').toString().isNotEmpty ||
+                    (e['lookingForFamily'] ?? '').toString().isNotEmpty ||
+                    (e['aboutFamily'] ?? '').toString().isNotEmpty) ...[
                   const SizedBox(height: 22),
                   const Hairline(),
                   const SizedBox(height: 18),
                   Text('IN THEIR WORDS',
                       style: AppType.eyebrow(DarkTokens.gold)),
                   const SizedBox(height: 12),
-                  for (final p in prompts)
-                    if (((p as Map)['answer'] ?? '').toString().isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(_promptLabel(p['promptId']),
-                                  style: AppType.inter(11.5,
-                                      color: DarkTokens.muted(),
-                                      weight: FontWeight.w500)),
-                              const SizedBox(height: 4),
-                              Text('“${p['answer']}”',
-                                  style: AppType.fraunces(15.5,
-                                      color: DarkTokens.ivory,
-                                      style: FontStyle.italic,
-                                      height: 1.5)),
-                            ]),
-                      ),
+                  _prose('Their Islamic practice', e['islamicPractice']),
+                  _prose('Looking for in a spouse', e['lookingForSpouse']),
+                  _prose('Looking for in their family', e['lookingForFamily']),
+                  _prose('About their family', e['aboutFamily']),
                 ],
 
                 if ((e['deenRelationship'] ?? '').toString().isNotEmpty) ...[
@@ -287,19 +268,6 @@ class ChatProfileScreen extends StatelessWidget {
         return 'chat';
       default:
         return null;
-    }
-  }
-
-  static String _promptLabel(dynamic id) {
-    switch (id) {
-      case 'first_year':
-        return 'My ideal first year of marriage looks like…';
-      case 'deen_consistent':
-        return 'The deen practice I am most consistent in…';
-      case 'looking_for':
-        return 'What I am looking for in a spouse…';
-      default:
-        return '';
     }
   }
 

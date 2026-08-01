@@ -198,7 +198,6 @@ class ApplicationRepository {
   Future<void> saveProfileBuilder({
     required List<String> photoPaths,
     required String photoVisibility,
-    required List<Map<String, String>> bioPrompts,
     required Map<String, dynamic> preferences,
     Map<String, dynamic>? wali,
     // The member's OWN financial stance — lives on the profile and is
@@ -228,7 +227,6 @@ class ApplicationRepository {
           {'storagePath': photoPaths[i], 'order': i},
       ],
       'profile.photoVisibility': photoVisibility,
-      'profile.bioPrompts': bioPrompts,
       if (financialExpectation != null)
         'profile.financialExpectation': financialExpectation,
       // Appearance

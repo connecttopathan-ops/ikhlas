@@ -12,8 +12,8 @@ import '../../providers/application_provider.dart';
 import '../gate/questionnaire/questionnaire_models.dart';
 import '../gate/questionnaire/questionnaire_widgets.dart';
 
-/// Profile builder (PRD §4.1 step 6): photos + privacy mode, guided bio
-/// prompts (no blank text box), match preferences, Wali setup.
+/// Profile builder (PRD §4.1 step 6): photos + privacy mode, appearance,
+/// beliefs & family, match preferences, Wali setup.
 /// One atomic save at the end → profileComplete → home.
 class ProfileBuilderScreen extends ConsumerStatefulWidget {
   const ProfileBuilderScreen({super.key});
@@ -23,7 +23,7 @@ class ProfileBuilderScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
-  static const _totalSteps = 7;
+  static const _totalSteps = 6;
   int _step = 1;
   bool _saving = false;
 
@@ -33,27 +33,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   // Step 2 — photo visibility (PRD §4.2: default on_mutual_blur)
   String _privacy = 'on_mutual_blur';
 
-  // Step 3 — guided bio prompts. "What I'm looking for" is split out into two
-  // dedicated fields on the Family step, so it is no longer a bio prompt.
-  // ($1 id · $2 prompt · $3 placeholder example)
-  static const _prompts = [
-    (
-      'first_year',
-      'My ideal first year of marriage looks like…',
-      'e.g. settling into steady habits together — salah on time, a calm '
-          'home, learning our deen side by side.'
-    ),
-    (
-      'deen_consistent',
-      'The deen practice I am most consistent in…',
-      'e.g. I rarely miss Fajr in congregation, and I keep the morning '
-          'and evening adhkar.'
-    ),
-  ];
-  final _promptCtrls =
-      List.generate(2, (_) => TextEditingController(), growable: false);
-
-  // Step 4 — appearance
+  // Step 3 — appearance
   int? _weightKg;
   bool _weightMetric = true; // kg by default; toggle to lb
   String? _build;
@@ -61,7 +41,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   String? _hijab; // sisters
   final _dressing = TextEditingController();
 
-  // Step 5 — beliefs & family
+  // Step 4 — beliefs & family
   String? _aqidah;
   final _islamicPractice = TextEditingController();
   final _scholars = TextEditingController();
@@ -70,7 +50,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   final _lookingForSpouse = TextEditingController();
   final _lookingForFamily = TextEditingController();
 
-  // Step 6 — preferences
+  // Step 5 — preferences
   RangeValues _ageRange = const RangeValues(21, 35);
   bool _acceptDivorced = true;
   bool _acceptWidowed = true;
@@ -84,16 +64,12 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   String? _deenPrefRiba;
   RangeValues? _heightRange; // nullable — off unless the user sets it
 
-  // Step 7 — wali
+  // Step 6 — wali
   final _waliName = TextEditingController();
   String? _waliRelationship;
   final _waliPhone = TextEditingController();
 
-  static const _minPromptChars = 40;
-
   bool get _photosOk => _photos.isNotEmpty;
-  bool get _promptsOk => _promptCtrls
-      .every((c) => c.text.trim().length >= _minPromptChars);
   bool get _waliValid =>
       _waliName.text.trim().length >= 3 &&
       _waliRelationship != null &&
@@ -155,13 +131,6 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
       await repo.saveProfileBuilder(
         photoPaths: paths,
         photoVisibility: _privacy,
-        bioPrompts: [
-          for (var i = 0; i < _prompts.length; i++)
-            {
-              'promptId': _prompts[i].$1,
-              'answer': _promptCtrls[i].text.trim(),
-            },
-        ],
         preferences: _prefsMap(),
         financialExpectation: _financialExpectation,
         weightKg: _weightKg,
@@ -207,10 +176,9 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
       child: switch (_step) {
         1 => _photosStep(),
         2 => _privacyStep(),
-        3 => _promptsStep(),
-        4 => _appearanceStep(),
-        5 => _beliefsFamilyStep(),
-        6 => _preferencesStep(),
+        3 => _appearanceStep(),
+        4 => _beliefsFamilyStep(),
+        5 => _preferencesStep(),
         _ => _waliStep(),
       },
     );
@@ -314,70 +282,12 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
         onNext: _next,
       );
 
-  Widget _promptsStep() => StepScaffold(
-        step: 3,
-        totalSteps: _totalSteps,
-        eyebrow: 'Your profile · In your words',
-        title: 'Let them meet you',
-        intro: 'Three guided prompts — at least $_minPromptChars characters '
-            'each.',
-        children: [
-          for (var i = 0; i < _prompts.length; i++) ...[
-            QuestionLabel(_prompts[i].$2),
-            const SizedBox(height: 4),
-            TextField(
-              controller: _promptCtrls[i],
-              onChanged: (_) => setState(() {}),
-              maxLines: 4,
-              minLines: 3,
-              style: AppType.inter(14.5, color: DarkTokens.ivory, height: 1.6),
-              cursorColor: DarkTokens.gold,
-              decoration: InputDecoration(
-                hintText: _prompts[i].$3,
-                hintStyle: AppType.inter(13.5,
-                    color: DarkTokens.muted(.45), height: 1.5),
-                contentPadding: const EdgeInsets.all(14),
-                enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.control),
-                    borderSide:
-                        BorderSide(color: DarkTokens.gold.withOpacity(.35))),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.control),
-                    borderSide:
-                        BorderSide(color: DarkTokens.gold.withOpacity(.8))),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Builder(builder: (_) {
-              final len = _promptCtrls[i].text.trim().length;
-              // Reads as a gentle minimum hint before typing, a confirmation
-              // once met — never an error state.
-              final ok = len >= _minPromptChars;
-              return Row(children: [
-                Icon(ok ? Icons.check_circle_outline : Icons.edit_outlined,
-                    size: 13, color: DarkTokens.muted(.7)),
-                const SizedBox(width: 6),
-                Text(
-                    ok
-                        ? 'Looks good'
-                        : len == 0
-                            ? 'At least $_minPromptChars characters'
-                            : '${_minPromptChars - len} more characters',
-                    style: AppType.inter(11.5, color: DarkTokens.muted())),
-              ]);
-            }),
-            const SizedBox(height: 18),
-          ],
-        ],
-        onNext: _promptsOk ? _next : null,
-      );
-
-  // ---- Step 4 · Appearance (physical descriptors — never skin tone, §0) ----
+  // ---- Step 3 · Appearance (physical descriptors — never skin tone, §0) ----
   Widget _appearanceStep() {
     final isSister = ref.watch(userDocProvider).value?.data()?['gender'] ==
         'female';
     return StepScaffold(
-      step: 4,
+      step: 3,
       totalSteps: _totalSteps,
       eyebrow: 'Your profile · Appearance',
       title: 'A little about you',
@@ -412,9 +322,9 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
     );
   }
 
-  // ---- Step 5 · Beliefs, practice & family ----
+  // ---- Step 4 · Beliefs, practice & family ----
   Widget _beliefsFamilyStep() => StepScaffold(
-        step: 5,
+        step: 4,
         totalSteps: _totalSteps,
         eyebrow: 'Your profile · Beliefs & family',
         title: 'Your deen and your people',
@@ -566,7 +476,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
       );
 
   Widget _preferencesStep() => StepScaffold(
-        step: 6,
+        step: 5,
         totalSteps: _totalSteps,
         eyebrow: 'Your profile · Preferences',
         title: 'Who are you open to?',
@@ -685,7 +595,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
     final userDoc = ref.watch(userDocProvider).value;
     final isSister = userDoc?.data()?['gender'] == 'female';
     return StepScaffold(
-      step: 7,
+      step: 6,
       totalSteps: _totalSteps,
       eyebrow: 'Your profile · Wali',
       title: isSister ? 'Your Wali walks with you' : 'Involve a guardian?',

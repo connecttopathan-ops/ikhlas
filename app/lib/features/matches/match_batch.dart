@@ -198,10 +198,11 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
     final compat = (e['compatibility'] as List?)?.cast<String>() ?? [];
     final band = _bandLabel[e['band']];
     final divergence = e['divergence'] as String?;
-    final prompts = (e['bioPrompts'] as List?) ?? [];
-    final firstPrompt = prompts.isEmpty
-        ? null
-        : (prompts.first as Map)['answer'] as String?;
+    // Teaser quote — the member's own words, from a surviving free-text field
+    // (the standalone bio-prompts page was removed).
+    final firstPrompt = (e['islamicPractice'] as String?)?.isNotEmpty == true
+        ? e['islamicPractice'] as String?
+        : e['lookingForSpouse'] as String?;
 
     return InkWell(
       onTap: () => Navigator.of(context).push(MaterialPageRoute(
