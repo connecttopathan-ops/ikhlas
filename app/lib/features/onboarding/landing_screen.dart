@@ -6,10 +6,15 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
 
-/// Landing — 2d light "sage ceremonial". Hero → what makes Ikhlaas different
-/// (compact 2×2 icon grid) → how it works (animated horizontal stepper) → CTAs.
-class LandingScreen extends StatelessWidget {
+/// Landing — 2d light "sage ceremonial". Hero (couple illustration) →
+/// what makes Ikhlaas different (editorial list) → how it works (animated
+/// stepper) → CTAs. The whole screen arrives via a one-time staged entrance:
+/// hero first, then the list rows cascade, then stepper and CTAs settle in.
+class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
+
+  @override
+  State<LandingScreen> createState() => _LandingScreenState();
 
   // Ikhlaas's OWN differentiators — each with a meaningful icon; copy kept to
   // one short line so the four sit in a tight 2×2 grid.
@@ -36,9 +41,33 @@ class LandingScreen extends StatelessWidget {
         'On mutual interest, guardians are brought in.'),
     (Icons.favorite, 'Nikah', 'Proceed offline, in shaa Allah.'),
   ];
+}
+
+class _LandingScreenState extends State<LandingScreen>
+    with SingleTickerProviderStateMixin {
+  static const _differentiators = LandingScreen._differentiators;
+  static const _flow = LandingScreen._flow;
+
+  // One-time entrance choreography (~1.8s): each section reveals on its own
+  // slice of this controller. Runs once; the stepper remains the screen's
+  // only perpetual motion.
+  late final AnimationController _intro = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1800))
+    ..forward();
+
+  @override
+  void dispose() {
+    _intro.dispose();
+    super.dispose();
+  }
+
+  Widget _staged(double start, Widget child) =>
+      _staggerIn(_intro, start, child);
 
   @override
   Widget build(BuildContext context) {
+    // Respect the OS reduce-motion setting: land fully revealed.
+    if (MediaQuery.of(context).disableAnimations) _intro.value = 1;
     return IkhlasScaffold(
       child: SafeArea(
         child: ListView(
@@ -47,7 +76,7 @@ class LandingScreen extends StatelessWidget {
           children: [
             // ---- Hero — the website's faceless-couple illustration washed
             // out behind the copy, fading into the sage ground below.
-            Stack(alignment: Alignment.topCenter, children: [
+            _staged(0, Stack(alignment: Alignment.topCenter, children: [
               Positioned.fill(
                 child: IgnorePointer(
                   child: ShaderMask(
@@ -129,32 +158,36 @@ class LandingScreen extends StatelessWidget {
                 // the fade instead of being cut at the ornament line.
                 const SizedBox(height: 18),
               ]),
-            ]),
+            ])),
 
             // ---- What makes Ikhlaas different — fine editorial list ----
             const SizedBox(height: 24),
-            _eyebrow('WHAT MAKES IKHLAAS DIFFERENT'),
+            _staged(.18, _eyebrow('WHAT MAKES IKHLAAS DIFFERENT')),
             const SizedBox(height: 6),
-            const _DiffList(items: _differentiators),
+            _DiffList(items: _differentiators, intro: _intro, startAt: .26),
 
             // ---- How it works — animated horizontal stepper ----
             const SizedBox(height: 26),
-            _eyebrow('HOW IT WORKS'),
+            _staged(.55, _eyebrow('HOW IT WORKS')),
             const SizedBox(height: 16),
-            const _HowItWorks(steps: _flow),
+            _staged(.60, const _HowItWorks(steps: _flow)),
 
             // ---- CTAs ----
             const SizedBox(height: 26),
-            PrimaryCta(
-                label: 'Begin my application',
-                onPressed: () => context.go('/login')),
+            _staged(
+                .72,
+                PrimaryCta(
+                    label: 'Begin my application',
+                    onPressed: () => context.go('/login'))),
             const SizedBox(height: 12),
-            Center(
-              child: QuietLink(
-                  prefix: 'Already have an account?',
-                  linkText: 'Sign in',
-                  onTap: () => context.go('/login')),
-            ),
+            _staged(
+                .80,
+                Center(
+                  child: QuietLink(
+                      prefix: 'Already have an account?',
+                      linkText: 'Sign in',
+                      onTap: () => context.go('/login')),
+                )),
           ],
         ),
       ),
@@ -170,54 +203,80 @@ class LandingScreen extends StatelessWidget {
 
 }
 
+/// Fade-and-rise reveal used by the landing's one-time entrance
+/// choreography: `start` is the fraction of the intro controller at which
+/// this element begins revealing.
+Widget _staggerIn(Animation<double> intro, double start, Widget child) {
+  final a = CurvedAnimation(
+      parent: intro,
+      curve: Interval(start, (start + .40).clamp(0.0, 1.0),
+          curve: Curves.easeOutCubic));
+  return FadeTransition(
+    opacity: a,
+    child: SlideTransition(
+      position: Tween(begin: const Offset(0, .06), end: Offset.zero).animate(a),
+      child: child,
+    ),
+  );
+}
+
 /// The four differentiators as a fine editorial list — no boxes, no discs.
 /// Each row: a gold line glyph, the claim, and one quiet clarifier, divided
 /// by whisper-thin inset hairlines (the menu of a fine restaurant, not a
-/// data table). Airy on the sage ground and structurally unmistakable from
-/// the stepper's disc timeline.
+/// data table). Rows cascade in one after another during the entrance.
 class _DiffList extends StatelessWidget {
   final List<(IconData, String, String)> items;
-  const _DiffList({required this.items});
+  final Animation<double> intro;
+  final double startAt;
+  const _DiffList(
+      {required this.items, required this.intro, required this.startAt});
 
   @override
   Widget build(BuildContext context) {
     return Column(children: [
-      for (var i = 0; i < items.length; i++) ...[
-        if (i > 0)
-          Padding(
-            padding: const EdgeInsets.only(left: 36),
-            child: Container(
-                height: 1,
-                color: LightTokens.hairline.withValues(alpha: .28)),
-          ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 13),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            SizedBox(
-              width: 36,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 1),
-                child: Icon(items[i].$1,
-                    size: 20, color: LightTokens.goldArabic),
+      for (var i = 0; i < items.length; i++)
+        _staggerIn(
+          intro,
+          startAt + i * .07,
+          Column(children: [
+            if (i > 0)
+              Padding(
+                padding: const EdgeInsets.only(left: 36),
+                child: Container(
+                    height: 1,
+                    color: LightTokens.hairline.withValues(alpha: .28)),
               ),
-            ),
-            Expanded(
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 13),
               child:
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(items[i].$2,
-                    style: AppType.inter(14,
-                        weight: FontWeight.w600,
-                        color: LightTokens.ink,
-                        height: 1.25)),
-                const SizedBox(height: 2),
-                Text(items[i].$3,
-                    style: AppType.inter(12.5,
-                        color: LightTokens.muted(.68), height: 1.4)),
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                SizedBox(
+                  width: 36,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 1),
+                    child: Icon(items[i].$1,
+                        size: 20, color: LightTokens.goldArabic),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(items[i].$2,
+                            style: AppType.inter(14,
+                                weight: FontWeight.w600,
+                                color: LightTokens.ink,
+                                height: 1.25)),
+                        const SizedBox(height: 2),
+                        Text(items[i].$3,
+                            style: AppType.inter(12.5,
+                                color: LightTokens.muted(.68), height: 1.4)),
+                      ]),
+                ),
               ]),
             ),
           ]),
         ),
-      ],
     ]);
   }
 }
