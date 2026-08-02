@@ -109,46 +109,61 @@ class _LandingScreenState extends State<LandingScreen>
             ),
           ),
         ),
-        // Content.
+        // Content — sized to fit ONE page. A flexible spacer pins the CTA
+        // toward the bottom and absorbs extra height on taller screens; the
+        // scroll view is only a fallback on unusually short devices.
         Positioned.fill(
           child: SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-              child: Column(children: [
-                _staged(0, _hero()),
-                const SizedBox(height: 24),
-                _staged(.30,
-                    _glassPanel(child: const _DiffList(items: _differentiators))),
-                const SizedBox(height: 16),
-                _staged(
-                    .42,
-                    _glassPanel(
-                        padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
-                        child: Column(children: [
-                          _eyebrow('HOW IT WORKS'),
-                          const SizedBox(height: 14),
-                          const _HowItWorks(steps: _flow),
-                        ]))),
-                const SizedBox(height: 26),
-                _staged(.56, _cta(context)),
-                const SizedBox(height: 16),
-                _staged(
-                    .64,
-                    Text(
-                        'Membership by application · fewer than 4 in 10 accepted',
-                        textAlign: TextAlign.center,
-                        style: AppType.inter(11.5, color: LightTokens.muted(.6)))),
-                const SizedBox(height: 8),
-                _staged(
-                    .70,
-                    Center(
-                      child: QuietLink(
-                          prefix: 'Already have an account?',
-                          linkText: 'Sign in',
-                          onTap: () => context.go('/login')),
-                    )),
-              ]),
-            ),
+            child: LayoutBuilder(builder: (context, c) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: c.maxHeight - 28),
+                  child: IntrinsicHeight(
+                    child: Column(children: [
+                      _staged(0, _hero()),
+                      const SizedBox(height: 16),
+                      _staged(
+                          .30,
+                          _glassPanel(
+                              child:
+                                  const _DiffList(items: _differentiators))),
+                      const SizedBox(height: 12),
+                      _staged(
+                          .42,
+                          _glassPanel(
+                              padding:
+                                  const EdgeInsets.fromLTRB(12, 14, 12, 10),
+                              child: Column(children: [
+                                _eyebrow('HOW IT WORKS'),
+                                const SizedBox(height: 12),
+                                const _HowItWorks(steps: _flow),
+                              ]))),
+                      const Spacer(),
+                      const SizedBox(height: 14),
+                      _staged(.56, _cta(context)),
+                      const SizedBox(height: 11),
+                      _staged(
+                          .64,
+                          Text(
+                              'Membership by application · fewer than 4 in 10 accepted',
+                              textAlign: TextAlign.center,
+                              style: AppType.inter(11.5,
+                                  color: LightTokens.muted(.6)))),
+                      const SizedBox(height: 7),
+                      _staged(
+                          .70,
+                          Center(
+                            child: QuietLink(
+                                prefix: 'Already have an account?',
+                                linkText: 'Sign in',
+                                onTap: () => context.go('/login')),
+                          )),
+                    ]),
+                  ),
+                ),
+              );
+            }),
           ),
         ),
       ]),
@@ -156,19 +171,19 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   Widget _hero() => Column(children: [
-        const SizedBox(height: 6),
-        const Center(child: IkhlasLogo(size: 30)),
-        const SizedBox(height: 24),
+        const SizedBox(height: 4),
+        const Center(child: IkhlasLogo(size: 26)),
+        const SizedBox(height: 18),
         Text('Where nikah begins with deen',
             textAlign: TextAlign.center,
-            style: AppType.fraunces(32, color: LightTokens.ink, height: 1.12)),
-        const SizedBox(height: 12),
+            style: AppType.fraunces(29, color: LightTokens.ink, height: 1.12)),
+        const SizedBox(height: 10),
         Text(
             'A screened, application-only pool for Muslims serious '
             'about marriage.',
             textAlign: TextAlign.center,
             style:
-                AppType.inter(13.5, color: LightTokens.muted(.7), height: 1.5)),
+                AppType.inter(13, color: LightTokens.muted(.7), height: 1.45)),
       ]);
 
   Widget _glassPanel(
@@ -244,21 +259,21 @@ class _DiffList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(children: [
       _LandingScreenState._eyebrow('WHAT MAKES IKHLAAS DIFFERENT'),
-      const SizedBox(height: 12),
+      const SizedBox(height: 10),
       for (var i = 0; i < items.length; i++) ...[
         if (i > 0)
           Padding(
-            padding: const EdgeInsets.only(left: 59),
+            padding: const EdgeInsets.only(left: 57),
             child: Container(
                 height: 1,
                 color: const Color(0xFF787456).withValues(alpha: .18)),
           ),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 42,
+              height: 42,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: _tile,
@@ -328,11 +343,11 @@ class _HowItWorksState extends State<_HowItWorks> {
     final n = widget.steps.length;
     return LayoutBuilder(builder: (context, c) {
       final slot = c.maxWidth / n;
-      const disc = 40.0;
+      const disc = 36.0;
       final railInset = slot / 2;
       const railTop = disc / 2 - .75;
       return SizedBox(
-        height: disc + 8 + 16,
+        height: disc + 7 + 15,
         child: Stack(children: [
           Positioned(
             left: railInset,
@@ -368,8 +383,8 @@ class _HowItWorksState extends State<_HowItWorks> {
       AnimatedContainer(
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeOut,
-        width: 40,
-        height: 40,
+        width: 36,
+        height: 36,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
@@ -399,12 +414,12 @@ class _HowItWorksState extends State<_HowItWorks> {
                   : null),
         ),
         child: Icon(step.$1,
-            size: 18,
+            size: 16,
             color: done
                 ? LightTokens.ctaText
                 : LightTokens.goldArabic.withValues(alpha: .72)),
       ),
-      const SizedBox(height: 8),
+      const SizedBox(height: 7),
       Text(step.$2,
           textAlign: TextAlign.center,
           maxLines: 1,
