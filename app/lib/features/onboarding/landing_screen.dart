@@ -59,7 +59,7 @@ class LandingScreen extends StatelessWidget {
                     ).createShader(r),
                     blendMode: BlendMode.dstIn,
                     child: Opacity(
-                      opacity: .20,
+                      opacity: .34,
                       child: Image.asset('assets/brand/couple.png',
                           fit: BoxFit.cover, alignment: Alignment.topCenter),
                     ),
@@ -68,8 +68,8 @@ class LandingScreen extends StatelessWidget {
               ),
               Column(children: [
                 const SizedBox(height: 2),
-                const Center(child: IkhlasLogo(size: 30)),
-                const SizedBox(height: 20),
+                const Center(child: IkhlasLogo(size: 22)),
+                const SizedBox(height: 22),
                 Text('Where nikah begins with deen',
                     textAlign: TextAlign.center,
                     style: AppType.fraunces(30,
