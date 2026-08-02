@@ -82,11 +82,11 @@ class LandingScreen extends StatelessWidget {
                   color: LightTokens.hairline.withValues(alpha: .6)),
             ]),
 
-            // ---- What makes Ikhlaas different — deep-emerald jewel panel ----
+            // ---- What makes Ikhlaas different — fine editorial list ----
             const SizedBox(height: 24),
             _eyebrow('WHAT MAKES IKHLAAS DIFFERENT'),
-            const SizedBox(height: 14),
-            const _DiffPanel(items: _differentiators),
+            const SizedBox(height: 6),
+            const _DiffList(items: _differentiators),
 
             // ---- How it works — animated horizontal stepper ----
             const SizedBox(height: 26),
@@ -121,63 +121,56 @@ class LandingScreen extends StatelessWidget {
 
 }
 
-/// The four differentiators as ONE deep-emerald ceremonial panel — a jewel
-/// band between the light hero and the light stepper. Gold glyphs + ivory
-/// text on emerald, quartered by interior gold hairlines (no discs at all,
-/// so it can never be confused with the stepper's disc language).
-class _DiffPanel extends StatelessWidget {
+/// The four differentiators as a fine editorial list — no boxes, no discs.
+/// Each row: a gold line glyph, the claim, and one quiet clarifier, divided
+/// by whisper-thin inset hairlines (the menu of a fine restaurant, not a
+/// data table). Airy on the sage ground and structurally unmistakable from
+/// the stepper's disc timeline.
+class _DiffList extends StatelessWidget {
   final List<(IconData, String, String)> items;
-  const _DiffPanel({required this.items});
-
-  static const _ivory = Color(0xFFEFEDDF);
+  const _DiffList({required this.items});
 
   @override
   Widget build(BuildContext context) {
-    final divider = LightTokens.ctaText.withValues(alpha: .16);
-    return Container(
-      decoration: BoxDecoration(
-        color: LightTokens.ctaBg,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: LightTokens.ctaBg.withValues(alpha: .30),
-            blurRadius: 26,
-            offset: const Offset(0, 12),
+    return Column(children: [
+      for (var i = 0; i < items.length; i++) ...[
+        if (i > 0)
+          Padding(
+            padding: const EdgeInsets.only(left: 36),
+            child: Container(
+                height: 1,
+                color: LightTokens.hairline.withValues(alpha: .28)),
           ),
-        ],
-      ),
-      child: Column(children: [
-        _row(items[0], items[1], divider),
-        Container(height: 1, color: divider),
-        _row(items[2], items[3], divider),
-      ]),
-    );
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            SizedBox(
+              width: 36,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Icon(items[i].$1,
+                    size: 20, color: LightTokens.goldArabic),
+              ),
+            ),
+            Expanded(
+              child:
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(items[i].$2,
+                    style: AppType.inter(14,
+                        weight: FontWeight.w600,
+                        color: LightTokens.ink,
+                        height: 1.25)),
+                const SizedBox(height: 2),
+                Text(items[i].$3,
+                    style: AppType.inter(12.5,
+                        color: LightTokens.muted(.68), height: 1.4)),
+              ]),
+            ),
+          ]),
+        ),
+      ],
+    ]);
   }
-
-  Widget _row((IconData, String, String) a, (IconData, String, String) b,
-          Color divider) =>
-      IntrinsicHeight(
-        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Expanded(child: _cell(a)),
-          Container(width: 1, color: divider),
-          Expanded(child: _cell(b)),
-        ]),
-      );
-
-  Widget _cell((IconData, String, String) d) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 14, 16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(d.$1, size: 19, color: LightTokens.ctaText),
-          const SizedBox(height: 10),
-          Text(d.$2,
-              style: AppType.inter(13.5,
-                  weight: FontWeight.w600, color: _ivory, height: 1.2)),
-          const SizedBox(height: 3),
-          Text(d.$3,
-              style: AppType.inter(11.5,
-                  color: _ivory.withValues(alpha: .66), height: 1.4)),
-        ]),
-      );
 }
 
 /// Animated horizontal "how it works" — five nodes on a timeline. The active
