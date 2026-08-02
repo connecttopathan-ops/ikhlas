@@ -1,23 +1,18 @@
 import 'dart:async';
-import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/widgets.dart';
 
-/// Landing — 2d light "sage ceremonial". Hero (couple illustration) →
-/// what makes Ikhlaas different (editorial list) → how it works (animated
-/// stepper) → CTAs. The whole screen arrives via a one-time staged entrance:
-/// hero first, then the list rows cascade, then stepper and CTAs settle in.
+/// Landing — glassmorphism. A single frosted surface fills the screen: the
+/// couple illustration frosts softly behind the hero, and the differentiators
+/// and how-it-works sit on glass panels. No floating outer card (that read as
+/// a frame-within-a-frame), so the whole screen is one clean surface.
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
 
-  @override
-  State<LandingScreen> createState() => _LandingScreenState();
-
-  // Ikhlaas's OWN differentiators — each with a meaningful icon; copy kept to
-  // one short line so the four sit in a tight 2×2 grid.
   static const _differentiators = [
     (Icons.verified_user_outlined, 'Aqidah-gated',
         'Screened on creed & practice.'),
@@ -28,31 +23,29 @@ class LandingScreen extends StatefulWidget {
         'On deen and intent, not looks.'),
   ];
 
-  // (icon, label, body). Each stage carries its own line icon — reads far
-  // more premium than a numbered pip. Glyphs chosen to stay legible inside a
-  // 32px disc (the earlier handshake collapsed into a squiggle at this size).
+  // (icon, label) — the caption line was dropped; the label under each disc
+  // names the stage.
   static const _flow = [
-    (Icons.description_outlined, 'Apply', 'A short, honest application.'),
-    (Icons.badge_outlined, 'Verify',
-        'A selfie and government-ID confirm you are real.'),
-    (Icons.auto_awesome_outlined, 'Match',
-        'Curated daily matches, ranked deen-first.'),
-    (Icons.forum_outlined, 'Wali',
-        'On mutual interest, guardians are brought in.'),
-    (Icons.favorite, 'Nikah', 'Proceed offline, in shaa Allah.'),
+    (Icons.description_outlined, 'Apply'),
+    (Icons.badge_outlined, 'Verify'),
+    (Icons.auto_awesome_outlined, 'Match'),
+    (Icons.forum_outlined, 'Wali'),
+    (Icons.favorite, 'Nikah'),
   ];
+
+  @override
+  State<LandingScreen> createState() => _LandingScreenState();
 }
 
 class _LandingScreenState extends State<LandingScreen>
     with SingleTickerProviderStateMixin {
+  // Warm glass tone layered over the sage ground.
+  static const _cream = Color(0xFFF7F5EC);
   static const _differentiators = LandingScreen._differentiators;
   static const _flow = LandingScreen._flow;
 
-  // One-time entrance choreography (~1.8s): each section reveals on its own
-  // slice of this controller. Runs once; the stepper remains the screen's
-  // only perpetual motion.
   late final AnimationController _intro = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 1800))
+      vsync: this, duration: const Duration(milliseconds: 1600))
     ..forward();
 
   @override
@@ -66,146 +59,165 @@ class _LandingScreenState extends State<LandingScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Respect the OS reduce-motion setting: land fully revealed.
     if (MediaQuery.of(context).disableAnimations) _intro.value = 1;
-    return IkhlasScaffold(
-      child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-              AppSpace.screenMargin, 24, AppSpace.screenMargin, 24),
-          children: [
-            // ---- Hero — the website's faceless-couple illustration washed
-            // out behind the copy, fading into the sage ground below.
-            _staged(0, Stack(alignment: Alignment.topCenter, children: [
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: ShaderMask(
-                    shaderCallback: (r) => const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.white, Colors.white, Colors.transparent],
-                      stops: [0, .45, .96],
-                    ).createShader(r),
-                    blendMode: BlendMode.dstIn,
-                    child: Opacity(
-                      opacity: .55,
-                      // Anchor the crop below the illustration's empty top
-                      // band so the couple rides high in the hero and the
-                      // colored garments sit behind the headline.
-                      child: Image.asset('assets/brand/couple.png',
-                          fit: BoxFit.cover,
-                          alignment: const Alignment(0, .15)),
-                    ),
-                  ),
-                ),
-              ),
-              // Soft pocket of ground color behind the text column — keeps
-              // the copy crisp without dimming the figures at the edges.
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: RadialGradient(
-                        center: const Alignment(0, -.1),
-                        radius: 1.0,
-                        colors: [
-                          LightTokens.bg.withValues(alpha: .78),
-                          LightTokens.bg.withValues(alpha: 0),
-                        ],
-                        stops: const [.25, .75],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Column(children: [
-                const SizedBox(height: 2),
-                const Center(child: IkhlasLogo(size: 22)),
-                const SizedBox(height: 22),
-                Text('Where nikah begins with deen',
-                    textAlign: TextAlign.center,
-                    style: AppType.fraunces(30,
-                        color: LightTokens.ink, height: 1.14)),
-                const SizedBox(height: 10),
-                Text(
-                    'A screened, application-only pool for Muslims serious '
-                    'about marriage.',
-                    textAlign: TextAlign.center,
-                    style: AppType.inter(13.5,
-                        color: LightTokens.muted(.7), height: 1.45)),
-
-                // Ceremonial ornament — hairline · gold lozenge · hairline,
-                // echoing the wordmark's diamond tittle.
-                const SizedBox(height: 16),
-                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Container(
-                      width: 26,
-                      height: 1,
-                      color: LightTokens.hairline.withValues(alpha: .6)),
-                  const SizedBox(width: 8),
-                  Transform.rotate(
-                    angle: math.pi / 4,
-                    child: Container(
-                        width: 5, height: 5, color: LightTokens.goldArabic),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                      width: 26,
-                      height: 1,
-                      color: LightTokens.hairline.withValues(alpha: .6)),
-                ]),
-                // Extra room below the ornament so the figures extend into
-                // the fade instead of being cut at the ornament line.
-                const SizedBox(height: 18),
-              ]),
-            ])),
-
-            // ---- What makes Ikhlaas different — fine editorial list ----
-            const SizedBox(height: 24),
-            _staged(.18, _eyebrow('WHAT MAKES IKHLAAS DIFFERENT')),
-            const SizedBox(height: 6),
-            _DiffList(items: _differentiators, intro: _intro, startAt: .26),
-
-            // ---- How it works — animated horizontal stepper ----
-            const SizedBox(height: 26),
-            _staged(.55, _eyebrow('HOW IT WORKS')),
-            const SizedBox(height: 16),
-            _staged(.60, const _HowItWorks(steps: _flow)),
-
-            // ---- CTAs ----
-            const SizedBox(height: 26),
-            _staged(
-                .72,
-                PrimaryCta(
-                    label: 'Begin my application',
-                    onPressed: () => context.go('/login'))),
-            const SizedBox(height: 12),
-            _staged(
-                .80,
-                Center(
-                  child: QuietLink(
-                      prefix: 'Already have an account?',
-                      linkText: 'Sign in',
-                      onTap: () => context.go('/login')),
-                )),
-          ],
+    return Scaffold(
+      body: Stack(children: [
+        // Ground.
+        const Positioned.fill(
+            child: DecoratedBox(
+                decoration: BoxDecoration(color: LightTokens.bg))),
+        // Couple illustration at the top, faded into the ground.
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 380,
+          child: IgnorePointer(
+            child: ShaderMask(
+              shaderCallback: (r) => const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.white, Colors.white, Colors.transparent],
+                stops: [0, .62, .95],
+              ).createShader(r),
+              blendMode: BlendMode.dstIn,
+              child: Image.asset('assets/brand/couple.png',
+                  fit: BoxFit.cover, alignment: const Alignment(0, -.35)),
+            ),
+          ),
         ),
-      ),
+        // Full-screen frosted glass over the couple — light blur so the couple
+        // stays recognisable through the hero, opaque toward the panels.
+        Positioned.fill(
+          child: ClipRect(
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      _cream.withValues(alpha: .30),
+                      _cream.withValues(alpha: .66),
+                      _cream.withValues(alpha: .88),
+                    ],
+                    stops: const [0, .34, 1],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Content.
+        Positioned.fill(
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+              child: Column(children: [
+                _staged(0, _hero()),
+                const SizedBox(height: 24),
+                _staged(.30,
+                    _glassPanel(child: const _DiffList(items: _differentiators))),
+                const SizedBox(height: 16),
+                _staged(
+                    .42,
+                    _glassPanel(
+                        padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+                        child: Column(children: [
+                          _eyebrow('HOW IT WORKS'),
+                          const SizedBox(height: 14),
+                          const _HowItWorks(steps: _flow),
+                        ]))),
+                const SizedBox(height: 26),
+                _staged(.56, _cta(context)),
+                const SizedBox(height: 16),
+                _staged(
+                    .64,
+                    Text(
+                        'Membership by application · fewer than 4 in 10 accepted',
+                        textAlign: TextAlign.center,
+                        style: AppType.inter(11.5, color: LightTokens.muted(.6)))),
+                const SizedBox(height: 8),
+                _staged(
+                    .70,
+                    Center(
+                      child: QuietLink(
+                          prefix: 'Already have an account?',
+                          linkText: 'Sign in',
+                          onTap: () => context.go('/login')),
+                    )),
+              ]),
+            ),
+          ),
+        ),
+      ]),
     );
   }
+
+  Widget _hero() => Column(children: [
+        const SizedBox(height: 6),
+        const Center(child: IkhlasLogo(size: 30)),
+        const SizedBox(height: 24),
+        Text('Where nikah begins with deen',
+            textAlign: TextAlign.center,
+            style: AppType.fraunces(32, color: LightTokens.ink, height: 1.12)),
+        const SizedBox(height: 12),
+        Text(
+            'A screened, application-only pool for Muslims serious '
+            'about marriage.',
+            textAlign: TextAlign.center,
+            style:
+                AppType.inter(13.5, color: LightTokens.muted(.7), height: 1.5)),
+      ]);
+
+  Widget _glassPanel(
+          {required Widget child,
+          EdgeInsets padding = const EdgeInsets.fromLTRB(16, 18, 16, 16)}) =>
+      Container(
+        padding: padding,
+        decoration: BoxDecoration(
+          color: _cream.withValues(alpha: .55),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: .55)),
+          boxShadow: [
+            BoxShadow(
+                color: LightTokens.ctaBg.withValues(alpha: .10),
+                blurRadius: 22,
+                offset: const Offset(0, 10)),
+          ],
+        ),
+        child: child,
+      );
+
+  Widget _cta(BuildContext context) => SizedBox(
+        width: double.infinity,
+        height: 58,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: LightTokens.ctaBg,
+            foregroundColor: LightTokens.ctaText,
+            elevation: 0,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30)),
+          ),
+          onPressed: () => context.go('/login'),
+          child: Text('Begin my application',
+              style: AppType.fraunces(17,
+                  weight: FontWeight.w500, color: LightTokens.ctaText)),
+        ),
+      );
 
   static Widget _eyebrow(String s) => Text(s,
       textAlign: TextAlign.center,
       style: AppType.inter(11,
           weight: FontWeight.w700,
           color: LightTokens.goldArabic,
-          letterSpacing: 11 * .16));
-
+          letterSpacing: 11 * .17));
 }
 
-/// Fade-and-rise reveal used by the landing's one-time entrance
-/// choreography: `start` is the fraction of the intro controller at which
-/// this element begins revealing.
+/// Fade-and-rise reveal for the one-time entrance choreography.
 Widget _staggerIn(Animation<double> intro, double start, Widget child) {
   final a = CurvedAnimation(
       parent: intro,
@@ -220,72 +232,73 @@ Widget _staggerIn(Animation<double> intro, double start, Widget child) {
   );
 }
 
-/// The four differentiators as a fine editorial list — no boxes, no discs.
-/// Each row: a gold line glyph, the claim, and one quiet clarifier, divided
-/// by whisper-thin inset hairlines (the menu of a fine restaurant, not a
-/// data table). Rows cascade in one after another during the entrance.
+/// Differentiators — eyebrow + four rows, each a cream glass icon tile, the
+/// claim and one clarifier, divided by hairlines.
 class _DiffList extends StatelessWidget {
   final List<(IconData, String, String)> items;
-  final Animation<double> intro;
-  final double startAt;
-  const _DiffList(
-      {required this.items, required this.intro, required this.startAt});
+  const _DiffList({required this.items});
+
+  static const _tile = Color(0xFFE9E5D6);
 
   @override
   Widget build(BuildContext context) {
     return Column(children: [
-      for (var i = 0; i < items.length; i++)
-        _staggerIn(
-          intro,
-          startAt + i * .07,
-          Column(children: [
-            if (i > 0)
-              Padding(
-                padding: const EdgeInsets.only(left: 36),
-                child: Container(
-                    height: 1,
-                    color: LightTokens.hairline.withValues(alpha: .28)),
+      _LandingScreenState._eyebrow('WHAT MAKES IKHLAAS DIFFERENT'),
+      const SizedBox(height: 12),
+      for (var i = 0; i < items.length; i++) ...[
+        if (i > 0)
+          Padding(
+            padding: const EdgeInsets.only(left: 59),
+            child: Container(
+                height: 1,
+                color: const Color(0xFF787456).withValues(alpha: .18)),
+          ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(children: [
+            Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: _tile,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withValues(alpha: .5)),
+                boxShadow: [
+                  BoxShadow(
+                      color: LightTokens.ctaBg.withValues(alpha: .12),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2)),
+                ],
               ),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 13),
+              child: Icon(items[i].$1, size: 20, color: LightTokens.goldArabic),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
               child:
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                SizedBox(
-                  width: 36,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 1),
-                    child: Icon(items[i].$1,
-                        size: 20, color: LightTokens.goldArabic),
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(items[i].$2,
-                            style: AppType.inter(14,
-                                weight: FontWeight.w600,
-                                color: LightTokens.ink,
-                                height: 1.25)),
-                        const SizedBox(height: 2),
-                        Text(items[i].$3,
-                            style: AppType.inter(12.5,
-                                color: LightTokens.muted(.68), height: 1.4)),
-                      ]),
-                ),
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(items[i].$2,
+                    style: AppType.inter(15,
+                        weight: FontWeight.w700,
+                        color: LightTokens.ink,
+                        height: 1.2)),
+                const SizedBox(height: 2),
+                Text(items[i].$3,
+                    style: AppType.inter(12.5,
+                        color: LightTokens.muted(.7), height: 1.35)),
               ]),
             ),
           ]),
         ),
+      ],
     ]);
   }
 }
 
-/// Animated horizontal "how it works" — five nodes on a timeline. The active
-/// step auto-advances (looping), the connector fills as progress moves, and a
-/// caption beneath cross-fades to the current step's description.
+/// How it works — a continuous gold rail with glass step discs that fill to
+/// emerald as they complete; the active stage auto-advances (looping).
 class _HowItWorks extends StatefulWidget {
-  final List<(IconData, String, String)> steps; // (icon, label, body)
+  final List<(IconData, String)> steps; // (icon, label)
   const _HowItWorks({required this.steps});
   @override
   State<_HowItWorks> createState() => _HowItWorksState();
@@ -313,81 +326,38 @@ class _HowItWorksState extends State<_HowItWorks> {
   @override
   Widget build(BuildContext context) {
     final n = widget.steps.length;
-    return Column(children: [
-      // Timeline — ONE continuous rail behind the nodes, with a gold segment
-      // that fills to the active stage. A single rail (vs. per-gap fillers)
-      // reads more premium and can never collapse on a narrow width.
-      LayoutBuilder(builder: (context, c) {
-        final slot = c.maxWidth / n; // each node centred in its own slot
-        const disc = 32.0;
-        final railInset = slot / 2; // ends meet the first/last disc centre
-        const railTop = disc / 2 - 1; // 2px rail centred on the disc row
-        return SizedBox(
-          height: disc + 7 + 15, // disc + gap + label line
-          child: Stack(children: [
-            // Base rail — the full timeline.
-            Positioned(
-              left: railInset,
-              right: railInset,
-              top: railTop,
-              child: Container(
-                height: 2,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(1),
-                  color: LightTokens.hairline.withValues(alpha: .45),
-                ),
-              ),
-            ),
-            // Gold progress — grows one slot per completed stage.
-            Positioned(
-              left: railInset,
-              top: railTop,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 350),
-                curve: Curves.easeOut,
-                width: slot * _active,
-                height: 2,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(1),
-                  color: LightTokens.goldArabic,
-                ),
-              ),
-            ),
-            // The discs sit on top of the rail, one per equal slot.
-            Row(children: [
-              for (var i = 0; i < n; i++) Expanded(child: _node(i)),
-            ]),
-          ]),
-        );
-      }),
-      const SizedBox(height: 14),
-      // One Fraunces-italic line for the active stage (the bold label in the
-      // timeline already names it — repeating the title read redundant).
-      // Fixed height so the CTA below never shifts as captions change lines.
-      SizedBox(
-        height: 46,
-        child: Center(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 350),
-            transitionBuilder: (child, anim) => FadeTransition(
-              opacity: anim,
-              child: SlideTransition(
-                position: Tween(begin: const Offset(0, .12), end: Offset.zero)
-                    .animate(anim),
-                child: child,
-              ),
-            ),
-            child: Text(widget.steps[_active].$3,
-                key: ValueKey(_active),
-                textAlign: TextAlign.center,
-                style: AppType.fraunces(14.5,
-                    color: LightTokens.ink.withValues(alpha: .82),
-                    style: FontStyle.italic,
-                    height: 1.45)),
+    return LayoutBuilder(builder: (context, c) {
+      final slot = c.maxWidth / n;
+      const disc = 40.0;
+      final railInset = slot / 2;
+      const railTop = disc / 2 - .75;
+      return SizedBox(
+        height: disc + 8 + 16,
+        child: Stack(children: [
+          Positioned(
+            left: railInset,
+            right: railInset,
+            top: railTop,
+            child: Container(
+                height: 1.5, color: LightTokens.goldArabic.withValues(alpha: .35)),
           ),
-        ),
-      ),
-    ]);
+          Positioned(
+            left: railInset,
+            top: railTop,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeOut,
+              width: slot * _active,
+              height: 1.5,
+              color: LightTokens.goldArabic,
+            ),
+          ),
+          Row(children: [
+            for (var i = 0; i < n; i++) Expanded(child: _node(i)),
+          ]),
+        ]),
+      );
+    });
   }
 
   Widget _node(int i) {
@@ -395,51 +365,53 @@ class _HowItWorksState extends State<_HowItWorks> {
     final done = i <= _active;
     final isActive = i == _active;
     return Column(mainAxisSize: MainAxisSize.min, children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeOut,
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: done ? LightTokens.ctaBg : LightTokens.bg,
-            border: Border.all(
-              color: isActive
-                  ? LightTokens.goldArabic
-                  : (done
-                      ? LightTokens.ctaBg
-                      : LightTokens.hairline.withValues(alpha: .6)),
-              width: isActive ? 1.5 : 1,
-            ),
-            // Active stage gets a soft champagne halo — the premium cue that
-            // replaces the numbered pip.
-            boxShadow: isActive
-                ? [
-                    BoxShadow(
-                      color: LightTokens.goldArabic.withValues(alpha: .28),
-                      blurRadius: 9,
-                      spreadRadius: 1,
-                    )
-                  ]
-                : null,
+      AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOut,
+        width: 40,
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: done
+              ? LightTokens.ctaBg
+              : const Color(0xFFF7F5EC).withValues(alpha: .55),
+          border: Border.all(
+            color: done
+                ? LightTokens.ctaBg
+                : LightTokens.goldArabic.withValues(alpha: .45),
+            width: 1.5,
           ),
-          // Upcoming stages stay in the gold family (muted), never grey —
-          // ink-grey glyphs inside gold rings read muddy.
-          child: Icon(step.$1,
-              size: 17,
-              color: done
-                  ? LightTokens.ctaText
-                  : LightTokens.goldArabic.withValues(alpha: .5)),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                      color: LightTokens.goldArabic.withValues(alpha: .30),
+                      blurRadius: 0,
+                      spreadRadius: 4),
+                ]
+              : (done
+                  ? [
+                      BoxShadow(
+                          color: LightTokens.ctaBg.withValues(alpha: .35),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6)),
+                    ]
+                  : null),
         ),
-        const SizedBox(height: 7),
-        Text(step.$2,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppType.inter(10.5,
-                weight: isActive ? FontWeight.w600 : FontWeight.w400,
-                color: isActive ? LightTokens.ink : LightTokens.muted(.7))),
+        child: Icon(step.$1,
+            size: 18,
+            color: done
+                ? LightTokens.ctaText
+                : LightTokens.goldArabic.withValues(alpha: .72)),
+      ),
+      const SizedBox(height: 8),
+      Text(step.$2,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppType.inter(11,
+              weight: isActive ? FontWeight.w700 : FontWeight.w400,
+              color: isActive ? LightTokens.ink : LightTokens.muted(.7))),
     ]);
   }
 }
