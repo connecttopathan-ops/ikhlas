@@ -110,7 +110,9 @@ class LandingScreen extends StatelessWidget {
       );
 }
 
-/// Compact differentiator card — deep-green icon disc + title + one line.
+/// Compact differentiator card — soft champagne disc + deep-green glyph
+/// (the inverse of the how-it-works stepper's filled-green discs, so the two
+/// icon sections read as distinct while staying on the same palette).
 class _DiffCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -127,12 +129,16 @@ class _DiffCard extends StatelessWidget {
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
-          width: 30,
-          height: 30,
+          width: 32,
+          height: 32,
           alignment: Alignment.center,
-          decoration: const BoxDecoration(
-              shape: BoxShape.circle, color: LightTokens.ctaBg),
-          child: Icon(icon, size: 16, color: LightTokens.ctaText),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: LightTokens.goldArabic.withValues(alpha: .13),
+            border:
+                Border.all(color: LightTokens.goldArabic.withValues(alpha: .32)),
+          ),
+          child: Icon(icon, size: 17, color: LightTokens.ctaBg),
         ),
         const SizedBox(height: 9),
         Text(title,
