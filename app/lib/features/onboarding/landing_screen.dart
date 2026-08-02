@@ -23,14 +23,17 @@ class LandingScreen extends StatefulWidget {
         'On deen and intent, not looks.'),
   ];
 
-  // (icon, label) — the caption line was dropped; the label under each disc
-  // names the stage.
+  // (icon, label, body) — the body cross-fades beneath the timeline as the
+  // active stage advances.
   static const _flow = [
-    (Icons.description_outlined, 'Apply'),
-    (Icons.badge_outlined, 'Verify'),
-    (Icons.auto_awesome_outlined, 'Match'),
-    (Icons.forum_outlined, 'Wali'),
-    (Icons.favorite, 'Nikah'),
+    (Icons.description_outlined, 'Apply', 'A short, honest application.'),
+    (Icons.badge_outlined, 'Verify',
+        'A selfie and government-ID confirm you are real.'),
+    (Icons.auto_awesome_outlined, 'Match',
+        'Curated daily matches, ranked deen-first.'),
+    (Icons.forum_outlined, 'Wali',
+        'On mutual interest, guardians are brought in.'),
+    (Icons.favorite, 'Nikah', 'Proceed offline, in shaa Allah.'),
   ];
 
   @override
@@ -259,25 +262,25 @@ class _DiffList extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(children: [
       _LandingScreenState._eyebrow('WHAT MAKES IKHLAAS DIFFERENT'),
-      const SizedBox(height: 10),
+      const SizedBox(height: 8),
       for (var i = 0; i < items.length; i++) ...[
         if (i > 0)
           Padding(
-            padding: const EdgeInsets.only(left: 57),
+            padding: const EdgeInsets.only(left: 50),
             child: Container(
                 height: 1,
                 color: const Color(0xFF787456).withValues(alpha: .18)),
           ),
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 38,
+              height: 38,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: _tile,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.white.withValues(alpha: .5)),
                 boxShadow: [
                   BoxShadow(
@@ -286,21 +289,21 @@ class _DiffList extends StatelessWidget {
                       offset: const Offset(0, 2)),
                 ],
               ),
-              child: Icon(items[i].$1, size: 20, color: LightTokens.goldArabic),
+              child: Icon(items[i].$1, size: 18, color: LightTokens.goldArabic),
             ),
-            const SizedBox(width: 15),
+            const SizedBox(width: 12),
             Expanded(
               child:
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(items[i].$2,
-                    style: AppType.inter(15,
+                    style: AppType.inter(14,
                         weight: FontWeight.w700,
                         color: LightTokens.ink,
                         height: 1.2)),
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Text(items[i].$3,
-                    style: AppType.inter(12.5,
-                        color: LightTokens.muted(.7), height: 1.35)),
+                    style: AppType.inter(12,
+                        color: LightTokens.muted(.7), height: 1.3)),
               ]),
             ),
           ]),
@@ -313,7 +316,7 @@ class _DiffList extends StatelessWidget {
 /// How it works — a continuous gold rail with glass step discs that fill to
 /// emerald as they complete; the active stage auto-advances (looping).
 class _HowItWorks extends StatefulWidget {
-  final List<(IconData, String)> steps; // (icon, label)
+  final List<(IconData, String, String)> steps; // (icon, label, body)
   const _HowItWorks({required this.steps});
   @override
   State<_HowItWorks> createState() => _HowItWorksState();
@@ -341,6 +344,14 @@ class _HowItWorksState extends State<_HowItWorks> {
   @override
   Widget build(BuildContext context) {
     final n = widget.steps.length;
+    return Column(children: [
+      _timeline(n),
+      const SizedBox(height: 10),
+      _caption(),
+    ]);
+  }
+
+  Widget _timeline(int n) {
     return LayoutBuilder(builder: (context, c) {
       final slot = c.maxWidth / n;
       const disc = 36.0;
@@ -374,6 +385,30 @@ class _HowItWorksState extends State<_HowItWorks> {
       );
     });
   }
+
+  Widget _caption() => SizedBox(
+        height: 40,
+        child: Center(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            transitionBuilder: (child, anim) => FadeTransition(
+              opacity: anim,
+              child: SlideTransition(
+                position: Tween(begin: const Offset(0, .12), end: Offset.zero)
+                    .animate(anim),
+                child: child,
+              ),
+            ),
+            child: Text(widget.steps[_active].$3,
+                key: ValueKey(_active),
+                textAlign: TextAlign.center,
+                style: AppType.fraunces(14,
+                    color: LightTokens.ink.withValues(alpha: .82),
+                    style: FontStyle.italic,
+                    height: 1.4)),
+          ),
+        ),
+      );
 
   Widget _node(int i) {
     final step = widget.steps[i];
