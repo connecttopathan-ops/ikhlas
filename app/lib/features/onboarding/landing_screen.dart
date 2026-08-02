@@ -177,9 +177,15 @@ class _LandingScreenState extends State<LandingScreen>
         const SizedBox(height: 4),
         const Center(child: IkhlasLogo(size: 26)),
         const SizedBox(height: 18),
-        Text('Where nikah begins with deen',
-            textAlign: TextAlign.center,
-            style: AppType.fraunces(29, color: LightTokens.ink, height: 1.12)),
+        // One line, scaled to the largest size that fits the width.
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text('Where nikah begins with deen',
+              maxLines: 1,
+              softWrap: false,
+              style:
+                  AppType.fraunces(30, color: LightTokens.ink, height: 1.1)),
+        ),
         const SizedBox(height: 10),
         Text(
             'A screened, application-only pool for Muslims serious '
