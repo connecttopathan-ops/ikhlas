@@ -204,18 +204,14 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
         ? e['islamicPractice'] as String?
         : e['lookingForSpouse'] as String?;
 
-    return InkWell(
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: GlassCard(
+      radius: 18,
+      padding: const EdgeInsets.all(20),
       onTap: () => Navigator.of(context).push(MaterialPageRoute(
           builder: (_) => MatchDetailScreen(
               entryId: widget.doc.id, entry: e))),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: DarkTokens.hairline(.35)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

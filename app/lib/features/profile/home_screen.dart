@@ -29,51 +29,60 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final paused = status == 'paused';
 
     return IkhlasScaffold(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpace.screenMargin),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              Image.asset('assets/brand/wordmark.png',
-                  height: 26, filterQuality: FilterQuality.medium),
-              const Spacer(),
-              IconButton(
-                onPressed: () => context.go('/conversations'),
-                icon: Icon(Icons.chat_bubble_outline,
-                    size: 21, color: DarkTokens.muted(.7)),
-              ),
-              IconButton(
-                onPressed: () => context.go('/settings'),
-                icon: Icon(Icons.settings_outlined,
-                    size: 22, color: DarkTokens.muted(.7)),
-              ),
-            ]),
-            const SizedBox(height: 10),
-            if (paused)
-              Expanded(
-                child: Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const GirihMark(size: 88, opacity: .45),
-                    const SizedBox(height: 40),
-                    Text('Your profile is paused',
-                        style:
-                            AppType.fraunces(28, color: DarkTokens.ivory)),
-                    const SizedBox(height: 14),
-                    Text(
-                      'Hidden from matching until you resume — take the '
-                      'time you need.',
-                      textAlign: TextAlign.center,
-                      style: AppType.inter(14,
-                          color: DarkTokens.muted(.62), height: 1.7),
-                    ),
-                  ]),
+      safeArea: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Frosted app bar spanning full width — blurs the aurora behind it.
+          SafeArea(
+            bottom: false,
+            child: GlassBar(
+              padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
+              child: Row(children: [
+                Image.asset('assets/brand/wordmark.png',
+                    height: 24, filterQuality: FilterQuality.medium),
+                const Spacer(),
+                IconButton(
+                  onPressed: () => context.go('/conversations'),
+                  icon: Icon(Icons.chat_bubble_outline,
+                      size: 21, color: DarkTokens.muted(.7)),
                 ),
-              )
-            else
-              const Expanded(child: MatchBatch()),
-          ],
-        ),
+                IconButton(
+                  onPressed: () => context.go('/settings'),
+                  icon: Icon(Icons.settings_outlined,
+                      size: 22, color: DarkTokens.muted(.7)),
+                ),
+              ]),
+            ),
+          ),
+          if (paused)
+            Expanded(
+              child: Center(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const GirihMark(size: 88, opacity: .45),
+                  const SizedBox(height: 40),
+                  Text('Your profile is paused',
+                      style: AppType.fraunces(28, color: DarkTokens.ivory)),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Hidden from matching until you resume — take the '
+                    'time you need.',
+                    textAlign: TextAlign.center,
+                    style: AppType.inter(14,
+                        color: DarkTokens.muted(.62), height: 1.7),
+                  ),
+                ]),
+              ),
+            )
+          else
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    AppSpace.screenMargin, 14, AppSpace.screenMargin, 0),
+                child: const MatchBatch(),
+              ),
+            ),
+        ],
       ),
     );
   }

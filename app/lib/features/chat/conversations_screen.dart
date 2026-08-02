@@ -187,15 +187,12 @@ class _ConvTile extends ConsumerWidget {
       subtitle = 'Say salaam to begin';
     }
 
-    return InkWell(
-      onTap: () => context.go('/chat/${doc.id}'),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GlassCard(
+        radius: 16,
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: DarkTokens.hairline(closed ? .2 : .4)),
-        ),
+        onTap: () => context.go('/chat/${doc.id}'),
         child: Row(children: [
           Opacity(
             opacity: closed ? .45 : 1,

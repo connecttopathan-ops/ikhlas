@@ -424,13 +424,161 @@ class _NoisePainter extends CustomPainter {
 }
 
 /// Scaffold wrapper: background + noise, spec screen margin.
+/// ============================================================
+/// Glassmorphism kit — the app-wide "Sage aurora" backdrop + frosted glass
+/// surfaces that blur it. IkhlasScaffold paints the aurora on every screen;
+/// GlassCard / GlassBar are the frosted surfaces placed on top.
+/// ============================================================
+
+/// The single global backdrop: a warm sage-ivory ground with soft emerald +
+/// gold washes in the four corners. Every frosted surface blurs this.
+class AuroraBackground extends StatelessWidget {
+  const AuroraBackground({super.key});
+  static const _emerald = Color(0xFF2E5C41);
+  static const _gold = Color(0xFFA8842B);
+  @override
+  Widget build(BuildContext context) => const IgnorePointer(
+        child: Stack(children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFEAEBDF), Color(0xFFDCDECF), Color(0xFFD2D5C5)],
+                ),
+              ),
+            ),
+          ),
+          _Wash(Alignment(-0.85, -0.95), _emerald, .16),
+          _Wash(Alignment(0.95, -0.9), _gold, .15),
+          _Wash(Alignment(-0.95, 0.55), _gold, .12),
+          _Wash(Alignment(0.95, 0.95), _emerald, .14),
+        ]),
+      );
+}
+
+class _Wash extends StatelessWidget {
+  final Alignment center;
+  final Color color;
+  final double alpha;
+  const _Wash(this.center, this.color, this.alpha);
+  @override
+  Widget build(BuildContext context) => Positioned.fill(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: RadialGradient(
+              center: center,
+              radius: .85,
+              colors: [color.withValues(alpha: alpha), color.withValues(alpha: 0)],
+              stops: const [0, .72],
+            ),
+          ),
+        ),
+      );
+}
+
+/// Frosted glass card — the app-wide surface. Blurs the aurora behind it and
+/// carries a faint sage tint (a touch darker than the ground) so it separates
+/// gently. Content sits on top unchanged.
+class GlassCard extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final double radius;
+  final VoidCallback? onTap;
+  const GlassCard({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(18),
+    this.radius = 18,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final r = BorderRadius.circular(radius);
+    Widget card = ClipRRect(
+      borderRadius: r,
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 11, sigmaY: 11),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            borderRadius: r,
+            // sage tint ~.62 → .56, a touch darker than the aurora ground
+            gradient: const LinearGradient(
+              begin: Alignment(-.7, -1),
+              end: Alignment(.7, 1),
+              colors: [Color(0x9EDEE3D5), Color(0x8FD6DCCC)],
+            ),
+            border: Border.all(color: Colors.white.withValues(alpha: .6)),
+          ),
+          child: child,
+        ),
+      ),
+    );
+    card = DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: r,
+        boxShadow: [
+          BoxShadow(
+            color: LightTokens.ctaBg.withValues(alpha: .10),
+            blurRadius: 26,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: card,
+    );
+    if (onTap == null) return card;
+    return GestureDetector(onTap: onTap, child: card);
+  }
+}
+
+/// Frosted horizontal bar (app bars / bottom bars). Blurs the aurora; a
+/// hairline edge sells the glass.
+class GlassBar extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final bool bottomEdge; // hairline on the bottom (app bar) vs top (bottom bar)
+  const GlassBar({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.symmetric(horizontal: 16),
+    this.bottomEdge = true,
+  });
+  @override
+  Widget build(BuildContext context) => ClipRect(
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 11, sigmaY: 11),
+          child: Container(
+            padding: padding,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9F8F2).withValues(alpha: .55),
+              border: Border(
+                bottom: bottomEdge
+                    ? BorderSide(color: Colors.white.withValues(alpha: .5))
+                    : BorderSide.none,
+                top: bottomEdge
+                    ? BorderSide.none
+                    : BorderSide(color: Colors.white.withValues(alpha: .5)),
+              ),
+            ),
+            child: child,
+          ),
+        ),
+      );
+}
+
 class IkhlasScaffold extends StatelessWidget {
   final Widget child;
   final bool safeArea;
   const IkhlasScaffold({super.key, required this.child, this.safeArea = true});
   @override
   Widget build(BuildContext context) => Scaffold(
+        backgroundColor: LightTokens.bg,
         body: Stack(children: [
+          const Positioned.fill(child: AuroraBackground()),
           Positioned.fill(
               child: safeArea ? SafeArea(child: child) : child),
           const Positioned.fill(child: NoiseOverlay()),
