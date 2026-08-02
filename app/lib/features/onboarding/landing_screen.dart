@@ -23,19 +23,18 @@ class LandingScreen extends StatelessWidget {
         'On deen and intent, not looks.'),
   ];
 
-  // (icon, shortLabel, title, body). Each stage carries its own line icon —
-  // reads far more premium than a numbered pip and shares the deep-green disc
-  // language of the differentiator cards above, so the screen feels of a piece.
+  // (icon, label, body). Each stage carries its own line icon — reads far
+  // more premium than a numbered pip. Glyphs chosen to stay legible inside a
+  // 32px disc (the earlier handshake collapsed into a squiggle at this size).
   static const _flow = [
-    (Icons.description_outlined, 'Apply', 'Apply',
-        'A short, honest application.'),
-    (Icons.badge_outlined, 'Verify', 'Verify',
+    (Icons.description_outlined, 'Apply', 'A short, honest application.'),
+    (Icons.badge_outlined, 'Verify',
         'A selfie and government-ID confirm you are real.'),
-    (Icons.auto_awesome_outlined, 'Match', 'Match',
+    (Icons.auto_awesome_outlined, 'Match',
         'Curated daily matches, ranked deen-first.'),
-    (Icons.handshake_outlined, 'Wali', 'Contact wali',
+    (Icons.forum_outlined, 'Wali',
         'On mutual interest, guardians are brought in.'),
-    (Icons.favorite, 'Nikah', 'Nikah', 'Proceed offline, in shaa Allah.'),
+    (Icons.favorite, 'Nikah', 'Proceed offline, in shaa Allah.'),
   ];
 
   @override
@@ -177,7 +176,7 @@ class _DiffList extends StatelessWidget {
 /// step auto-advances (looping), the connector fills as progress moves, and a
 /// caption beneath cross-fades to the current step's description.
 class _HowItWorks extends StatefulWidget {
-  final List<(IconData, String, String, String)> steps; // icon,short,title,body
+  final List<(IconData, String, String)> steps; // (icon, label, body)
   const _HowItWorks({required this.steps});
   @override
   State<_HowItWorks> createState() => _HowItWorksState();
@@ -252,30 +251,31 @@ class _HowItWorksState extends State<_HowItWorks> {
           ]),
         );
       }),
-      const SizedBox(height: 16),
-      // Active step's title + description, cross-fading as it advances.
-      AnimatedSwitcher(
-        duration: const Duration(milliseconds: 350),
-        transitionBuilder: (child, anim) => FadeTransition(
-          opacity: anim,
-          child: SlideTransition(
-            position: Tween(begin: const Offset(0, .12), end: Offset.zero)
-                .animate(anim),
-            child: child,
-          ),
-        ),
-        child: Column(
-          key: ValueKey(_active),
-          children: [
-            Text(widget.steps[_active].$3,
-                style: AppType.inter(15.5,
-                    weight: FontWeight.w600, color: LightTokens.ink)),
-            const SizedBox(height: 3),
-            Text(widget.steps[_active].$4,
+      const SizedBox(height: 14),
+      // One Fraunces-italic line for the active stage (the bold label in the
+      // timeline already names it — repeating the title read redundant).
+      // Fixed height so the CTA below never shifts as captions change lines.
+      SizedBox(
+        height: 46,
+        child: Center(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            transitionBuilder: (child, anim) => FadeTransition(
+              opacity: anim,
+              child: SlideTransition(
+                position: Tween(begin: const Offset(0, .12), end: Offset.zero)
+                    .animate(anim),
+                child: child,
+              ),
+            ),
+            child: Text(widget.steps[_active].$3,
+                key: ValueKey(_active),
                 textAlign: TextAlign.center,
-                style: AppType.inter(13,
-                    color: LightTokens.muted(.72), height: 1.4)),
-          ],
+                style: AppType.fraunces(14.5,
+                    color: LightTokens.ink.withValues(alpha: .82),
+                    style: FontStyle.italic,
+                    height: 1.45)),
+          ),
         ),
       ),
     ]);
@@ -315,9 +315,13 @@ class _HowItWorksState extends State<_HowItWorks> {
                   ]
                 : null,
           ),
+          // Upcoming stages stay in the gold family (muted), never grey —
+          // ink-grey glyphs inside gold rings read muddy.
           child: Icon(step.$1,
-              size: 16,
-              color: done ? LightTokens.ctaText : LightTokens.muted(.55)),
+              size: 17,
+              color: done
+                  ? LightTokens.ctaText
+                  : LightTokens.goldArabic.withValues(alpha: .5)),
         ),
         const SizedBox(height: 7),
         Text(step.$2,
