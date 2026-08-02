@@ -60,8 +60,12 @@ class LandingScreen extends StatelessWidget {
                     blendMode: BlendMode.dstIn,
                     child: Opacity(
                       opacity: .55,
+                      // Anchor the crop below the illustration's empty top
+                      // band so the couple rides high in the hero and the
+                      // colored garments sit behind the headline.
                       child: Image.asset('assets/brand/couple.png',
-                          fit: BoxFit.cover, alignment: Alignment.topCenter),
+                          fit: BoxFit.cover,
+                          alignment: const Alignment(0, -.2)),
                     ),
                   ),
                 ),
@@ -102,6 +106,9 @@ class LandingScreen extends StatelessWidget {
                       height: 1,
                       color: LightTokens.hairline.withValues(alpha: .6)),
                 ]),
+                // Extra room below the ornament so the figures extend into
+                // the fade instead of being cut at the ornament line.
+                const SizedBox(height: 18),
               ]),
             ]),
 
