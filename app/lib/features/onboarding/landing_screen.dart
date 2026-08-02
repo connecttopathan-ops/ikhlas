@@ -22,12 +22,19 @@ class LandingScreen extends StatelessWidget {
         'On deen and intent, not looks.'),
   ];
 
+  // (icon, shortLabel, title, body). Each stage carries its own line icon —
+  // reads far more premium than a numbered pip and shares the deep-green disc
+  // language of the differentiator cards above, so the screen feels of a piece.
   static const _flow = [
-    ('Apply', 'Apply', 'A short, honest application.'),
-    ('Verify', 'Verify', 'A selfie and government-ID confirm you are real.'),
-    ('Match', 'Match', 'Curated daily matches, ranked deen-first.'),
-    ('Wali', 'Contact wali', 'On mutual interest, guardians are brought in.'),
-    ('Nikah', 'Nikah', 'Proceed offline, in shaa Allah.'),
+    (Icons.description_outlined, 'Apply', 'Apply',
+        'A short, honest application.'),
+    (Icons.badge_outlined, 'Verify', 'Verify',
+        'A selfie and government-ID confirm you are real.'),
+    (Icons.auto_awesome_outlined, 'Match', 'Match',
+        'Curated daily matches, ranked deen-first.'),
+    (Icons.handshake_outlined, 'Wali', 'Contact wali',
+        'On mutual interest, guardians are brought in.'),
+    (Icons.favorite, 'Nikah', 'Nikah', 'Proceed offline, in shaa Allah.'),
   ];
 
   @override
@@ -144,7 +151,7 @@ class _DiffCard extends StatelessWidget {
 /// step auto-advances (looping), the connector fills as progress moves, and a
 /// caption beneath cross-fades to the current step's description.
 class _HowItWorks extends StatefulWidget {
-  final List<(String, String, String)> steps; // (shortLabel, title, body)
+  final List<(IconData, String, String, String)> steps; // icon,short,title,body
   const _HowItWorks({required this.steps});
   @override
   State<_HowItWorks> createState() => _HowItWorksState();
@@ -180,13 +187,16 @@ class _HowItWorksState extends State<_HowItWorks> {
           if (i < n - 1)
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.only(top: 13),
+                padding: const EdgeInsets.only(top: 15),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 350),
-                  height: 2.5,
-                  color: i < _active
-                      ? LightTokens.goldArabic
-                      : LightTokens.hairline.withValues(alpha: .5),
+                  height: 2,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(1),
+                    color: i < _active
+                        ? LightTokens.goldArabic
+                        : LightTokens.hairline.withValues(alpha: .45),
+                  ),
                 ),
               ),
             ),
@@ -207,11 +217,11 @@ class _HowItWorksState extends State<_HowItWorks> {
         child: Column(
           key: ValueKey(_active),
           children: [
-            Text(widget.steps[_active].$2,
+            Text(widget.steps[_active].$3,
                 style: AppType.inter(15.5,
                     weight: FontWeight.w600, color: LightTokens.ink)),
             const SizedBox(height: 3),
-            Text(widget.steps[_active].$3,
+            Text(widget.steps[_active].$4,
                 textAlign: TextAlign.center,
                 style: AppType.inter(13,
                     color: LightTokens.muted(.72), height: 1.4)),
@@ -222,6 +232,7 @@ class _HowItWorksState extends State<_HowItWorks> {
   }
 
   Widget _node(int i) {
+    final step = widget.steps[i];
     final done = i <= _active;
     final isActive = i == _active;
     return SizedBox(
@@ -229,8 +240,9 @@ class _HowItWorksState extends State<_HowItWorks> {
       child: Column(children: [
         AnimatedContainer(
           duration: const Duration(milliseconds: 350),
-          width: 28,
-          height: 28,
+          curve: Curves.easeOut,
+          width: 32,
+          height: 32,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
@@ -238,17 +250,29 @@ class _HowItWorksState extends State<_HowItWorks> {
             border: Border.all(
               color: isActive
                   ? LightTokens.goldArabic
-                  : (done ? LightTokens.ctaBg : LightTokens.hairline),
-              width: isActive ? 2 : 1,
+                  : (done
+                      ? LightTokens.ctaBg
+                      : LightTokens.hairline.withValues(alpha: .6)),
+              width: isActive ? 1.5 : 1,
             ),
+            // Active stage gets a soft champagne halo — the premium cue that
+            // replaces the numbered pip.
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: LightTokens.goldArabic.withValues(alpha: .28),
+                      blurRadius: 9,
+                      spreadRadius: 1,
+                    )
+                  ]
+                : null,
           ),
-          child: Text('${i + 1}',
-              style: AppType.inter(12,
-                  weight: FontWeight.w600,
-                  color: done ? LightTokens.ctaText : LightTokens.muted())),
+          child: Icon(step.$1,
+              size: 16,
+              color: done ? LightTokens.ctaText : LightTokens.muted(.55)),
         ),
-        const SizedBox(height: 6),
-        Text(widget.steps[i].$1,
+        const SizedBox(height: 7),
+        Text(step.$2,
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
