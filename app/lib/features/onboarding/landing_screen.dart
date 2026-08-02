@@ -59,7 +59,7 @@ class LandingScreen extends StatelessWidget {
                     ).createShader(r),
                     blendMode: BlendMode.dstIn,
                     child: Opacity(
-                      opacity: .34,
+                      opacity: .55,
                       child: Image.asset('assets/brand/couple.png',
                           fit: BoxFit.cover, alignment: Alignment.topCenter),
                     ),
