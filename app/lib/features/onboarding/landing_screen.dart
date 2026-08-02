@@ -65,7 +65,26 @@ class LandingScreen extends StatelessWidget {
                       // colored garments sit behind the headline.
                       child: Image.asset('assets/brand/couple.png',
                           fit: BoxFit.cover,
-                          alignment: const Alignment(0, -.2)),
+                          alignment: const Alignment(0, .15)),
+                    ),
+                  ),
+                ),
+              ),
+              // Soft pocket of ground color behind the text column — keeps
+              // the copy crisp without dimming the figures at the edges.
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        center: const Alignment(0, -.1),
+                        radius: 1.0,
+                        colors: [
+                          LightTokens.bg.withValues(alpha: .78),
+                          LightTokens.bg.withValues(alpha: 0),
+                        ],
+                        stops: const [.25, .75],
+                      ),
                     ),
                   ),
                 ),
