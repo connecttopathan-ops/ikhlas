@@ -45,40 +45,64 @@ class LandingScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(
               AppSpace.screenMargin, 24, AppSpace.screenMargin, 24),
           children: [
-            // ---- Hero ----
-            const Center(child: IkhlasLogo(size: 30)),
-            const SizedBox(height: 20),
-            Text('Where nikah begins with deen',
-                textAlign: TextAlign.center,
-                style:
-                    AppType.fraunces(30, color: LightTokens.ink, height: 1.14)),
-            const SizedBox(height: 10),
-            Text(
-                'A screened, application-only pool for Muslims serious '
-                'about marriage.',
-                textAlign: TextAlign.center,
-                style: AppType.inter(13.5,
-                    color: LightTokens.muted(.7), height: 1.45)),
-
-            // Ceremonial ornament — hairline · gold lozenge · hairline,
-            // echoing the wordmark's diamond tittle.
-            const SizedBox(height: 16),
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Container(
-                  width: 26,
-                  height: 1,
-                  color: LightTokens.hairline.withValues(alpha: .6)),
-              const SizedBox(width: 8),
-              Transform.rotate(
-                angle: math.pi / 4,
-                child:
-                    Container(width: 5, height: 5, color: LightTokens.goldArabic),
+            // ---- Hero — the website's faceless-couple illustration washed
+            // out behind the copy, fading into the sage ground below.
+            Stack(alignment: Alignment.topCenter, children: [
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: ShaderMask(
+                    shaderCallback: (r) => const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.white, Colors.white, Colors.transparent],
+                      stops: [0, .45, .96],
+                    ).createShader(r),
+                    blendMode: BlendMode.dstIn,
+                    child: Opacity(
+                      opacity: .20,
+                      child: Image.asset('assets/brand/couple.png',
+                          fit: BoxFit.cover, alignment: Alignment.topCenter),
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(width: 8),
-              Container(
-                  width: 26,
-                  height: 1,
-                  color: LightTokens.hairline.withValues(alpha: .6)),
+              Column(children: [
+                const SizedBox(height: 2),
+                const Center(child: IkhlasLogo(size: 30)),
+                const SizedBox(height: 20),
+                Text('Where nikah begins with deen',
+                    textAlign: TextAlign.center,
+                    style: AppType.fraunces(30,
+                        color: LightTokens.ink, height: 1.14)),
+                const SizedBox(height: 10),
+                Text(
+                    'A screened, application-only pool for Muslims serious '
+                    'about marriage.',
+                    textAlign: TextAlign.center,
+                    style: AppType.inter(13.5,
+                        color: LightTokens.muted(.7), height: 1.45)),
+
+                // Ceremonial ornament — hairline · gold lozenge · hairline,
+                // echoing the wordmark's diamond tittle.
+                const SizedBox(height: 16),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Container(
+                      width: 26,
+                      height: 1,
+                      color: LightTokens.hairline.withValues(alpha: .6)),
+                  const SizedBox(width: 8),
+                  Transform.rotate(
+                    angle: math.pi / 4,
+                    child: Container(
+                        width: 5, height: 5, color: LightTokens.goldArabic),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                      width: 26,
+                      height: 1,
+                      color: LightTokens.hairline.withValues(alpha: .6)),
+                ]),
+              ]),
             ]),
 
             // ---- What makes Ikhlaas different — fine editorial list ----
