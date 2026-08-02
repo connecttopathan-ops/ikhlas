@@ -180,28 +180,52 @@ class _HowItWorksState extends State<_HowItWorks> {
   Widget build(BuildContext context) {
     final n = widget.steps.length;
     return Column(children: [
-      // Timeline: node · connector · node · … · node
-      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        for (var i = 0; i < n; i++) ...[
-          _node(i),
-          if (i < n - 1)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 15),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 350),
-                  height: 2,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(1),
-                    color: i < _active
-                        ? LightTokens.goldArabic
-                        : LightTokens.hairline.withValues(alpha: .45),
-                  ),
+      // Timeline — ONE continuous rail behind the nodes, with a gold segment
+      // that fills to the active stage. A single rail (vs. per-gap fillers)
+      // reads more premium and can never collapse on a narrow width.
+      LayoutBuilder(builder: (context, c) {
+        final slot = c.maxWidth / n; // each node centred in its own slot
+        const disc = 32.0;
+        final railInset = slot / 2; // ends meet the first/last disc centre
+        const railTop = disc / 2 - 1; // 2px rail centred on the disc row
+        return SizedBox(
+          height: disc + 7 + 15, // disc + gap + label line
+          child: Stack(children: [
+            // Base rail — the full timeline.
+            Positioned(
+              left: railInset,
+              right: railInset,
+              top: railTop,
+              child: Container(
+                height: 2,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(1),
+                  color: LightTokens.hairline.withValues(alpha: .45),
                 ),
               ),
             ),
-        ],
-      ]),
+            // Gold progress — grows one slot per completed stage.
+            Positioned(
+              left: railInset,
+              top: railTop,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeOut,
+                width: slot * _active,
+                height: 2,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(1),
+                  color: LightTokens.goldArabic,
+                ),
+              ),
+            ),
+            // The discs sit on top of the rail, one per equal slot.
+            Row(children: [
+              for (var i = 0; i < n; i++) Expanded(child: _node(i)),
+            ]),
+          ]),
+        );
+      }),
       const SizedBox(height: 16),
       // Active step's title + description, cross-fading as it advances.
       AnimatedSwitcher(
@@ -235,9 +259,7 @@ class _HowItWorksState extends State<_HowItWorks> {
     final step = widget.steps[i];
     final done = i <= _active;
     final isActive = i == _active;
-    return SizedBox(
-      width: 52,
-      child: Column(children: [
+    return Column(mainAxisSize: MainAxisSize.min, children: [
         AnimatedContainer(
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeOut,
@@ -279,7 +301,6 @@ class _HowItWorksState extends State<_HowItWorks> {
             style: AppType.inter(10.5,
                 weight: isActive ? FontWeight.w600 : FontWeight.w400,
                 color: isActive ? LightTokens.ink : LightTokens.muted(.7))),
-      ]),
-    );
+    ]);
   }
 }
