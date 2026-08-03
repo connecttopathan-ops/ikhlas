@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'reports_queue.dart';
 import 'tokens.dart';
+import 'wali_digests.dart';
 
 /// Dashboard: Queue (actionable, oldest first) + All applications
 /// (full history, newest first). Every card shows the complete record —
@@ -17,7 +18,7 @@ class ReviewQueueScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: T.bg,
@@ -40,6 +41,7 @@ class ReviewQueueScreen extends StatelessWidget {
               Tab(text: 'Queue'),
               Tab(text: 'All applications'),
               Tab(text: 'Reports'),
+              Tab(text: 'Wali digests'),
             ],
           ),
         ),
@@ -47,6 +49,7 @@ class ReviewQueueScreen extends StatelessWidget {
           _ApplicationsList(queueOnly: true),
           _ApplicationsList(queueOnly: false),
           ReportsQueue(),
+          WaliDigestsQueue(),
         ]),
       ),
     );

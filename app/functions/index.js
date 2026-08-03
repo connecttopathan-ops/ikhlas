@@ -949,7 +949,7 @@ exports.onEntryAction = onDocumentUpdated(
       // in sendWaliDigests, so a permission change is honoured immediately).
       waliDigest: {
         enabled: true,
-        cadenceDays: 3,
+        cadenceDays: 7,       // weekly — see sendWaliDigests (Fridays, IST)
         lastSentAt: null,
       },
       photoReveal: {},
@@ -1716,21 +1716,43 @@ async function whatsappConfig() {
   }
 }
 
-/** THE single delivery point for a guardian digest. Sends via WhatsApp when
- *  configured (Meta Cloud API, approved template), otherwise logs. Always
- *  records an audit doc. Returns the audit record id.
+/** The respectful notification a guardian receives (WhatsApp is a per-message
+ *  notification, never the raw transcript — the transcript lives in the audit
+ *  doc / wali portal). Single line, safe for both a template and a wa.me link. */
+function waNotificationText({ waliName, wardName, messageCount }) {
+  const salaam = waliName ? `As-salamu alaykum ${waliName}.` : 'As-salamu alaykum.';
+  const n = messageCount === 1 ? 'is 1 new message' : `are ${messageCount} new messages`;
+  return `${salaam} This is your weekly Ikhlaas update: there ${n} in ` +
+    `${wardName}'s conversation that you oversee. Please check in with them, ` +
+    `insha'Allah.`;
+}
+
+/** THE single delivery point for a guardian digest.
+ *
+ *  Two channels, one audit trail:
+ *   • Cloud API configured → send the approved template automatically
+ *     (status 'sent').
+ *   • Otherwise → leave it 'pending' with a ready-to-use wa.me click-to-chat
+ *     link so a team member can send it from a normal WhatsApp (admin outbox).
+ *
+ *  Either way a waliDigests/* doc is written (never silently lost), holding the
+ *  full transcript for moderator review / the future wali portal.
  *  @param {object} wa  { token, phoneNumberId, templateName, languageCode } or null */
 async function deliverWaliDigest({ convId, wardUid, wali, wardName, transcript, messageCount, wa }) {
-  const canWhatsApp = Boolean(wa && wali.phone);
+  const notice = waNotificationText({ waliName: wali.name, wardName, messageCount });
+  // Click-to-chat link — opens the sender's own WhatsApp with the text ready.
+  const digits = String(wali.phone || '').replace(/[^\d]/g, '');
+  const waLink = digits
+    ? `https://wa.me/${digits}?text=${encodeURIComponent(notice)}`
+    : null;
+
+  let status = 'pending';   // pending → sent (auto or manual) / failed
   let delivered = false;
   let providerId = null;
   let error = null;
 
-  if (canWhatsApp) {
+  if (wa && wali.phone) {
     try {
-      // WhatsApp carries a template NOTIFICATION only (ward name + count);
-      // the transcript can't ride in a template variable, so it stays in the
-      // audit doc for the wali portal (PRD §4.5 magic-link surface).
       const resp = await sendWaliDigestWhatsApp({
         token: wa.token,
         phoneNumberId: wa.phoneNumberId,
@@ -1740,16 +1762,18 @@ async function deliverWaliDigest({ convId, wardUid, wali, wardName, transcript, 
         wardName,
         messageCount,
       });
+      status = 'sent';
       delivered = true;
       providerId = resp?.messages?.[0]?.id || null;
     } catch (e) {
+      status = 'failed';
       error = e?.message || String(e);
       console.error(`[wali-digest] WhatsApp send failed for ward ${wardUid}:`, error);
     }
   } else {
-    // No channel configured yet — audit-only, so nothing is silently lost.
+    // No Cloud API — hand it to the admin outbox for a manual send.
     console.log(
-      `[wali-digest STUB] whatsapp → ${wali.phone || '(no phone)'} ` +
+      `[wali-digest] pending manual send → ${wali.phone || '(no phone)'} ` +
       `for ward ${wardUid} on conv ${convId}: ${messageCount} new message(s).`
     );
   }
@@ -1761,9 +1785,12 @@ async function deliverWaliDigest({ convId, wardUid, wali, wardName, transcript, 
     waliPhone: wali.phone || null,
     channel: 'whatsapp',
     messageCount,
-    // Store the transcript so a moderator can see exactly what a guardian's
-    // digest covered (privacy accountability, PRD §4.6). Purged with the conv.
+    notice,               // the exact text to send (template / manual)
+    waLink,               // tap to send from a normal WhatsApp
+    // Full transcript for moderator review / the wali portal (PRD §4.5/§4.6).
+    // Never sent over WhatsApp. Purged with the conversation.
     transcript,
+    status,
     delivered,
     providerId,
     error,
@@ -1772,10 +1799,28 @@ async function deliverWaliDigest({ convId, wardUid, wali, wardName, transcript, 
   return audit.id;
 }
 
+/** Admin outbox action — mark a pending digest as sent by hand (a person
+ *  tapped its wa.me link and sent it from their own WhatsApp). Moderator-only. */
+exports.markWaliDigestSent = onCall({ region: REGION }, async (request) => {
+  requireModerator(request);
+  const id = request.data?.id;
+  if (!id) throw new HttpsError('invalid-argument', 'Missing digest id.');
+  await db.doc(`waliDigests/${id}`).update({
+    status: 'sent',
+    delivered: true,
+    sentManuallyBy: request.auth.uid,
+    sentAt: FieldValue.serverTimestamp(),
+  });
+  return { ok: true };
+});
+
 /** Periodic guardian digest — runs daily, sends only conversations that are
  *  due per their own cadence. Kept off the message path so chat stays fast. */
 exports.sendWaliDigests = onSchedule(
-  { schedule: '0 9 * * *', timeZone: 'Asia/Kolkata', region: REGION,
+  // Weekly, Friday 09:00 IST (Jumu'ah). Whether digests go out automatically
+  // (Cloud API) or land in the admin outbox for a human to send from a normal
+  // WhatsApp, they gather on one predictable day a week.
+  { schedule: '0 9 * * 5', timeZone: 'Asia/Kolkata', region: REGION,
     secrets: [WHATSAPP_TOKEN] },
   async () => {
     const now = Date.now();
@@ -1796,7 +1841,7 @@ exports.sendWaliDigests = onSchedule(
       // guardian transcript leaves the platform until sign-off (or testers).
       if (!(await familyStageAllowed(parts))) continue;
 
-      const cadenceMs = (wd.cadenceDays || 3) * 24 * 3600 * 1000;
+      const cadenceMs = (wd.cadenceDays || 7) * 24 * 3600 * 1000;
       const lastSent = wd.lastSentAt?.toMillis?.() ?? 0;
       if (lastSent && now - lastSent < cadenceMs) continue;
 
