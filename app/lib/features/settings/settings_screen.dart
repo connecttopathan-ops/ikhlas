@@ -99,7 +99,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Text('Settings',
                   style: AppType.fraunces(26, color: DarkTokens.ivory)),
             ]),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            GlassCard(
+              radius: 20,
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Column(children: [
             _row(
               title: 'Edit my profile',
               subtitle: 'Photos, privacy, your prompts, preferences and Wali.',
@@ -134,6 +138,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   'photos.',
               onTap: _busy ? null : _deleteFlow,
             ),
+            ])),
             if (_busy) ...[
               const SizedBox(height: 24),
               const Center(
