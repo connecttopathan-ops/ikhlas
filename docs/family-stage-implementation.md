@@ -30,10 +30,29 @@ the **new conversation activity** to each partner's guardian.
   change takes effect immediately.
 - Every digest is written to `waliDigests/*` for a durable audit trail
   (moderator-readable — privacy accountability, PRD §4.6).
-- **Delivery is stubbed.** WhatsApp/SMS needs DLT registration (PRD §7,
-  Phase 2) and guardian email is not yet collected, so `deliverWaliDigest`
-  logs + records the audit doc but does not yet send. It is the single
-  integration point to wire a real channel later.
+- **Delivery is over WhatsApp** (Meta Cloud API, `whatsapp.js`). A digest is
+  *business-initiated*, so Meta requires an **approved template** and its
+  variables can't hold multi-line text — so WhatsApp carries a **notification**
+  (ward name + new-message count), and the **full transcript stays in
+  `waliDigests/*`** for the wali portal (PRD §4.5 magic-link surface). Delivery
+  is **inert until provisioned** (`WHATSAPP_TOKEN` secret +
+  `config/whatsapp.phoneNumberId`), falling back to an audit-only log;
+  `deliverWaliDigest` is the single integration point.
+
+### WhatsApp provisioning (one-time, outside this repo)
+1. WhatsApp Business Account + verified Meta Business.
+2. A sender phone number → its `PHONE_NUMBER_ID`.
+3. A permanent access token → `firebase functions:secrets:set WHATSAPP_TOKEN`.
+4. An approved template (default name `wali_digest`) with a two-variable BODY,
+   e.g. *"As-salamu alaykum {{1}}. There is new activity in the Ikhlaas
+   conversation you oversee — {{2}} new message(s). Please review it together,
+   insha’Allah."*
+5. `config/whatsapp = { phoneNumberId, templateName?, languageCode? }`.
+
+> Meta's template rule is a hard constraint, not a preference: you cannot push a
+> free-form transcript to a guardian over WhatsApp. If the transcript itself
+> must reach guardians, build the wali portal (magic link → `waliDigests`) or add
+> a guardian-email channel — both are follow-ups.
 
 ## 4. "Involve families" → accept / decline
 - Either party taps **Involve families** → `requestFamilyStage` records the
@@ -70,8 +89,9 @@ conversations/{convId} {
 }
 
 waliDigests/{id} {              // audit trail, moderator-readable
-  convId, wardUid, waliName, waliPhone, waliEmail,
-  channel, messageCount, transcript, delivered, at,
+  convId, wardUid, waliName, waliPhone,
+  channel: 'whatsapp', messageCount, transcript,
+  delivered, providerId, error, at,
 }
 ```
 

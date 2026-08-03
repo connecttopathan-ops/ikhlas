@@ -18,6 +18,7 @@ const { getStorage } = require('firebase-admin/storage');
 const crypto = require('crypto');
 const { evaluateGate } = require('./gate');
 const { sendOtpEmail } = require('./resend');
+const { sendWaliDigestWhatsApp } = require('./whatsapp');
 const { analyzeIdDoc } = require('./verification');
 
 // Quarantine bucket for government-ID images: admin-only, unreachable from the
@@ -31,6 +32,12 @@ const ID_QUARANTINE_BUCKET = 'ikhlas-caecf-idquarantine';
 // (send.ikhlaas.io — SPF/DKIM/MX verified).
 const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 const RESEND_FROM = 'Ikhlaas <noreply@send.ikhlaas.io>';
+
+// WhatsApp (Meta Cloud API) — guardian digest delivery. The access token is a
+// secret; the phone-number id + template live in config/whatsapp so they are
+// tunable without a redeploy. Inert (falls back to an audit-only log) until
+// both the secret and config/whatsapp.phoneNumberId are present. See whatsapp.js.
+const WHATSAPP_TOKEN = defineSecret('WHATSAPP_TOKEN');
 
 initializeApp();
 const db = getFirestore();
@@ -1660,11 +1667,13 @@ async function notifyWalisOf(uids, title, body) {
 // partners are evaluated identically each run), conditional delivery (a
 // guardian receives it only if that partner keeps a wali at "observe").
 //
-// Delivery is the SINGLE integration point below. WhatsApp/SMS to guardians
-// needs DLT registration (PRD §7, Phase 2) and guardian email is not yet
-// collected, so real sending is STUBBED for closed testing — mirroring the
-// existing notifyWalisOf stub. Every digest is written to `waliDigests/*`
-// for a durable audit trail regardless of whether a channel is live.
+// Delivery goes out over WhatsApp (Meta Cloud API — see whatsapp.js). Because
+// a digest is business-initiated, Meta requires an approved template and its
+// variables can't hold multi-line text, so WhatsApp carries a NOTIFICATION
+// (ward name + new-message count); the full transcript stays in `waliDigests/*`
+// for the wali portal (PRD §4.5 magic-link surface). Delivery is inert until
+// WHATSAPP_TOKEN + config/whatsapp.phoneNumberId are provisioned, falling back
+// to an audit-only log. Every digest is written to `waliDigests/*` regardless.
 // ============================================================
 
 /** New, non-system messages on a conversation since `sinceMs` (0 = all). */
@@ -1689,38 +1698,93 @@ function renderDigestText(profiles, lines) {
     .join('\n');
 }
 
-/** THE single delivery point for a guardian digest. Stubbed until a channel
- *  is live; always records an audit doc. Returns the audit record id. */
-async function deliverWaliDigest({ convId, wardUid, wali, transcript, messageCount }) {
-  const channel = wali.email ? 'email' : (wali.phone ? 'whatsapp' : 'none');
+/** Reads the (non-secret) WhatsApp config. Absent → WhatsApp is disabled and
+ *  delivery falls back to an audit-only log. */
+async function whatsappConfig() {
+  try {
+    const d = await db.doc('config/whatsapp').get();
+    if (!d.exists) return null;
+    const c = d.data() || {};
+    if (!c.phoneNumberId) return null;
+    return {
+      phoneNumberId: c.phoneNumberId,
+      templateName: c.templateName || 'wali_digest',
+      languageCode: c.languageCode || 'en',
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+/** THE single delivery point for a guardian digest. Sends via WhatsApp when
+ *  configured (Meta Cloud API, approved template), otherwise logs. Always
+ *  records an audit doc. Returns the audit record id.
+ *  @param {object} wa  { token, phoneNumberId, templateName, languageCode } or null */
+async function deliverWaliDigest({ convId, wardUid, wali, wardName, transcript, messageCount, wa }) {
+  const canWhatsApp = Boolean(wa && wali.phone);
+  let delivered = false;
+  let providerId = null;
+  let error = null;
+
+  if (canWhatsApp) {
+    try {
+      // WhatsApp carries a template NOTIFICATION only (ward name + count);
+      // the transcript can't ride in a template variable, so it stays in the
+      // audit doc for the wali portal (PRD §4.5 magic-link surface).
+      const resp = await sendWaliDigestWhatsApp({
+        token: wa.token,
+        phoneNumberId: wa.phoneNumberId,
+        templateName: wa.templateName,
+        languageCode: wa.languageCode,
+        toPhone: wali.phone,
+        wardName,
+        messageCount,
+      });
+      delivered = true;
+      providerId = resp?.messages?.[0]?.id || null;
+    } catch (e) {
+      error = e?.message || String(e);
+      console.error(`[wali-digest] WhatsApp send failed for ward ${wardUid}:`, error);
+    }
+  } else {
+    // No channel configured yet — audit-only, so nothing is silently lost.
+    console.log(
+      `[wali-digest STUB] whatsapp → ${wali.phone || '(no phone)'} ` +
+      `for ward ${wardUid} on conv ${convId}: ${messageCount} new message(s).`
+    );
+  }
+
   const audit = await db.collection('waliDigests').add({
     convId,
     wardUid,
     waliName: wali.name || null,
     waliPhone: wali.phone || null,
-    waliEmail: wali.email || null,
-    channel,
+    channel: 'whatsapp',
     messageCount,
-    // Store the transcript so a moderator can see exactly what a guardian was
-    // shown (privacy accountability, PRD §4.6). Purged with the conversation.
+    // Store the transcript so a moderator can see exactly what a guardian's
+    // digest covered (privacy accountability, PRD §4.6). Purged with the conv.
     transcript,
-    delivered: false,             // flips true once a real channel sends it
+    delivered,
+    providerId,
+    error,
     at: FieldValue.serverTimestamp(),
   });
-  // STUB: no WhatsApp/SMS (DLT pending) and no guardian email captured yet.
-  console.log(
-    `[wali-digest STUB] ${channel} → ${wali.phone || wali.email || '(no contact)'} ` +
-    `for ward ${wardUid} on conv ${convId}: ${messageCount} new message(s).`
-  );
   return audit.id;
 }
 
 /** Periodic guardian digest — runs daily, sends only conversations that are
  *  due per their own cadence. Kept off the message path so chat stays fast. */
 exports.sendWaliDigests = onSchedule(
-  { schedule: '0 9 * * *', timeZone: 'Asia/Kolkata', region: REGION },
+  { schedule: '0 9 * * *', timeZone: 'Asia/Kolkata', region: REGION,
+    secrets: [WHATSAPP_TOKEN] },
   async () => {
     const now = Date.now();
+    // WhatsApp creds once per run. If either the secret or config is missing,
+    // wa stays null and deliverWaliDigest falls back to an audit-only log.
+    const waCfg = await whatsappConfig();
+    const waToken = WHATSAPP_TOKEN.value?.() || '';
+    const wa = waCfg && waToken ? { ...waCfg, token: waToken } : null;
+
     const snap = await db.collection('conversations').get();
     for (const d of snap.docs) {
       const wd = d.get('waliDigest');
@@ -1745,13 +1809,15 @@ exports.sendWaliDigests = onSchedule(
         const w = (await db.doc(`users/${wardUid}`).get()).get('wali');
         // Conditional: only an "observe"-level guardian receives transcripts.
         if (w?.permissionLevel !== 'observe') continue;
-        if (!w.phone && !w.email) continue;
+        if (!w.phone) continue;   // WhatsApp needs a number
         await deliverWaliDigest({
           convId: d.id,
           wardUid,
           wali: w,
+          wardName: profiles[wardUid]?.displayName || 'their ward',
           transcript: renderDigestText(profiles, lines),
           messageCount: lines.length,
+          wa,
         });
         sentAny = true;
       }
