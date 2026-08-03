@@ -337,14 +337,17 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
                   onTap: _busy ? null : () => _act('passed')),
             ])
           else
-            Row(children: [
-              const RoundBullet(),
+            Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Padding(
+                  padding: EdgeInsets.only(top: 5), child: RoundBullet()),
               const SizedBox(width: 10),
-              Text(
-                  action == 'interested'
-                      ? 'Interest expressed — if it is mutual, a conversation opens.'
-                      : 'Passed, respectfully.',
-                  style: AppType.inter(12.5, color: DarkTokens.muted())),
+              Expanded(
+                child: Text(
+                    action == 'interested'
+                        ? 'Interest expressed — if it is mutual, a conversation opens.'
+                        : 'Passed, respectfully.',
+                    style: AppType.inter(12.5, color: DarkTokens.muted())),
+              ),
             ]),
           const SizedBox(height: 10),
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [

@@ -445,16 +445,16 @@ class AuroraBackground extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Color(0xFFEAEBDF), Color(0xFFDCDECF), Color(0xFFD2D5C5)],
+                  colors: [Color(0xFFEFF0E6), Color(0xFFE9EADE), Color(0xFFE3E5D7)],
                 ),
               ),
             ),
           ),
-          _Wash(Alignment(-0.85, -0.95), _emerald, .24),
-          _Wash(Alignment(0.95, -0.9), _gold, .22),
-          _Wash(Alignment(-0.95, 0.35), _gold, .18),
-          _Wash(Alignment(0.95, 0.95), _emerald, .22),
-          _Wash(Alignment(0.1, 0.55), _gold, .10),
+          // Whisper-soft corner tints — kept subtle so the ground stays a
+          // clean sage, never a muddy olive wash.
+          _Wash(Alignment(-0.9, -1), _emerald, .10),
+          _Wash(Alignment(1, -0.95), _gold, .09),
+          _Wash(Alignment(1, 1), _emerald, .08),
         ]),
       );
 }
@@ -505,22 +505,13 @@ class GlassCard extends StatelessWidget {
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: r,
-            // milky-sage translucent fill — light enough to read as glass
+            // clean, mostly-opaque frosted white — crisp, not washed out
             gradient: const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xB6F1F2EA), Color(0x9CE4E7D9)],
+              colors: [Color(0xF2FBFBF5), Color(0xE6F1F2E9)],
             ),
-            border: Border.all(color: Colors.white.withValues(alpha: .7)),
-            // inner white glow — the milky frosted body
-            boxShadow: [
-              BoxShadow(
-                color: Colors.white.withValues(alpha: .35),
-                blurRadius: 22,
-                spreadRadius: -6,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            border: Border.all(color: Colors.white.withValues(alpha: .85)),
           ),
           child: Stack(children: [
             // diagonal glass sheen — the highlight that reads as frosted glass
@@ -533,12 +524,10 @@ class GlassCard extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Colors.white.withValues(alpha: .40),
+                        Colors.white.withValues(alpha: .5),
                         Colors.white.withValues(alpha: 0),
-                        Colors.white.withValues(alpha: 0),
-                        Colors.white.withValues(alpha: .12),
                       ],
-                      stops: const [0, .28, .72, 1],
+                      stops: const [0, .3],
                     ),
                   ),
                 ),
@@ -554,9 +543,9 @@ class GlassCard extends StatelessWidget {
         borderRadius: r,
         boxShadow: [
           BoxShadow(
-            color: LightTokens.ctaBg.withValues(alpha: .10),
-            blurRadius: 26,
-            offset: const Offset(0, 12),
+            color: LightTokens.ctaBg.withValues(alpha: .14),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
