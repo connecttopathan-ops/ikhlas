@@ -434,28 +434,34 @@ class _NoisePainter extends CustomPainter {
 /// gold washes in the four corners. Every frosted surface blurs this.
 class AuroraBackground extends StatelessWidget {
   const AuroraBackground({super.key});
-  static const _emerald = Color(0xFF2E5C41);
-  static const _gold = Color(0xFFA8842B);
+  // Single tonal hue — one calm sage, so the glass reads clean, never muddy.
+  static const _sage = Color(0xFF4E7656);
   @override
-  Widget build(BuildContext context) => const IgnorePointer(
-        child: Stack(children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFFEFF0E6), Color(0xFFE9EADE), Color(0xFFE3E5D7)],
+  Widget build(BuildContext context) => const RepaintBoundary(
+        // Static — rasterise once so scrolling content never repaints it.
+        child: IgnorePointer(
+          child: Stack(children: [
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFFEAEBE1),
+                      Color(0xFFE6E8DD),
+                      Color(0xFFE2E4D7)
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          // Whisper-soft corner tints — kept subtle so the ground stays a
-          // clean sage, never a muddy olive wash.
-          _Wash(Alignment(-0.9, -1), _emerald, .10),
-          _Wash(Alignment(1, -0.95), _gold, .09),
-          _Wash(Alignment(1, 1), _emerald, .08),
-        ]),
+            // Soft same-hue blobs — the calm colour the frosted glass reveals.
+            _Wash(Alignment(0.9, -0.85), _sage, .30),
+            _Wash(Alignment(-0.9, 0.85), _sage, .24),
+            _Wash(Alignment(0.15, 0.1), _sage, .12),
+          ]),
+        ),
       );
 }
 
@@ -498,44 +504,44 @@ class GlassCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final r = BorderRadius.circular(radius);
+    // No per-card BackdropFilter: the blur is the expensive part, and over the
+    // calm tonal-sage ground it adds almost nothing. A translucent milky fill
+    // + a diagonal sheen + a light border reads as frosted glass for a
+    // fraction of the GPU cost (safe in long scrolling lists).
     Widget card = ClipRRect(
       borderRadius: r,
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: r,
-            // clean, mostly-opaque frosted white — crisp, not washed out
-            gradient: const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xF2FBFBF5), Color(0xE6F1F2E9)],
-            ),
-            border: Border.all(color: Colors.white.withValues(alpha: .85)),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: r,
+          gradient: const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xBCFCFCF9), Color(0xAAF6F7EF)],
           ),
-          child: Stack(children: [
-            // diagonal glass sheen — the highlight that reads as frosted glass
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    borderRadius: r,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: .5),
-                        Colors.white.withValues(alpha: 0),
-                      ],
-                      stops: const [0, .3],
-                    ),
+          border: Border.all(color: Colors.white.withValues(alpha: .8)),
+        ),
+        child: Stack(children: [
+          // diagonal glass sheen — the highlight that reads as frosted glass
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: r,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withValues(alpha: .5),
+                      Colors.white.withValues(alpha: 0),
+                    ],
+                    stops: const [0, .3],
                   ),
                 ),
               ),
             ),
-            Padding(padding: padding, child: child),
-          ]),
-        ),
+          ),
+          Padding(padding: padding, child: child),
+        ]),
       ),
     );
     card = DecoratedBox(
