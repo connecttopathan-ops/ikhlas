@@ -31,27 +31,30 @@ to each partner's guardian.
   change takes effect immediately.
 - Every digest is written to `waliDigests/*` for a durable audit trail
   (moderator-readable — privacy accountability, PRD §4.6).
-- WhatsApp carries a **notification only** (ward name + new-message count) — the
-  raw transcript never goes over WhatsApp, and **stays in `waliDigests/*`** for
-  the wali portal (PRD §4.5 magic-link surface).
 
 ### Two delivery channels, one audit trail
-`deliverWaliDigest` is the single integration point. Each digest gets a
-ready-to-send `notice` string and a `waLink` (a `wa.me/<number>?text=…`
-click-to-chat link), then:
+`deliverWaliDigest` is the single integration point. Each digest gets a short
+`notice` (for the template path), a full `waMessage` **including the
+transcript**, and a `waLink` (a `wa.me/<number>?text=…` click-to-chat link
+built from `waMessage`), then:
 
 1. **Manual (default, closed testing)** — no Cloud API configured → the digest
    is left `status: 'pending'` and appears in the **admin "Wali digests" tab**.
-   A moderator taps **Open WhatsApp** (their *own* WhatsApp opens with the
-   notice pre-typed to the guardian's number — ToS-clean, no ban risk, no Meta
-   setup), sends it, and taps **Mark sent** (`markWaliDigestSent`, moderator-only
-   → `status: 'sent'`). A weekly cadence keeps this to a handful of taps a week.
+   The operator taps **Open WhatsApp** (their *own* WhatsApp opens with the
+   **full message — transcript included** — pre-typed to the guardian's number;
+   ToS-clean, no ban risk, no Meta setup), sends it, and taps **Mark sent**
+   (`markWaliDigestSent`, moderator-only → `status: 'sent'`). The manual link is
+   a person sending text, so it is *not* template-constrained and carries the
+   transcript (capped so the wa.me URL stays within WhatsApp's length limit).
+   A weekly cadence keeps this to a handful of taps a week.
 2. **Automated (GA)** — `WHATSAPP_TOKEN` secret + `config/whatsapp.phoneNumberId`
-   present → the approved template sends automatically (`status: 'sent'`,
+   present → an **approved template** sends automatically (`status: 'sent'`,
    `providerId` recorded; `status: 'failed'` + `error` on a bad response).
-
-A digest is *business-initiated*, so the Cloud API path needs an **approved
-template** (variables can't hold multi-line text — hence notification-only).
+   Because a digest is *business-initiated*, Meta requires an approved template
+   whose variables can't hold multi-line text — so **the automated path is
+   notification-only** (ward name + count); the transcript stays in
+   `waliDigests/*` for the wali portal (PRD §4.5). If transcripts must reach
+   guardians automatically, build the portal rather than push them over WhatsApp.
 
 ### WhatsApp provisioning (one-time, outside this repo)
 1. WhatsApp Business Account + verified Meta Business.
@@ -105,9 +108,10 @@ conversations/{convId} {
 waliDigests/{id} {              // audit trail + admin outbox, moderator-readable
   convId, wardUid, waliName, waliPhone,
   channel: 'whatsapp', messageCount,
-  notice,                       // exact text to send (never the transcript)
-  waLink,                       // wa.me click-to-chat link for manual send
-  transcript,                   // full activity — portal/moderator only
+  notice,                       // short text — automated template path
+  waMessage,                    // full text incl. transcript — manual path
+  waLink,                       // wa.me click-to-chat link (from waMessage)
+  transcript,                   // full activity — audit / portal
   status: 'pending' | 'sent' | 'failed',
   delivered, providerId, error,
   sentManuallyBy, sentAt,       // set by markWaliDigestSent

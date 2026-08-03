@@ -1716,14 +1716,27 @@ async function whatsappConfig() {
   }
 }
 
-/** The respectful notification a guardian receives (WhatsApp is a per-message
- *  notification, never the raw transcript — the transcript lives in the audit
- *  doc / wali portal). Single line, safe for both a template and a wa.me link. */
+/** Short single-line notification — used by the Cloud API template path, whose
+ *  variables can't hold multi-line text (so no transcript there). */
 function waNotificationText({ waliName, wardName, messageCount }) {
   const salaam = waliName ? `As-salamu alaykum ${waliName}.` : 'As-salamu alaykum.';
   const n = messageCount === 1 ? 'is 1 new message' : `are ${messageCount} new messages`;
   return `${salaam} This is your weekly Ikhlaas update: there ${n} in ` +
     `${wardName}'s conversation that you oversee. Please check in with them, ` +
+    `insha'Allah.`;
+}
+
+/** Full multi-line message for the MANUAL wa.me link — includes the actual
+ *  transcript (a person sends this, so it isn't template-constrained). Capped
+ *  so the wa.me URL stays within WhatsApp's click-to-chat length limit. */
+function waManualText({ waliName, wardName, transcript, messageCount }) {
+  const salaam = waliName ? `As-salamu alaykum ${waliName}.` : 'As-salamu alaykum.';
+  const n = messageCount === 1 ? '1 new message' : `${messageCount} new messages`;
+  let body = transcript || '';
+  const CAP = 3200;   // leave headroom under the ~4k wa.me practical limit
+  if (body.length > CAP) body = `${body.slice(0, CAP)}\n…(truncated)`;
+  return `${salaam}\n\nWeekly Ikhlaas update for the conversation you oversee ` +
+    `(${wardName}) — ${n} this week:\n\n${body}\n\nPlease review it with them, ` +
     `insha'Allah.`;
 }
 
@@ -1740,10 +1753,14 @@ function waNotificationText({ waliName, wardName, messageCount }) {
  *  @param {object} wa  { token, phoneNumberId, templateName, languageCode } or null */
 async function deliverWaliDigest({ convId, wardUid, wali, wardName, transcript, messageCount, wa }) {
   const notice = waNotificationText({ waliName: wali.name, wardName, messageCount });
-  // Click-to-chat link — opens the sender's own WhatsApp with the text ready.
+  // The manual message carries the FULL transcript (a person sends it).
+  const manualMessage = waManualText({
+    waliName: wali.name, wardName, transcript, messageCount,
+  });
+  // Click-to-chat link — opens the sender's own WhatsApp with the message ready.
   const digits = String(wali.phone || '').replace(/[^\d]/g, '');
   const waLink = digits
-    ? `https://wa.me/${digits}?text=${encodeURIComponent(notice)}`
+    ? `https://wa.me/${digits}?text=${encodeURIComponent(manualMessage)}`
     : null;
 
   let status = 'pending';   // pending → sent (auto or manual) / failed
@@ -1785,10 +1802,10 @@ async function deliverWaliDigest({ convId, wardUid, wali, wardName, transcript, 
     waliPhone: wali.phone || null,
     channel: 'whatsapp',
     messageCount,
-    notice,               // the exact text to send (template / manual)
-    waLink,               // tap to send from a normal WhatsApp
+    notice,               // short template text (Cloud API path)
+    waMessage: manualMessage, // full text incl. transcript (manual wa.me path)
+    waLink,               // tap to send it from a normal WhatsApp
     // Full transcript for moderator review / the wali portal (PRD §4.5/§4.6).
-    // Never sent over WhatsApp. Purged with the conversation.
     transcript,
     status,
     delivered,

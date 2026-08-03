@@ -55,7 +55,6 @@ class _DigestCard extends StatefulWidget {
 
 class _DigestCardState extends State<_DigestCard> {
   bool _busy = false;
-  bool _showTranscript = false;
 
   Future<void> _openWhatsApp() async {
     final link = widget.doc.data()['waLink'] as String?;
@@ -93,7 +92,9 @@ class _DigestCardState extends State<_DigestCard> {
   Widget build(BuildContext context) {
     final d = widget.doc.data();
     final count = d['messageCount'] ?? 0;
-    final transcript = (d['transcript'] ?? '').toString();
+    // The exact text that gets sent — full transcript included.
+    final message =
+        (d['waMessage'] ?? d['notice'] ?? '').toString();
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(22),
@@ -112,16 +113,20 @@ class _DigestCardState extends State<_DigestCard> {
         Text(d['waliPhone']?.toString() ?? 'No phone on file',
             style: T.inter(12.5, color: T.gold)),
         const SizedBox(height: 14),
-        // The exact notice that will be sent (never the transcript).
+        // The exact message that will be sent — full transcript included.
         Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(maxHeight: 280),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: T.bg,
             borderRadius: BorderRadius.circular(8),
             border: Border.all(color: T.hairline),
           ),
-          child: Text(d['notice']?.toString() ?? '',
-              style: T.inter(13.5, color: T.ivory, height: 1.5)),
+          child: SingleChildScrollView(
+            child: SelectableText(message,
+                style: T.inter(13.5, color: T.ivory, height: 1.5)),
+          ),
         ),
         const SizedBox(height: 16),
         if (_busy)
@@ -146,28 +151,7 @@ class _DigestCardState extends State<_DigestCard> {
                   side: BorderSide(color: T.gold.withOpacity(.6))),
               child: Text('Mark sent', style: T.inter(13, color: T.gold)),
             ),
-            if (transcript.isNotEmpty)
-              TextButton(
-                onPressed: () =>
-                    setState(() => _showTranscript = !_showTranscript),
-                child: Text(_showTranscript ? 'Hide transcript' : 'View transcript',
-                    style: T.inter(13, color: T.muted)),
-              ),
           ]),
-        if (_showTranscript && transcript.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: T.bg,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: T.hairline),
-            ),
-            child: Text(transcript,
-                style: T.inter(12.5, color: T.muted, height: 1.6)),
-          ),
-        ],
       ]),
     );
   }
