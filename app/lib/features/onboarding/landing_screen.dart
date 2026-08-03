@@ -214,23 +214,9 @@ class _LandingScreenState extends State<LandingScreen>
         child: child,
       );
 
-  Widget _cta(BuildContext context) => SizedBox(
-        width: double.infinity,
-        height: 58,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: LightTokens.ctaBg,
-            foregroundColor: LightTokens.ctaText,
-            elevation: 0,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30)),
-          ),
-          onPressed: () => context.go('/login'),
-          child: Text('Begin my application',
-              style: AppType.fraunces(17,
-                  weight: FontWeight.w500, color: LightTokens.ctaText)),
-        ),
+  Widget _cta(BuildContext context) => PrimaryCta(
+        label: 'Begin my application',
+        onPressed: () => context.go('/login'),
       );
 
   static Widget _eyebrow(String s) => Text(s,

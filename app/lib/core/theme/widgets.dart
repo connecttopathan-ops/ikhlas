@@ -20,43 +20,65 @@ class PrimaryCta extends StatelessWidget {
   final bool loading;
   const PrimaryCta({super.key, required this.label, this.onPressed, this.loading = false});
 
+  // Champagne "pill" — raised gold gradient with deep-green text and a soft
+  // neumorphic lift. The app-wide primary action.
+  static const _fg = Color(0xFF152A1D); // deep green ink on gold
+  static const _radius = 26.0;
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? DarkTokens.ctaBg : LightTokens.ctaBg;
-    final fg = isDark ? DarkTokens.ctaText : LightTokens.ctaText;
-    final ring = isDark ? DarkTokens.ctaRing : LightTokens.ctaRing;
     final enabled = onPressed != null && !loading;
-
     return AnimatedOpacity(
       duration: const Duration(milliseconds: 200),
       opacity: enabled ? 1 : 0.4,
       child: SizedBox(
-        height: 56,
+        height: 54,
         width: double.infinity,
-        child: Material(
-          color: bg,
-          borderRadius: BorderRadius.circular(AppRadius.control),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(AppRadius.control),
-            onTap: enabled
-                ? () {
-                    HapticFeedback.selectionClick();
-                    onPressed!();
-                  }
-                : null,
-            child: Container(
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppRadius.control),
-                border: Border.all(color: ring, width: 1),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_radius),
+            gradient: const LinearGradient(
+              begin: Alignment(-.6, -1),
+              end: Alignment(.6, 1),
+              colors: [Color(0xFFE8D081), Color(0xFFCFAE56)],
+            ),
+            border: Border.all(color: Colors.white.withValues(alpha: .45)),
+            boxShadow: [
+              // soft gold drop (bottom-right)
+              BoxShadow(
+                color: const Color(0xFF8E7226).withValues(alpha: .38),
+                blurRadius: 16,
+                offset: const Offset(3, 8),
               ),
-              child: loading
-                  ? SizedBox(
-                      height: 20, width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: fg))
-                  : Text(label,
-                      style: AppType.inter(15, weight: FontWeight.w600, color: fg, height: 1.2)),
+              // light lift (top-left) — the neumorphic highlight
+              const BoxShadow(
+                color: Color(0xE6FFFFFF),
+                blurRadius: 12,
+                offset: Offset(-4, -5),
+              ),
+            ],
+          ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(_radius),
+              onTap: enabled
+                  ? () {
+                      HapticFeedback.selectionClick();
+                      onPressed!();
+                    }
+                  : null,
+              child: Center(
+                child: loading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: _fg))
+                    : Text(label,
+                        style: AppType.inter(15,
+                            weight: FontWeight.w700, color: _fg, height: 1.2)),
+              ),
             ),
           ),
         ),
