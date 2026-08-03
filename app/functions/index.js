@@ -225,6 +225,72 @@ async function idVerificationMandatory() {
   }
 }
 
+// ============================================================
+// Family Stage + Wali digest — the app's most safety-sensitive surface.
+// This is where chaperoned, on-platform contact gives way to guardian
+// contact exchange and an off-platform hand-off, so it is GATED behind a
+// CA / legal sign-off before it reaches non-tester users (PRD §5 P0 #11,
+// §7 legal). Until legal signs off, the request/confirm/decline and the
+// periodic wali digest run ONLY among a known closed-testing allowlist.
+//
+//   config/featureFlags = {
+//     familyStage: {
+//       legalSignedOff: false,      // set true ONLY after CA + legal review
+//       signedOffBy: null, signedOffAt: null,   // audit
+//       testerUids: ['<uid>', ...], // closed-testing allowlist
+//     }
+//   }
+//
+// Absent/malformed doc → LOCKED (signed-off:false, empty allowlist): the
+// safe default is "nobody", never "everybody".
+// ============================================================
+async function familyStageFlag() {
+  try {
+    const d = await db.doc('config/featureFlags').get();
+    const f = (d.exists && d.get('familyStage')) || {};
+    return {
+      legalSignedOff: f.legalSignedOff === true,
+      testerUids: Array.isArray(f.testerUids) ? f.testerUids : [],
+    };
+  } catch (_) {
+    return { legalSignedOff: false, testerUids: [] };
+  }
+}
+
+/** True iff the Family Stage surface is permitted for EVERY uid in `uids`
+ *  right now: legal has signed off (open to all) or all uids are testers. */
+async function familyStageAllowed(uids) {
+  const f = await familyStageFlag();
+  if (f.legalSignedOff) return true;
+  const testers = new Set(f.testerUids);
+  return uids.every((u) => testers.has(u));
+}
+
+/** Callable guard — clean failed-precondition while the gate is locked. */
+async function assertFamilyStageAllowed(uids) {
+  if (!(await familyStageAllowed(uids))) {
+    throw new HttpsError(
+      'failed-precondition',
+      'The Family Stage is in limited testing and is not yet available on ' +
+        'your account. We will open it to everyone soon, insha’Allah.'
+    );
+  }
+}
+
+/** Income band, residency status and nationality — collected at the gate,
+ *  deliberately WITHHELD from the match card (never used to rank; PRD §0),
+ *  and unlocked to the other party the moment a mutual conversation opens.
+ *  Stored on the conversation under `disclosures.<uid>` so each participant
+ *  (and an observing Wali) can read them without touching the users doc. */
+function financialDisclosure(userSnap) {
+  const p = (userSnap.data() || {}).profile || {};
+  return {
+    incomeBand: p.incomeBand || null,
+    residencyStatus: p.residencyStatus || null,
+    nationality: p.nationality || null,
+  };
+}
+
 /** Deletes a declined applicant's quarantined government-ID image + its review
  *  record (data minimization — we don't retain the IDs of people we turned
  *  away). Best-effort: never throws into the caller. */
@@ -862,6 +928,23 @@ exports.onEntryAction = onDocumentUpdated(
         [uid]: chatProfile(ua, appA),
         [otherUid]: chatProfile(ub, appB),
       },
+      // Income / residency disclosures unlock the moment the conversation
+      // opens — off the match card (PRD §0), on the table now that both
+      // have chosen each other. Withheld everywhere before this point.
+      disclosuresUnlocked: true,
+      disclosures: {
+        [uid]: financialDisclosure(ua),
+        [otherUid]: financialDisclosure(ub),
+      },
+      // Periodic guardian digest. Symmetric rule (both partners evaluated
+      // identically), conditional delivery (a wali only receives it if that
+      // partner registered one at "observe" level — recomputed live each run
+      // in sendWaliDigests, so a permission change is honoured immediately).
+      waliDigest: {
+        enabled: true,
+        cadenceDays: 3,
+        lastSentAt: null,
+      },
       photoReveal: {},
       photoRevealRequests: {},
       createdAt: FieldValue.serverTimestamp(),
@@ -1220,14 +1303,20 @@ async function convForMember(convId, uid) {
   return { ref, snap };
 }
 
-/** Either party taps "Involve families" → records the request, notifies. */
+/** Either party taps "Involve families" → records the request, notifies.
+ *  Gated: the whole Family Stage surface is CA/legal-locked until sign-off. */
 exports.requestFamilyStage = onCall({ region: REGION }, async (request) => {
   const uid = requireAuth(request);
   const { ref, snap } = await convForMember(request.data?.convId, uid);
+  await assertFamilyStageAllowed(snap.get('participants'));
   if (snap.get('familyStage')?.confirmed) return { ok: true };
   await ref.update({
     'familyStage.requestedBy': uid,
     'familyStage.requestedAt': FieldValue.serverTimestamp(),
+    // A fresh request supersedes any earlier decline on this conversation.
+    'familyStage.declined': FieldValue.delete(),
+    'familyStage.declinedBy': FieldValue.delete(),
+    'familyStage.declinedAt': FieldValue.delete(),
   });
   await ref.collection('messages').add({
     from: 'system',
@@ -1242,24 +1331,73 @@ exports.requestFamilyStage = onCall({ region: REGION }, async (request) => {
   return { ok: true };
 });
 
-/** The other party confirms → stage=family, structured Wali exchange,
- *  meeting intent recorded. THE north-star event. */
+/** The other party DECLINES the Family Stage request → clears the request,
+ *  notes it, and lets the initiator know without ending the conversation. */
+exports.declineFamilyStage = onCall({ region: REGION }, async (request) => {
+  const uid = requireAuth(request);
+  const { ref, snap } = await convForMember(request.data?.convId, uid);
+  const fs = snap.get('familyStage') || {};
+  if (fs.confirmed) {
+    throw new HttpsError('failed-precondition',
+      'The Family Stage has already been confirmed.');
+  }
+  if (!fs.requestedBy || fs.requestedBy === uid) {
+    throw new HttpsError('failed-precondition',
+      'There is no pending Family Stage request for you to decline.');
+  }
+  const initiator = fs.requestedBy;
+  await ref.update({
+    'familyStage.requestedBy': FieldValue.delete(),
+    'familyStage.requestedAt': FieldValue.delete(),
+    'familyStage.declined': true,
+    'familyStage.declinedBy': uid,
+    'familyStage.declinedAt': FieldValue.serverTimestamp(),
+  });
+  await ref.collection('messages').add({
+    from: 'system',
+    system: true,
+    text: 'The request to involve families was declined for now. You can '
+      + 'keep talking and raise it again when the time feels right, insha’Allah.',
+    at: FieldValue.serverTimestamp(),
+  });
+  await pushTo(initiator, 'Not just yet',
+    'Your match would like to keep talking before involving families.');
+  return { ok: true };
+});
+
+/** The other party ACCEPTS → stage=family, structured guardian exchange,
+ *  meeting intent recorded. THE north-star event.
+ *
+ *  CONTACT-SHARING SCOPE — flagged divergence:
+ *  The PRD (§4.4 Stage 3, §5 P0 #11) is explicit and consistent: the Family
+ *  Stage exchanges the couple's WALI (guardian) contact details through the
+ *  app — NOT the couple's own personal phone numbers. The implementation
+ *  task prompt asked to share the couple's personal numbers here. Per that
+ *  prompt's own instruction ("If the PRD and this prompt ever diverge on
+ *  that, follow the PRD and flag it"), we share WALI contacts only. The
+ *  hand-off then continues off-platform between the two guardians, and both
+ *  members are told chaperoned in-app contact ends here (the off-platform
+ *  threshold notice below). If sharing personal numbers is ever wanted, it
+ *  must come back through CA/legal sign-off, not a silent code change. */
 exports.confirmFamilyStage = onCall({ region: REGION }, async (request) => {
   const uid = requireAuth(request);
   const { ref, snap } = await convForMember(request.data?.convId, uid);
+  const parts = snap.get('participants');
+  await assertFamilyStageAllowed(parts);
   const fs = snap.get('familyStage') || {};
   if (!fs.requestedBy || fs.requestedBy === uid) {
     throw new HttpsError('failed-precondition',
       'The other party must request the Family Stage first.');
   }
 
-  const parts = snap.get('participants');
   const [ua, ub] = await Promise.all(parts.map((p) => db.doc(`users/${p}`).get()));
   const waliOf = (u) => {
     const w = u.get('wali');
     return w ? { name: w.name, relationship: w.relationship, phone: w.phone } : null;
   };
-  // Wali contact details shared THROUGH the app (never typed in chat).
+  // Wali (guardian) contact details shared THROUGH the app (never typed in
+  // chat). Personal numbers are deliberately NOT shared here — see the
+  // flagged-divergence note above.
   const exchange = {
     [parts[0]]: waliOf(ua),
     [parts[1]]: waliOf(ub),
@@ -1270,6 +1408,9 @@ exports.confirmFamilyStage = onCall({ region: REGION }, async (request) => {
     'familyStage.confirmed': true,
     'familyStage.confirmedBy': uid,
     'familyStage.confirmedAt': FieldValue.serverTimestamp(),
+    // Chaperoned in-app contact ends at the Family Stage; the guardians now
+    // carry it forward off-platform. Record that the threshold was crossed.
+    'familyStage.offPlatformNoticeAt': FieldValue.serverTimestamp(),
     familyExchange: exchange,
     stageHistory: FieldValue.arrayUnion({ stage: 'family', at: new Date() }),
   });
@@ -1278,6 +1419,15 @@ exports.confirmFamilyStage = onCall({ region: REGION }, async (request) => {
     system: true,
     text: 'Family Stage reached, alhamdulillah. Guardian contacts have been '
       + 'shared with both sides. May Allah bless this path.',
+    at: FieldValue.serverTimestamp(),
+  });
+  // Off-platform threshold notice — the safety hand-off, stated plainly.
+  await ref.collection('messages').add({
+    from: 'system',
+    system: true,
+    text: 'From here the families take things forward directly, so this is '
+      + 'where Ikhlaas’ chaperoned space steps back. Please continue through '
+      + 'your guardians and keep your and their wellbeing first.',
     at: FieldValue.serverTimestamp(),
   });
 
@@ -1502,6 +1652,118 @@ async function notifyWalisOf(uids, title, body) {
     }
   }
 }
+
+// ============================================================
+// Periodic Wali digest (PRD §4.5 — "full transcripts … she chooses the
+// permission level"). Every few days each observing guardian receives the
+// new conversation activity for the ward they oversee. Symmetric rule (both
+// partners are evaluated identically each run), conditional delivery (a
+// guardian receives it only if that partner keeps a wali at "observe").
+//
+// Delivery is the SINGLE integration point below. WhatsApp/SMS to guardians
+// needs DLT registration (PRD §7, Phase 2) and guardian email is not yet
+// collected, so real sending is STUBBED for closed testing — mirroring the
+// existing notifyWalisOf stub. Every digest is written to `waliDigests/*`
+// for a durable audit trail regardless of whether a channel is live.
+// ============================================================
+
+/** New, non-system messages on a conversation since `sinceMs` (0 = all). */
+async function newMessagesSince(convRef, sinceMs) {
+  const q = await convRef.collection('messages').orderBy('at').get();
+  const out = [];
+  for (const d of q.docs) {
+    const m = d.data();
+    if (m.system === true || !m.from) continue;
+    const atMs = m.at?.toMillis?.() ?? 0;
+    if (sinceMs && atMs <= sinceMs) continue;
+    out.push({ from: m.from, text: m.text || '', atMs });
+  }
+  return out;
+}
+
+/** Renders a plain-text transcript a low-tech guardian can read at a glance. */
+function renderDigestText(profiles, lines) {
+  const nameOf = (uid) => profiles?.[uid]?.displayName || 'Member';
+  return lines
+    .map((l) => `${nameOf(l.from)}: ${l.text}`)
+    .join('\n');
+}
+
+/** THE single delivery point for a guardian digest. Stubbed until a channel
+ *  is live; always records an audit doc. Returns the audit record id. */
+async function deliverWaliDigest({ convId, wardUid, wali, transcript, messageCount }) {
+  const channel = wali.email ? 'email' : (wali.phone ? 'whatsapp' : 'none');
+  const audit = await db.collection('waliDigests').add({
+    convId,
+    wardUid,
+    waliName: wali.name || null,
+    waliPhone: wali.phone || null,
+    waliEmail: wali.email || null,
+    channel,
+    messageCount,
+    // Store the transcript so a moderator can see exactly what a guardian was
+    // shown (privacy accountability, PRD §4.6). Purged with the conversation.
+    transcript,
+    delivered: false,             // flips true once a real channel sends it
+    at: FieldValue.serverTimestamp(),
+  });
+  // STUB: no WhatsApp/SMS (DLT pending) and no guardian email captured yet.
+  console.log(
+    `[wali-digest STUB] ${channel} → ${wali.phone || wali.email || '(no contact)'} ` +
+    `for ward ${wardUid} on conv ${convId}: ${messageCount} new message(s).`
+  );
+  return audit.id;
+}
+
+/** Periodic guardian digest — runs daily, sends only conversations that are
+ *  due per their own cadence. Kept off the message path so chat stays fast. */
+exports.sendWaliDigests = onSchedule(
+  { schedule: '0 9 * * *', timeZone: 'Asia/Kolkata', region: REGION },
+  async () => {
+    const now = Date.now();
+    const snap = await db.collection('conversations').get();
+    for (const d of snap.docs) {
+      const wd = d.get('waliDigest');
+      if (!wd || wd.enabled !== true) continue;
+      if (String(d.get('stage')).startsWith('closed_')) continue;
+
+      const parts = d.get('participants') || [];
+      // Same CA/legal gate as the rest of the Family Stage surface — no
+      // guardian transcript leaves the platform until sign-off (or testers).
+      if (!(await familyStageAllowed(parts))) continue;
+
+      const cadenceMs = (wd.cadenceDays || 3) * 24 * 3600 * 1000;
+      const lastSent = wd.lastSentAt?.toMillis?.() ?? 0;
+      if (lastSent && now - lastSent < cadenceMs) continue;
+
+      const lines = await newMessagesSince(d.ref, lastSent);
+      if (lines.length === 0) continue;   // nothing new — don't spam guardians
+
+      const profiles = d.get('profiles') || {};
+      let sentAny = false;
+      for (const wardUid of parts) {
+        const w = (await db.doc(`users/${wardUid}`).get()).get('wali');
+        // Conditional: only an "observe"-level guardian receives transcripts.
+        if (w?.permissionLevel !== 'observe') continue;
+        if (!w.phone && !w.email) continue;
+        await deliverWaliDigest({
+          convId: d.id,
+          wardUid,
+          wali: w,
+          transcript: renderDigestText(profiles, lines),
+          messageCount: lines.length,
+        });
+        sentAny = true;
+      }
+      // Advance the cursor once per run whether or not a guardian was eligible,
+      // so an unobserved conversation doesn't re-scan its whole history daily.
+      await d.ref.update({
+        'waliDigest.lastSentAt': FieldValue.serverTimestamp(),
+        ...(sentAny ? { 'waliDigest.lastDeliveredAt': FieldValue.serverTimestamp() } : {}),
+      });
+    }
+  }
+);
 
 /** Compact profile snapshot stored on a conversation so each participant
  *  can render the other's name/profile without reading their users doc. */

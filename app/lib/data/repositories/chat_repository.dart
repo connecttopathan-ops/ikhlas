@@ -68,6 +68,9 @@ class ChatRepository {
   Future<void> confirmFamilyStage(String convId) =>
       _fns.httpsCallable('confirmFamilyStage').call({'convId': convId});
 
+  Future<void> declineFamilyStage(String convId) =>
+      _fns.httpsCallable('declineFamilyStage').call({'convId': convId});
+
   // ---- Moderation ----
   Future<void> reportUser(String reportedUid, String reason,
           {String? convId, String? detail}) =>

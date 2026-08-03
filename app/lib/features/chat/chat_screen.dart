@@ -244,8 +244,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         final fs = (conv['familyStage'] as Map?) ?? {};
         final familyExchange = conv['familyExchange'] as Map?;
         final profiles = (conv['profiles'] as Map?) ?? const {};
-        final otherProfile =
-            (profiles[other] as Map?)?.cast<String, dynamic>();
+        // Income / residency disclosures unlock at conversation open — off the
+        // match card, on the profile now. Fold them into the profile map so
+        // the profile sheet can show them without a second data source.
+        final disclosures = (conv['disclosures'] as Map?) ?? const {};
+        final otherDisclosure =
+            (disclosures[other] as Map?)?.cast<String, dynamic>();
+        final otherBase = (profiles[other] as Map?)?.cast<String, dynamic>();
+        final otherProfile = otherBase == null
+            ? null
+            : {...otherBase, if (otherDisclosure != null) ...otherDisclosure};
         final myProfile = (profiles[me] as Map?)?.cast<String, dynamic>();
         final photoReveal = (conv['photoReveal'] as Map?) ?? const {};
         final photoRevealRequests =
@@ -406,13 +414,34 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             style: AppType.inter(12.5, color: DarkTokens.muted())),
       );
     }
-    return _bar(
-      'They asked to involve families.',
-      'Agree & exchange guardians',
-      () => _run(
-          () => ref.read(chatRepositoryProvider)
-              .confirmFamilyStage(widget.convId),
-          errorMsg: 'Could not confirm. Please try again.'),
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: DarkTokens.hairline(.3)))),
+      child: Column(children: [
+        Text('They asked to involve families.',
+            style: AppType.inter(12.5, color: DarkTokens.muted())),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 44,
+          child: PrimaryCta(
+            label: 'Agree & exchange guardians',
+            onPressed: () => _run(
+                () => ref.read(chatRepositoryProvider)
+                    .confirmFamilyStage(widget.convId),
+                errorMsg: 'Could not confirm. Please try again.'),
+          ),
+        ),
+        const SizedBox(height: 4),
+        TextButton(
+          onPressed: () => _run(
+              () => ref.read(chatRepositoryProvider)
+                  .declineFamilyStage(widget.convId),
+              errorMsg: 'Could not send that. Please try again.'),
+          child: Text('Not just yet — keep talking',
+              style: AppType.inter(12.5, color: DarkTokens.muted(.75))),
+        ),
+      ]),
     );
   }
 

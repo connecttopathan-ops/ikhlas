@@ -58,6 +58,17 @@ class ChatProfileScreen extends StatelessWidget {
     'joint': 'Joint family', 'nuclear': 'Nuclear household',
     'flexible': 'Flexible / open',
   };
+  // Disclosures — unlocked at conversation open (never on the match card).
+  static const _incomeLabel = {
+    'under_3l': 'Under ₹3 lakh', 'r3_6l': '₹3–6 lakh', 'r6_12l': '₹6–12 lakh',
+    'r12_24l': '₹12–24 lakh', 'r24_50l': '₹24–50 lakh',
+    'r50l_plus': '₹50 lakh and above', 'prefer_not': 'Prefer not to say',
+  };
+  static const _residencyLabel = {
+    'citizen': 'Citizen', 'permanent_resident': 'Permanent resident',
+    'long_term_visa': 'Long-term visa', 'work_visa': 'Work visa',
+    'student_visa': 'Student visa',
+  };
   static String? _heightLabel(dynamic cm) {
     if (cm is! int || cm <= 0) return null;
     final t = (cm / 2.54).round();
@@ -202,6 +213,21 @@ class ChatProfileScreen extends StatelessWidget {
                 _fact('Education', e['education']),
                 _fact('Profession', e['profession']),
                 _fact('Languages', langs.isEmpty ? null : langs.join(', ')),
+
+                // DISCLOSURES — income band & residency. Collected at the gate,
+                // withheld from the match card, unlocked once you both matched.
+                if (_incomeLabel[e['incomeBand']] != null ||
+                    _residencyLabel[e['residencyStatus']] != null ||
+                    (e['nationality'] ?? '').toString().isNotEmpty) ...[
+                  const SizedBox(height: 22),
+                  const Hairline(),
+                  const SizedBox(height: 18),
+                  Text('DISCLOSURES', style: AppType.eyebrow(DarkTokens.gold)),
+                  const SizedBox(height: 12),
+                  _fact('Income band', _incomeLabel[e['incomeBand']]),
+                  _fact('Residency', _residencyLabel[e['residencyStatus']]),
+                  _fact('Nationality', e['nationality']),
+                ],
 
                 // FAMILY (descriptive free-text lives under IN THEIR WORDS).
                 if (_livingLabel[e['livingArrangement']] != null) ...[

@@ -187,6 +187,9 @@ service cloud.firestore {
     match /banRegistry/{key} { allow read, write: if false; }
     match /waliInvites/{id} { allow read, write: if false; }
     match /metrics_familyStage/{id} { allow read: if isModerator(); allow write: if false; }
+    // wali digests — guardian transcript records. Backend-written; a moderator
+    // may read them for privacy accountability (PRD §4.6). Never client-writable.
+    match /waliDigests/{id} { allow read: if isModerator(); allow write: if false; }
 
     // Default deny for anything not matched above.
     match /{document=**} {
