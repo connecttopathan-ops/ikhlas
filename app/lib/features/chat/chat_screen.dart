@@ -704,11 +704,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width * .72),
             decoration: BoxDecoration(
+              // Frosted chip: incoming reads as glass, outgoing as champagne.
               color: mine
-                  ? DarkTokens.gold.withOpacity(.14)
-                  : DarkTokens.ivory.withOpacity(.05),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: DarkTokens.hairline(.3)),
+                  ? DarkTokens.gold.withValues(alpha: .16)
+                  : const Color(0xFFFCFCF9).withValues(alpha: .62),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                  color: mine
+                      ? DarkTokens.gold.withValues(alpha: .32)
+                      : Colors.white.withValues(alpha: .7)),
             ),
             child: Text(m['text'] ?? '',
                 style: AppType.inter(14, color: DarkTokens.ivory)),
@@ -765,9 +769,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               constraints: BoxConstraints(
                   maxWidth: MediaQuery.of(context).size.width * .72),
               decoration: BoxDecoration(
-                color: DarkTokens.gold.withOpacity(.10),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: DarkTokens.hairline(.3)),
+                color: DarkTokens.gold.withValues(alpha: .16),
+                borderRadius: BorderRadius.circular(14),
+                border:
+                    Border.all(color: DarkTokens.gold.withValues(alpha: .32)),
               ),
               child: Text(text,
                   style: AppType.inter(14, color: DarkTokens.ivory)),
