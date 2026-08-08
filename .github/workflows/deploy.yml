@@ -17,7 +17,9 @@ concurrency:
 
 env:
   PROJECT: ikhlas-caecf
-  FLUTTER_VERSION: 3.24.5
+  # Match the version the apps' pubspec.lock files were resolved with
+  # (sdks: flutter >=3.38.4). Older Flutter can't satisfy cloud_functions.
+  FLUTTER_VERSION: 3.38.4
 
 jobs:
   deploy:
