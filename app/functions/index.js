@@ -39,6 +39,11 @@ const RESEND_FROM = 'Ikhlaas <noreply@send.ikhlaas.io>';
 // both the secret and config/whatsapp.phoneNumberId are present. See whatsapp.js.
 const WHATSAPP_TOKEN = defineSecret('WHATSAPP_TOKEN');
 
+// The single WhatsApp account every wali digest is sent FROM (the operator
+// logs into WhatsApp as this number and sends). Informational — surfaced in the
+// admin outbox as a reminder; the wa.me link targets each guardian's own number.
+const WALI_DIGEST_SENDER = '+971522771875';
+
 initializeApp();
 const db = getFirestore();
 const REGION = 'asia-south1';
@@ -1757,8 +1762,11 @@ async function deliverWaliDigest({ convId, wardUid, wali, wardName, transcript, 
   const manualMessage = waManualText({
     waliName: wali.name, wardName, transcript, messageCount,
   });
-  // Click-to-chat link — opens the sender's own WhatsApp with the message ready.
-  const digits = String(wali.phone || '').replace(/[^\d]/g, '');
+  // The link targets the guardian's own number; the operator sends it from the
+  // WALI_DIGEST_SENDER WhatsApp account (whichever account is open in WhatsApp).
+  const destPhone = wali.phone;
+  // Click-to-chat link — opens WhatsApp to the guardian with the message ready.
+  const digits = String(destPhone || '').replace(/[^\d]/g, '');
   const waLink = digits
     ? `https://wa.me/${digits}?text=${encodeURIComponent(manualMessage)}`
     : null;
@@ -1768,14 +1776,14 @@ async function deliverWaliDigest({ convId, wardUid, wali, wardName, transcript, 
   let providerId = null;
   let error = null;
 
-  if (wa && wali.phone) {
+  if (wa && destPhone) {
     try {
       const resp = await sendWaliDigestWhatsApp({
         token: wa.token,
         phoneNumberId: wa.phoneNumberId,
         templateName: wa.templateName,
         languageCode: wa.languageCode,
-        toPhone: wali.phone,
+        toPhone: destPhone,
         wardName,
         messageCount,
       });
@@ -1799,7 +1807,8 @@ async function deliverWaliDigest({ convId, wardUid, wali, wardName, transcript, 
     convId,
     wardUid,
     waliName: wali.name || null,
-    waliPhone: wali.phone || null,
+    waliPhone: wali.phone || null,       // the guardian's number (link target)
+    sendFrom: WALI_DIGEST_SENDER,        // account to send from (reminder)
     channel: 'whatsapp',
     messageCount,
     notice,               // short template text (Cloud API path)

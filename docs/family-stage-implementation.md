@@ -40,13 +40,17 @@ built from `waMessage`), then:
 
 1. **Manual (default, closed testing)** — no Cloud API configured → the digest
    is left `status: 'pending'` and appears in the **admin "Wali digests" tab**.
-   The operator taps **Open WhatsApp** (their *own* WhatsApp opens with the
-   **full message — transcript included** — pre-typed to the guardian's number;
-   ToS-clean, no ban risk, no Meta setup), sends it, and taps **Mark sent**
-   (`markWaliDigestSent`, moderator-only → `status: 'sent'`). The manual link is
-   a person sending text, so it is *not* template-constrained and carries the
-   transcript (capped so the wa.me URL stays within WhatsApp's length limit).
-   A weekly cadence keeps this to a handful of taps a week.
+   Every digest is sent from one operator WhatsApp account (`WALI_DIGEST_SENDER`,
+   shown on the card as a reminder). For each pending digest the operator can:
+   - **Open WhatsApp** — opens a chat to the *guardian's* number with the full
+     message (transcript included) pre-typed; ToS-clean, no ban risk, no Meta
+     setup. Text is capped so the wa.me URL stays within WhatsApp's length limit.
+   - **Download** — saves the digest as a `.txt` file to attach in WhatsApp
+     manually (a `wa.me` link can't carry a file attachment, only text).
+   - **Mark sent** — `markWaliDigestSent` (moderator-only) → `status: 'sent'`,
+     dropping it from the queue.
+
+   A weekly cadence keeps this to a handful of sends a week.
 2. **Automated (GA)** — `WHATSAPP_TOKEN` secret + `config/whatsapp.phoneNumberId`
    present → an **approved template** sends automatically (`status: 'sent'`,
    `providerId` recorded; `status: 'failed'` + `error` on a bad response).

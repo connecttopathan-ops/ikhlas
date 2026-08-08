@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:html' as html; // admin is a web-only app
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
@@ -67,6 +70,25 @@ class _DigestCardState extends State<_DigestCard> {
     if (!ok) _snack('Could not open WhatsApp.');
   }
 
+  /// Downloads the digest as a .txt file so it can be attached in WhatsApp.
+  void _download() {
+    final d = widget.doc.data();
+    final text = (d['waMessage'] ?? d['transcript'] ?? '').toString();
+    if (text.isEmpty) {
+      _snack('Nothing to download.');
+      return;
+    }
+    final name = (d['waliName'] ?? 'guardian')
+        .toString()
+        .replaceAll(RegExp(r'[^A-Za-z0-9]+'), '-');
+    final bytes = utf8.encode(text);
+    final url = html.Url.createObjectUrlFromBlob(html.Blob([bytes], 'text/plain'));
+    html.AnchorElement(href: url)
+      ..setAttribute('download', 'wali-digest-$name.txt')
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
+
   Future<void> _markSent() async {
     setState(() => _busy = true);
     try {
@@ -110,8 +132,11 @@ class _DigestCardState extends State<_DigestCard> {
         const SizedBox(height: 4),
         Text('$count new message${count == 1 ? '' : 's'} to notify',
             style: T.inter(12.5, color: T.muted)),
-        Text(d['waliPhone']?.toString() ?? 'No phone on file',
+        Text('Send to guardian: ${d['waliPhone']?.toString() ?? 'no phone on file'}',
             style: T.inter(12.5, color: T.gold)),
+        if ((d['sendFrom'] ?? '').toString().isNotEmpty)
+          Text('From WhatsApp: ${d['sendFrom']}',
+              style: T.inter(12.5, color: T.muted)),
         const SizedBox(height: 14),
         // The exact message that will be sent — full transcript included.
         Container(
@@ -144,6 +169,13 @@ class _DigestCardState extends State<_DigestCard> {
               icon: const Icon(Icons.chat_bubble_outline, size: 16),
               label: Text('Open WhatsApp',
                   style: T.inter(13, weight: FontWeight.w600)),
+            ),
+            OutlinedButton.icon(
+              onPressed: _download,
+              style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: T.muted.withOpacity(.5))),
+              icon: Icon(Icons.download, size: 16, color: T.ivory),
+              label: Text('Download', style: T.inter(13, color: T.ivory)),
             ),
             OutlinedButton(
               onPressed: _markSent,
