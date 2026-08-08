@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
 import 'tokens.dart';
@@ -16,6 +17,23 @@ class _ActivityScreenState extends State<ActivityScreen> {
   final _search = TextEditingController();
   String _sort = 'lastActive';
   String _q = '';
+  bool _refreshing = false;
+
+  Future<void> _refresh() async {
+    setState(() => _refreshing = true);
+    try {
+      await FirebaseFunctions.instanceFor(region: 'asia-south1')
+          .httpsCallable('refreshMetrics')
+          .call();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Refresh failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,9 +81,28 @@ class _ActivityScreenState extends State<ActivityScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Wrap(spacing: 14, runSpacing: 14, children: tiles),
-            const SizedBox(height: 8),
-            Text('as of ${_fmt(d['updatedAt'])}',
-                style: T.inter(11.5, color: T.muted)),
+            const SizedBox(height: 10),
+            Row(children: [
+              Text('as of ${_fmt(d['updatedAt'])}',
+                  style: T.inter(11.5, color: T.muted)),
+              const SizedBox(width: 14),
+              _refreshing
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : TextButton.icon(
+                      onPressed: _refresh,
+                      icon: Icon(Icons.refresh, size: 15, color: T.gold),
+                      label: Text('Refresh now',
+                          style: T.inter(12, color: T.gold)),
+                      style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                    ),
+            ]),
           ],
         );
       },

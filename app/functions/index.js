@@ -1881,9 +1881,7 @@ exports.setFamilyStageFlag = onCall({ region: REGION }, async (request) => {
 // counters on users/{uid}.stats (incremented on write); everything else is
 // tallied from one read each of interests / conversations / reports.
 // ============================================================
-exports.computeMetrics = onSchedule(
-  { schedule: '0 * * * *', timeZone: 'Asia/Kolkata', region: REGION },
-  async () => {
+async function runMetricsRollup() {
     const now = Date.now();
     const weekAgo = now - 7 * 24 * 3600 * 1000;
     const [usersSnap, interestsSnap, convSnap, reportsSnap, famSnap, digestSnap] =
@@ -1974,8 +1972,20 @@ exports.computeMetrics = onSchedule(
     }, { merge: true });
     ops++;
     await batch.commit();
-  }
+}
+
+exports.computeMetrics = onSchedule(
+  { schedule: '0 * * * *', timeZone: 'Asia/Kolkata', region: REGION },
+  async () => { await runMetricsRollup(); }
 );
+
+/** Admin "Refresh now" — recompute the activity rollup on demand so the
+ *  dashboard fills instantly (e.g. right after deploy). Moderator-only. */
+exports.refreshMetrics = onCall({ region: REGION }, async (request) => {
+  requireModerator(request);
+  await runMetricsRollup();
+  return { ok: true };
+});
 
 /** Periodic guardian digest — runs daily, sends only conversations that are
  *  due per their own cadence. Kept off the message path so chat stays fast. */
