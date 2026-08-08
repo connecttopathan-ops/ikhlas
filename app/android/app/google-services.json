@@ -30,6 +30,14 @@
           }
         },
         {
+          "client_id": "443572192702-eovj5gkmhr1fpk50p5po7bu2b8n9cmo9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.ikhlaas.app",
+            "certificate_hash": "9754a7f1a25f66010c20ad3c0d87a5599f52ebbb"
+          }
+        },
+        {
           "client_id": "443572192702-lqovcul1fi8ketj8g8n49sirbggko6al.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
