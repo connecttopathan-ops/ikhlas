@@ -190,6 +190,10 @@ service cloud.firestore {
     // wali digests — guardian transcript records. Backend-written; a moderator
     // may read them for privacy accountability (PRD §4.6). Never client-writable.
     match /waliDigests/{id} { allow read: if isModerator(); allow write: if false; }
+    // activity rollup — platform KPIs + per-member counts (admin dashboard).
+    // Backend-written by computeMetrics; moderator-read; never client-writable.
+    match /metrics/{doc} { allow read: if isModerator(); allow write: if false; }
+    match /userActivity/{uid} { allow read: if isModerator(); allow write: if false; }
 
     // Default deny for anything not matched above.
     match /{document=**} {

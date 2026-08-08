@@ -806,6 +806,10 @@ async function writeBatchFor(user, pool, date, ctx = {}) {
       batchDate: date,
     });
   }
+  // Running matches-received counter for the activity rollup.
+  wb.set(db.doc(`users/${user._id}`),
+    { stats: { matchesReceived: FieldValue.increment(batch.length) } },
+    { merge: true });
   await wb.commit();
 
   const tokens = Object.keys(user.fcmTokens);
@@ -1170,6 +1174,11 @@ exports.onMessageCreated = onDocumentCreated(
     const name = convSnap.get('profiles')?.[m.from]?.displayName || 'Your match';
     const preview = String(m.text || '').slice(0, 90) || 'New message on Ikhlaas.';
     await pushTo(other, name, preview, { route: `/chat/${convId}` });
+    // Running message counter for the activity rollup (off the send path).
+    await db.doc(`users/${m.from}`).set(
+      { stats: { messagesSent: FieldValue.increment(1) } },
+      { merge: true }
+    ).catch(() => {});
   }
 );
 
@@ -1863,6 +1872,110 @@ exports.setFamilyStageFlag = onCall({ region: REGION }, async (request) => {
   });
   return { ok: true };
 });
+
+// ============================================================
+// Activity rollup (admin "Activity" tab). Hourly aggregation into
+// metrics/overview (platform KPIs) + userActivity/{uid} (per-member counts),
+// so the admin reads cheap pre-computed docs instead of scanning raw data.
+// Counts that need per-message/per-match attribution are kept as running
+// counters on users/{uid}.stats (incremented on write); everything else is
+// tallied from one read each of interests / conversations / reports.
+// ============================================================
+exports.computeMetrics = onSchedule(
+  { schedule: '0 * * * *', timeZone: 'Asia/Kolkata', region: REGION },
+  async () => {
+    const now = Date.now();
+    const weekAgo = now - 7 * 24 * 3600 * 1000;
+    const [usersSnap, interestsSnap, convSnap, reportsSnap, famSnap, digestSnap] =
+      await Promise.all([
+        db.collection('users').get(),
+        db.collection('interests').get(),
+        db.collection('conversations').get(),
+        db.collection('reports').get(),
+        db.collection('metrics_familyStage').get(),
+        db.collection('waliDigests').where('status', '==', 'pending').get(),
+      ]);
+
+    const bump = (map, key) => { if (key) map.set(key, (map.get(key) || 0) + 1); };
+    const interestsSent = new Map(), interestsRecv = new Map();
+    interestsSnap.forEach((d) => {
+      bump(interestsSent, d.get('from'));
+      bump(interestsRecv, d.get('to'));
+    });
+
+    const activeConvs = new Map();
+    let conversationsOpen = 0, familyConversations = 0;
+    convSnap.forEach((d) => {
+      const stage = String(d.get('stage') || '');
+      const closed = stage.startsWith('closed_');
+      if (!closed) {
+        conversationsOpen++;
+        if (stage === 'family') familyConversations++;
+        for (const p of (d.get('participants') || [])) bump(activeConvs, p);
+      }
+    });
+
+    const reportsAgainst = new Map(), openAgainst = new Map();
+    let openReports = 0;
+    reportsSnap.forEach((d) => {
+      const r = d.get('reportedUid');
+      const open = d.get('status') === 'open';
+      if (open) openReports++;
+      bump(reportsAgainst, r);
+      if (open) bump(openAgainst, r);
+    });
+
+    // Chunked writes (Firestore batch cap is 500 ops).
+    let batch = db.batch(); let ops = 0;
+    const flushIfFull = async () => {
+      if (ops >= 400) { await batch.commit(); batch = db.batch(); ops = 0; }
+    };
+
+    const byStatus = {};
+    let activeThisWeek = 0;
+    for (const d of usersSnap.docs) {
+      const u = d.data(); const uid = d.id;
+      const status = u.status || 'unknown';
+      byStatus[status] = (byStatus[status] || 0) + 1;
+      const la = u.lastActiveAt?.toMillis?.() ?? 0;
+      if (la >= weekAgo) activeThisWeek++;
+      const stats = u.stats || {};
+      batch.set(db.doc(`userActivity/${uid}`), {
+        uid,
+        displayName: u.profile?.displayName || null,
+        email: u.email || null,
+        gender: u.gender || null,
+        status,
+        matchesReceived: stats.matchesReceived || 0,
+        messagesSent: stats.messagesSent || 0,
+        interestsSent: interestsSent.get(uid) || 0,
+        interestsReceived: interestsRecv.get(uid) || 0,
+        activeConversations: activeConvs.get(uid) || 0,
+        reportsAgainst: reportsAgainst.get(uid) || 0,
+        openReportsAgainst: openAgainst.get(uid) || 0,
+        lastActiveAt: u.lastActiveAt || null,
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      ops++;
+      await flushIfFull();
+    }
+
+    batch.set(db.doc('metrics/overview'), {
+      members: usersSnap.size,
+      byStatus,
+      activeThisWeek,
+      conversationsOpen,
+      familyConversations,
+      familyStageInitiations: famSnap.size,   // cumulative north-star events
+      totalInterests: interestsSnap.size,
+      openReports,
+      digestsPending: digestSnap.size,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    ops++;
+    await batch.commit();
+  }
+);
 
 /** Periodic guardian digest — runs daily, sends only conversations that are
  *  due per their own cadence. Kept off the message path so chat stays fast. */
