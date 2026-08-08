@@ -192,7 +192,7 @@ class _ConvTile extends ConsumerWidget {
       child: GlassCard(
         radius: 16,
         padding: const EdgeInsets.all(14),
-        onTap: () => context.go('/chat/${doc.id}'),
+        onTap: () => context.push('/chat/${doc.id}'),
         child: Row(children: [
           Opacity(
             opacity: closed ? .45 : 1,

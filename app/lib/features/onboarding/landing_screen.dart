@@ -160,7 +160,7 @@ class _LandingScreenState extends State<LandingScreen>
                             child: QuietLink(
                                 prefix: 'Already have an account?',
                                 linkText: 'Sign in',
-                                onTap: () => context.go('/login')),
+                                onTap: () => context.push('/login')),
                           )),
                     ]),
                   ),
@@ -216,7 +216,7 @@ class _LandingScreenState extends State<LandingScreen>
 
   Widget _cta(BuildContext context) => PrimaryCta(
         label: 'Begin my application',
-        onPressed: () => context.go('/login'),
+        onPressed: () => context.push('/login'),
       );
 
   static Widget _eyebrow(String s) => Text(s,
@@ -415,9 +415,11 @@ class _HowItWorksState extends State<_HowItWorks> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: done
-              ? LightTokens.ctaBg
-              : const Color(0xFFF7F5EC).withValues(alpha: .55),
+          // Opaque even when inactive: a translucent disc let the gold rail
+          // behind it show straight through, so the line appeared to cross the
+          // icon. Solid fill keeps the rail visible only in the gaps between
+          // nodes, where it belongs.
+          color: done ? LightTokens.ctaBg : const Color(0xFFF7F5EC),
           border: Border.all(
             color: done
                 ? LightTokens.ctaBg

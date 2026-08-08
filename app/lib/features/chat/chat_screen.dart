@@ -320,7 +320,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         padding: const EdgeInsets.fromLTRB(8, 8, 4, 4),
         child: Row(children: [
           IconButton(
-            onPressed: () => context.go('/conversations'),
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go('/conversations'),
             icon: Icon(Icons.arrow_back, size: 22, color: DarkTokens.muted(.7)),
           ),
           if (otherProfile != null) ...[
