@@ -618,6 +618,43 @@ exports.deleteAccount = onCall({ region: REGION }, async (request) => {
   return { ok: true };
 });
 
+/**
+ * Moderator tool — purge ANY user by uid so a tester can sign up fresh.
+ * Same teardown as deleteAccount (auth + user + application + idReview +
+ * storage), but callable by a moderator against another account. Every step
+ * is best-effort so a missing piece never strands the purge; the auth user is
+ * removed last. Restricted to moderators (custom claim); rules mirror this.
+ */
+exports.purgeUserAsAdmin = onCall({ region: REGION }, async (request) => {
+  requireModerator(request);
+  const uid = (request.data?.uid || '').trim();
+  if (!uid) throw new HttpsError('invalid-argument', 'A uid is required.');
+
+  const steps = { storage: false, application: false, user: false,
+    idReview: false, auth: false };
+  try {
+    await getStorage().bucket().deleteFiles({ prefix: `users/${uid}/` });
+    steps.storage = true;
+  } catch (e) {
+    console.warn(`purge storage ${uid}: ${e.message}`);
+  }
+  await db.doc(`applications/${uid}`).delete().then(() => { steps.application = true; }).catch(() => {});
+  await db.doc(`idReview/${uid}`).delete().then(() => { steps.idReview = true; }).catch(() => {});
+  await db.doc(`users/${uid}`).delete().then(() => { steps.user = true; }).catch(() => {});
+  try {
+    await getAuth().deleteUser(uid);
+    steps.auth = true;
+  } catch (e) {
+    // auth/user-not-found is fine — the account may already be gone.
+    if (e.code !== 'auth/user-not-found') {
+      console.error(`purge auth ${uid}: ${e.message}`);
+      throw new HttpsError('internal', `Auth delete failed: ${e.message}`);
+    }
+  }
+  console.log(`purgeUserAsAdmin by ${request.auth.uid} → ${uid}`, steps);
+  return { ok: true, uid, steps };
+});
+
 // ============================================================
 // Phase 2 — Matching engine (PRD §4.2: curated daily batch, not swiping)
 // ============================================================

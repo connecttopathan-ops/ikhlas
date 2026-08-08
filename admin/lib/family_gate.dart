@@ -17,7 +17,52 @@ class FamilyGateScreen extends StatefulWidget {
 
 class _FamilyGateScreenState extends State<FamilyGateScreen> {
   final _uid = TextEditingController();
+  final _purgeUid = TextEditingController();
   bool _busy = false;
+
+  /// Moderator reset — fully delete a tester (auth + profile + application +
+  /// ID review + photos) so they can sign up again from scratch.
+  Future<void> _purgeTester() async {
+    final u = _purgeUid.text.trim();
+    if (u.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: T.panel,
+        title: Text('Delete this account?', style: T.fraunces(19, color: T.ivory)),
+        content: Text(
+            'Permanently removes the login, profile, application, ID review and '
+            'photos for:\n\n$u\n\nThe person can then sign up fresh. This cannot '
+            'be undone.',
+            style: T.inter(13.5, color: T.muted, height: 1.6)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: T.inter(13.5, color: T.muted))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(backgroundColor: T.reject),
+              child: Text('Delete account',
+                  style: T.inter(13.5, color: T.ivory))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _busy = true);
+    try {
+      await FirebaseFunctions.instanceFor(region: 'asia-south1')
+          .httpsCallable('purgeUserAsAdmin')
+          .call({'uid': u});
+      if (mounted) {
+        _purgeUid.clear();
+        _snack('Account $u deleted — they can sign up again.');
+      }
+    } catch (e) {
+      if (mounted) _snack('Failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   Future<void> _call(Map<String, dynamic> data) async {
     setState(() => _busy = true);
@@ -205,6 +250,45 @@ class _FamilyGateScreenState extends State<FamilyGateScreen> {
                               ),
                             ]),
                           )),
+                    // ---- reset a tester (purge account) ----
+                    const SizedBox(height: 28),
+                    Container(height: 1, color: T.hairline),
+                    const SizedBox(height: 20),
+                    Text('RESET A TESTER',
+                        style: T.inter(11,
+                            weight: FontWeight.w700, color: T.reject)),
+                    const SizedBox(height: 4),
+                    Text(
+                        'Permanently delete a tester by UID (login, profile, '
+                        'application, ID review, photos) so they can sign up '
+                        'again. Find the UID on the All applications tab or in '
+                        'Firebase Authentication.',
+                        style: T.inter(12.5, color: T.muted, height: 1.5)),
+                    const SizedBox(height: 14),
+                    Row(children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _purgeUid,
+                          style: T.inter(13.5, color: T.ivory),
+                          decoration: InputDecoration(
+                            hintText: 'UID to delete',
+                            hintStyle: T.inter(13.5, color: T.muted),
+                            enabledBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(color: T.hairline)),
+                            focusedBorder: const UnderlineInputBorder(
+                                borderSide: BorderSide(color: T.reject)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      FilledButton(
+                        onPressed: _busy ? null : _purgeTester,
+                        style: FilledButton.styleFrom(
+                            backgroundColor: T.reject, foregroundColor: T.ivory),
+                        child: Text('Delete',
+                            style: T.inter(13.5, weight: FontWeight.w600)),
+                      ),
+                    ]),
                     if (_busy) ...[
                       const SizedBox(height: 18),
                       const Center(
