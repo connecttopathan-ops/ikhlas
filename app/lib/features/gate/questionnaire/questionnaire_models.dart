@@ -23,7 +23,7 @@ class QuestionnaireAnswers {
   String? maritalStatus; // never_married | divorced | widowed
   bool? hasChildren;
   bool revert = false; // optional, celebrated not flagged
-  int? heightCm; // 140–210
+  // Height is collected in the profile builder (with weight), not eligibility.
   // Location — structured dropdowns (reliably matchable, not free text).
   // residence = where I live NOW; nationality = citizenship / where I'm FROM.
   String residenceCountry = 'India';
@@ -69,7 +69,6 @@ class QuestionnaireAnswers {
   bool get sectionC1Complete =>
       gender != null &&
       dob != null &&
-      heightCm != null &&
       maritalStatus != null &&
       // Children only required for divorced/widowed; never-married is auto-false.
       (maritalStatus == 'never_married' || hasChildren != null);

@@ -136,8 +136,6 @@ class ApplicationRepository {
       'profile.maritalStatus': a.maritalStatus,
       'profile.hasChildren': a.hasChildren,
       'profile.revert': a.revert,
-      // Height — canonical cm int, single source of truth (never a string).
-      'profile.heightCm': a.heightCm,
       // Structured location (matchable). residence = live NOW; nationality = FROM.
       'profile.residence': {
         'country': a.residenceCountry.trim(),
@@ -204,6 +202,7 @@ class ApplicationRepository {
     // scored as expectation ALIGNMENT by matching.js (never an income floor).
     String? financialExpectation,
     // Appearance (physical descriptors — never skin tone, §0).
+    int? heightCm,
     int? weightKg,
     String? buildType,
     String? beard, // brothers
@@ -230,6 +229,7 @@ class ApplicationRepository {
       if (financialExpectation != null)
         'profile.financialExpectation': financialExpectation,
       // Appearance
+      if (heightCm != null) 'profile.heightCm': heightCm,
       if (weightKg != null) 'profile.weightKg': weightKg,
       if (buildType != null) 'profile.build': buildType,
       if (beard != null) 'profile.beard': beard,

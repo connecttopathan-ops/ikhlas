@@ -34,6 +34,8 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   String _privacy = 'on_mutual_blur';
 
   // Step 3 — appearance
+  int? _heightCm;
+  bool _heightImperial = true; // ft/in by default (India); toggle to cm
   int? _weightKg;
   bool _weightMetric = true; // kg by default; toggle to lb
   String? _build;
@@ -132,6 +134,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
         photoVisibility: _privacy,
         preferences: _prefsMap(),
         financialExpectation: _financialExpectation,
+        heightCm: _heightCm,
         weightKg: _weightKg,
         buildType: _build,
         beard: _beard,
@@ -293,6 +296,8 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
       intro: 'Optional, but it helps a match picture you. All curves — never '
           'a measure of worth.',
       children: [
+        _heightPicker(),
+        const SizedBox(height: 10),
         _weightPicker(),
         const QuestionLabel('Build'),
         OptionList(
@@ -383,6 +388,78 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
           ),
         ),
       );
+
+  /// Own height with an ft-in / cm toggle. Stored as cm (int, single source of
+  /// truth); imperial is entry/display only.
+  Widget _heightPicker() {
+    final cm = _heightCm;
+    int? feet, inch;
+    if (cm != null) {
+      final t = (cm / 2.54).round();
+      feet = t ~/ 12;
+      inch = t % 12;
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(
+            child: Text('Height (optional)',
+                style: AppType.inter(12.5, color: DarkTokens.muted()))),
+        _heightUnitPill('ft/in', true),
+        const SizedBox(width: 8),
+        _heightUnitPill('cm', false),
+      ]),
+      const SizedBox(height: 4),
+      if (_heightImperial)
+        Row(children: [
+          Expanded(
+              child: _pbDropdown<int>(
+                  value: feet,
+                  items: [for (var f = 4; f <= 7; f++) f],
+                  labelOf: (v) => '$v ft',
+                  onChanged: (f) => setState(() => _heightCm =
+                      (((f ?? 5) * 12 + (inch ?? 0)) * 2.54).round()))),
+          const SizedBox(width: 12),
+          Expanded(
+              child: _pbDropdown<int>(
+                  value: inch,
+                  items: [for (var i = 0; i <= 11; i++) i],
+                  labelOf: (v) => '$v in',
+                  onChanged: (i) => setState(() => _heightCm =
+                      (((feet ?? 5) * 12 + (i ?? 0)) * 2.54).round()))),
+        ])
+      else
+        _pbDropdown<int>(
+            value: cm,
+            items: [for (var c = 140; c <= 210; c++) c],
+            labelOf: (v) => '$v cm',
+            onChanged: (c) => setState(() => _heightCm = c)),
+      if (cm != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text('$feet\'$inch" ($cm cm)',
+              style: AppType.inter(13, color: DarkTokens.gold)),
+        ),
+    ]);
+  }
+
+  Widget _heightUnitPill(String label, bool imperial) {
+    final on = _heightImperial == imperial;
+    return GestureDetector(
+      onTap: () => setState(() => _heightImperial = imperial),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          color: on ? DarkTokens.gold.withOpacity(.12) : null,
+          border: Border.all(
+              color: on ? DarkTokens.gold : DarkTokens.hairline(.5)),
+        ),
+        child: Text(label,
+            style: AppType.inter(12,
+                color: on ? DarkTokens.gold : DarkTokens.muted())),
+      ),
+    );
+  }
 
   /// Weight with a kg/lb toggle — mirrors the height ft/cm pattern. Stored as
   /// kg (int, single source of truth); lb is display-only.

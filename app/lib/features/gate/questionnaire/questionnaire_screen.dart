@@ -48,7 +48,6 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
   late final _cityText = TextEditingController(); // fallback where no city list
   late final _deen = TextEditingController();
 
-  bool _heightImperial = true; // ft/in by default (India); toggle to cm
 
   @override
   void initState() {
@@ -328,8 +327,6 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
               onSelect: (v) => setState(() => _a.gender = v)),
           const QuestionLabel('Date of birth (18+)'),
           _dobPicker(),
-          const SizedBox(height: 20),
-          _heightPicker(),
           const QuestionLabel('Marital status'),
           OptionList(
               options: Choices.maritalStatus,
@@ -629,77 +626,6 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
           ),
         ]),
       );
-
-  Widget _heightPicker() {
-    final cm = _a.heightCm;
-    int? feet, inch;
-    if (cm != null) {
-      final t = (cm / 2.54).round();
-      feet = t ~/ 12;
-      inch = t % 12;
-    }
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Expanded(
-            child: Text('Height',
-                style: AppType.inter(12.5, color: DarkTokens.muted()))),
-        _unitPill('ft/in', true),
-        const SizedBox(width: 8),
-        _unitPill('cm', false),
-      ]),
-      const SizedBox(height: 4),
-      if (_heightImperial)
-        Row(children: [
-          Expanded(
-              child: _miniDropdown<int>(
-                  value: feet,
-                  items: [for (var f = 4; f <= 7; f++) f],
-                  labelOf: (v) => '$v ft',
-                  onChanged: (f) => _setImperial(f, inch ?? 0))),
-          const SizedBox(width: 12),
-          Expanded(
-              child: _miniDropdown<int>(
-                  value: inch,
-                  items: [for (var i = 0; i <= 11; i++) i],
-                  labelOf: (v) => '$v in',
-                  onChanged: (i) => _setImperial(feet ?? 5, i))),
-        ])
-      else
-        _miniDropdown<int>(
-            value: cm,
-            items: [for (var c = 140; c <= 210; c++) c],
-            labelOf: (v) => '$v cm',
-            onChanged: (c) => setState(() => _a.heightCm = c)),
-      if (cm != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Text('${feet}\'$inch" ($cm cm)',
-              style: AppType.inter(13, color: DarkTokens.gold)),
-        ),
-    ]);
-  }
-
-  void _setImperial(int feet, int inch) =>
-      setState(() => _a.heightCm = ((feet * 12 + inch) * 2.54).round());
-
-  Widget _unitPill(String label, bool imperial) {
-    final on = _heightImperial == imperial;
-    return GestureDetector(
-      onTap: () => setState(() => _heightImperial = imperial),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: on ? DarkTokens.gold.withValues(alpha: .12) : null,
-          border: Border.all(
-              color: on ? DarkTokens.gold : DarkTokens.hairline(.5)),
-        ),
-        child: Text(label,
-            style: AppType.inter(12,
-                color: on ? DarkTokens.gold : DarkTokens.muted())),
-      ),
-    );
-  }
 
   Widget _miniDropdown<T>({
     required T? value,
