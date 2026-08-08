@@ -257,7 +257,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 'name': _waliName.text.trim(),
                 'relationship': _waliRelationship,
                 'phone': '+91${_waliPhone.text.trim()}',
-                'permissionLevel': 'notify',
+                // Observe → the guardian receives the weekly conversation digest.
+                'permissionLevel': 'observe',
                 'verified': false,
               }
             : null,
@@ -471,10 +472,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               _section('Wali'),
               Text(
                   isSister
-                      ? 'Your Wali is notified as things progress. Add or '
-                          'update his details, or clear all three to remove.'
-                      : 'Optional — a guardian kept informed as things '
-                          'progress. Clear all three to remove.',
+                      ? 'Your Wali receives a weekly summary of your '
+                          'conversations and is kept informed as things '
+                          'progress. Add or update his details, or clear all '
+                          'three to remove.'
+                      : 'Optional — a guardian who receives a weekly summary of '
+                          'your conversations and is kept informed. Clear all '
+                          'three to remove.',
                   style: AppType.inter(12.5, color: DarkTokens.muted(.7))),
               const SizedBox(height: 16),
               UnderlineField(

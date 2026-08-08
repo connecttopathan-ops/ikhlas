@@ -150,7 +150,8 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
                 'name': _waliName.text.trim(),
                 'relationship': _waliRelationship,
                 'phone': '+91${_waliPhone.text.trim()}',
-                'permissionLevel': 'notify',
+                // Observe → the guardian receives the weekly conversation digest.
+                'permissionLevel': 'observe',
                 'verified': false,
               }
             : null,
@@ -600,11 +601,12 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
       eyebrow: 'Your profile · Wali',
       title: isSister ? 'Your Wali walks with you' : 'Involve a guardian?',
       intro: isSister
-          ? 'We strongly encourage every sister to add her Wali — he is '
-              'notified as things progress, with the visibility level you '
-              'choose. He will receive an introduction when invitations open.'
-          : 'Optional for brothers — a father or elder who should be kept '
-              'informed as things progress.',
+          ? 'We strongly encourage every sister to add her Wali — he receives '
+              'a weekly summary of your conversations and is kept informed as '
+              'things progress, so he can walk with you throughout.'
+          : 'Optional for brothers — a father or elder who receives a weekly '
+              'summary of your conversations and is kept informed as things '
+              'progress.',
       ctaLabel: 'Save & finish',
       loading: _saving,
       children: [
