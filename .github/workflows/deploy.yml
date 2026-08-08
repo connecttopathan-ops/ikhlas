@@ -1,0 +1,72 @@
+name: Deploy
+
+# Manual, hands-off deploy — no local toolchain needed. Trigger from the
+# GitHub Actions tab ("Run workflow") and pick what to deploy.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: What to deploy
+        type: choice
+        default: all
+        options: [all, functions, hosting]
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PROJECT: ikhlas-caecf
+  FLUTTER_VERSION: 3.24.5
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to Firebase
+        # Add a repo secret FIREBASE_SERVICE_ACCOUNT with a service-account JSON
+        # that has Firebase Admin, Cloud Functions Admin, Cloud Run Admin,
+        # Service Account User and Secret Manager Accessor roles.
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$RUNNER_TEMP/sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy functions + rules
+        if: ${{ inputs.target == 'all' || inputs.target == 'functions' }}
+        working-directory: app
+        run: |
+          ( cd functions && npm ci )
+          firebase deploy \
+            --only functions,firestore:rules,firestore:indexes,storage \
+            --project "$PROJECT" --non-interactive
+
+      - uses: subosito/flutter-action@v2
+        if: ${{ inputs.target == 'all' || inputs.target == 'hosting' }}
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Build admin web + member APK
+        if: ${{ inputs.target == 'all' || inputs.target == 'hosting' }}
+        run: |
+          ( cd admin && flutter pub get && flutter build web --release )
+          ( cd app && flutter pub get && flutter build apk --release )
+          cp app/build/app/outputs/flutter-apk/app-release.apk admin/build/web/ikhlas.apk
+
+      - name: Build wali portal web
+        if: ${{ inputs.target == 'all' || inputs.target == 'hosting' }}
+        run: ( cd wali && flutter pub get && flutter build web --release )
+
+      - name: Deploy hosting
+        if: ${{ inputs.target == 'all' || inputs.target == 'hosting' }}
+        run: firebase deploy --only hosting --project "$PROJECT" --non-interactive
