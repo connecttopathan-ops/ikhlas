@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -167,55 +168,38 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
     return dob.isAfter(DateTime(now.year - 18, now.month, now.day));
   }
 
+  /// A single tappable field that opens a wheel picker — reads as one
+  /// intentional control rather than three bare dropdowns.
   Widget _dobPicker() {
-    final now = DateTime.now();
-    final maxYear = now.year - 18; // 18+ gate — no younger year is offered
-    final years = [for (var y = maxYear; y >= now.year - 80; y--) y];
-    final daysInMonth = (_dobM != null && _dobY != null)
-        ? DateUtils.getDaysInMonth(_dobY!, _dobM!)
-        : 31;
-    final days = [for (var d = 1; d <= daysInMonth; d++) d];
+    final dob = _a.dob;
+    final chosen = dob != null;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Expanded(
-          flex: 3,
-          child: _dobField('Day',
-              _miniDropdown<int>(
-                  value: _dobD,
-                  items: days,
-                  labelOf: (v) => '$v',
-                  onChanged: (v) => setState(() {
-                        _dobD = v;
-                        _syncDob();
-                      }))),
+      InkWell(
+        onTap: _openDobSheet,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.control),
+            border: Border.all(
+                color: DarkTokens.gold.withOpacity(chosen ? .75 : .4)),
+          ),
+          child: Row(children: [
+            Icon(Icons.cake_outlined, size: 18, color: DarkTokens.muted(.75)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                chosen
+                    ? '${dob.day} ${_monthNames[dob.month - 1]} ${dob.year}'
+                    : 'Select your date of birth',
+                style: AppType.inter(15.5,
+                    color: chosen ? DarkTokens.ivory : DarkTokens.muted(.55)),
+              ),
+            ),
+            Icon(Icons.expand_more, size: 22, color: DarkTokens.muted(.7)),
+          ]),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          flex: 5,
-          child: _dobField('Month',
-              _miniDropdown<int>(
-                  value: _dobM,
-                  items: const [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-                  labelOf: (v) => _monthNames[v - 1],
-                  onChanged: (v) => setState(() {
-                        _dobM = v;
-                        _syncDob();
-                      }))),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          flex: 4,
-          child: _dobField('Year',
-              _miniDropdown<int>(
-                  value: _dobY,
-                  items: years,
-                  labelOf: (v) => '$v',
-                  onChanged: (v) => setState(() {
-                        _dobY = v;
-                        _syncDob();
-                      }))),
-        ),
-      ]),
+      ),
       if (_dobUnder18)
         Padding(
           padding: const EdgeInsets.only(top: 10),
@@ -225,13 +209,140 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
     ]);
   }
 
-  Widget _dobField(String label, Widget field) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: AppType.inter(11.5, color: DarkTokens.muted())),
-          field,
-        ],
-      );
+  /// Themed bottom sheet with three spinning wheels (day / month / year).
+  /// Haptic tick per detent; a single gold "Set date" confirms.
+  Future<void> _openDobSheet() async {
+    final now = DateTime.now();
+    final maxYear = now.year - 18; // 18+ gate — no younger year offered
+    final minYear = now.year - 80;
+    final years = [for (var y = maxYear; y >= minYear; y--) y];
+
+    // Working selection, seeded from the current value or sensible defaults.
+    var tmpDay = _dobD ?? _a.dob?.day ?? 1;
+    var tmpMonth = _dobM ?? _a.dob?.month ?? 1;
+    var tmpYear = _dobY ?? _a.dob?.year ?? (maxYear - 7); // ~25 by default
+
+    final dayCtrl = FixedExtentScrollController(initialItem: tmpDay - 1);
+    final monthCtrl = FixedExtentScrollController(initialItem: tmpMonth - 1);
+    final yearCtrl =
+        FixedExtentScrollController(initialItem: years.indexOf(tmpYear).clamp(0, years.length - 1));
+
+    Widget wheel({
+      required FixedExtentScrollController controller,
+      required int count,
+      required String Function(int) labelOf,
+      required ValueChanged<int> onChanged,
+      int flex = 1,
+    }) =>
+        Expanded(
+          flex: flex,
+          child: CupertinoPicker.builder(
+            scrollController: controller,
+            itemExtent: 40,
+            squeeze: 1.1,
+            diameterRatio: 1.25,
+            magnification: 1.05,
+            useMagnifier: true,
+            selectionOverlay: Container(
+              decoration: BoxDecoration(
+                border: Border.symmetric(
+                  horizontal:
+                      BorderSide(color: DarkTokens.gold.withOpacity(.35)),
+                ),
+              ),
+            ),
+            childCount: count,
+            itemBuilder: (_, i) => Center(
+              child: Text(labelOf(i),
+                  style: AppType.inter(17, color: DarkTokens.ivory)),
+            ),
+            onSelectedItemChanged: (i) {
+              HapticFeedback.selectionClick();
+              onChanged(i);
+            },
+          ),
+        );
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: DarkTokens.bg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: DarkTokens.hairline(.4)),
+        ),
+        padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).padding.bottom + 12, top: 10),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(
+                color: DarkTokens.hairline(),
+                borderRadius: BorderRadius.circular(2)),
+          ),
+          Text('Date of birth',
+              style: AppType.fraunces(20, color: DarkTokens.ivory)),
+          const SizedBox(height: 4),
+          Text('You must be 18 or older',
+              style: AppType.inter(12.5, color: DarkTokens.muted(.7))),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 200,
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpace.screenMargin),
+              child: Row(children: [
+                wheel(
+                    controller: dayCtrl,
+                    count: 31,
+                    flex: 3,
+                    labelOf: (i) => '${i + 1}',
+                    onChanged: (i) => tmpDay = i + 1),
+                wheel(
+                    controller: monthCtrl,
+                    count: 12,
+                    flex: 5,
+                    labelOf: (i) => _monthNames[i],
+                    onChanged: (i) => tmpMonth = i + 1),
+                wheel(
+                    controller: yearCtrl,
+                    count: years.length,
+                    flex: 4,
+                    labelOf: (i) => '${years[i]}',
+                    onChanged: (i) => tmpYear = years[i]),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: AppSpace.screenMargin),
+            child: PrimaryCta(
+                label: 'Set date',
+                onPressed: () {
+                  // Clamp the day to the chosen month/year (e.g. 31 → Feb).
+                  final maxDay = DateUtils.getDaysInMonth(tmpYear, tmpMonth);
+                  setState(() {
+                    _dobD = tmpDay.clamp(1, maxDay);
+                    _dobM = tmpMonth;
+                    _dobY = tmpYear;
+                    _syncDob();
+                  });
+                  Navigator.pop(ctx);
+                }),
+          ),
+        ]),
+      ),
+    );
+
+    dayCtrl.dispose();
+    monthCtrl.dispose();
+    yearCtrl.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -587,78 +698,166 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         lengthNow: _a.deenRelationship.trim().length,
       );
 
-  // ---- Shared inputs: styled dropdown + dual-unit height picker ----
+  // ---- Shared input: tap-to-open sheet selector (replaces bare dropdowns) ----
+  /// A labelled field that opens a themed picker sheet — one intentional
+  /// control, consistent with the date-of-birth picker, instead of a raw
+  /// Material dropdown. Long lists (e.g. countries) get a search box.
   Widget _dropdown({
     required String label,
     required String? value,
     required List<String> items,
     required ValueChanged<String?> onChanged,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: AppType.inter(12.5, color: DarkTokens.muted())),
-          const SizedBox(height: 2),
-          DropdownButtonFormField<String>(
-            initialValue: (value != null && items.contains(value)) ? value : null,
-            isExpanded: true,
-            dropdownColor: DarkTokens.bg,
-            icon: Icon(Icons.expand_more, color: DarkTokens.muted(.7)),
-            style: AppType.inter(15, color: DarkTokens.ivory),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(vertical: 8),
-              enabledBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: DarkTokens.hairline(.5))),
-              focusedBorder: UnderlineInputBorder(
-                  borderSide: BorderSide(color: DarkTokens.gold)),
+  }) {
+    final chosen = value != null && value.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: AppType.inter(12.5, color: DarkTokens.muted())),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: () => _openSelectSheet(
+              title: label, value: value, items: items, onChanged: onChanged),
+          borderRadius: BorderRadius.circular(AppRadius.control),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              border: Border.all(
+                  color: DarkTokens.gold.withOpacity(chosen ? .75 : .4)),
             ),
-            hint: Text('Select…',
-                style: AppType.inter(15, color: DarkTokens.muted(.5))),
-            items: [
-              for (final it in items)
-                DropdownMenuItem(
-                    value: it,
-                    child: Text(it,
-                        style: AppType.inter(15, color: DarkTokens.ivory))),
-            ],
-            onChanged: onChanged,
+            child: Row(children: [
+              Expanded(
+                child: Text(chosen ? value : 'Select…',
+                    style: AppType.inter(15.5,
+                        color:
+                            chosen ? DarkTokens.ivory : DarkTokens.muted(.55))),
+              ),
+              Icon(Icons.expand_more, size: 22, color: DarkTokens.muted(.7)),
+            ]),
           ),
-        ]),
-      );
-
-  Widget _miniDropdown<T>({
-    required T? value,
-    required List<T> items,
-    required String Function(T) labelOf,
-    required ValueChanged<T> onChanged,
-  }) =>
-      DropdownButtonFormField<T>(
-        initialValue: (value != null && items.contains(value)) ? value : null,
-        isExpanded: true,
-        dropdownColor: DarkTokens.bg,
-        icon: Icon(Icons.expand_more, color: DarkTokens.muted(.7)),
-        style: AppType.inter(15, color: DarkTokens.ivory),
-        decoration: InputDecoration(
-          isDense: true,
-          contentPadding: const EdgeInsets.symmetric(vertical: 8),
-          enabledBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: DarkTokens.hairline(.5))),
-          focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: DarkTokens.gold)),
         ),
-        hint: Text('—', style: AppType.inter(15, color: DarkTokens.muted(.5))),
-        items: [
-          for (final it in items)
-            DropdownMenuItem(
-                value: it,
-                child: Text(labelOf(it),
-                    style: AppType.inter(15, color: DarkTokens.ivory))),
-        ],
-        onChanged: (v) {
-          if (v != null) onChanged(v);
-        },
-      );
+      ]),
+    );
+  }
+
+  Future<void> _openSelectSheet({
+    required String title,
+    required String? value,
+    required List<String> items,
+    required ValueChanged<String?> onChanged,
+  }) async {
+    final searchable = items.length > 12;
+    final search = TextEditingController();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: StatefulBuilder(builder: (ctx, setSheet) {
+          final q = search.text.trim().toLowerCase();
+          final filtered = q.isEmpty
+              ? items
+              : items.where((e) => e.toLowerCase().contains(q)).toList();
+          return ConstrainedBox(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * .78),
+            child: Container(
+              decoration: BoxDecoration(
+                color: DarkTokens.bg,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(24)),
+                border: Border.all(color: DarkTokens.hairline(.4)),
+              ),
+              padding: const EdgeInsets.only(top: 10),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                      color: DarkTokens.hairline(),
+                      borderRadius: BorderRadius.circular(2)),
+                ),
+                Text(title,
+                    style: AppType.fraunces(19, color: DarkTokens.ivory)),
+                const SizedBox(height: 10),
+                if (searchable)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                        AppSpace.screenMargin, 0, AppSpace.screenMargin, 6),
+                    child: TextField(
+                      controller: search,
+                      autofocus: true,
+                      onChanged: (_) => setSheet(() {}),
+                      style: AppType.inter(15, color: DarkTokens.ivory),
+                      cursorColor: DarkTokens.gold,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: 'Search…',
+                        hintStyle:
+                            AppType.inter(15, color: DarkTokens.muted(.5)),
+                        prefixIcon: Icon(Icons.search,
+                            size: 20, color: DarkTokens.muted(.7)),
+                        enabledBorder: UnderlineInputBorder(
+                            borderSide:
+                                BorderSide(color: DarkTokens.hairline(.5))),
+                        focusedBorder: const UnderlineInputBorder(
+                            borderSide: BorderSide(color: DarkTokens.gold)),
+                      ),
+                    ),
+                  ),
+                Flexible(
+                  child: filtered.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.all(28),
+                          child: Text('No matches.',
+                              style: AppType.inter(14,
+                                  color: DarkTokens.muted())),
+                        )
+                      : ListView.builder(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.only(bottom: 8),
+                          itemCount: filtered.length,
+                          itemBuilder: (_, i) {
+                            final it = filtered[i];
+                            final sel = it == value;
+                            return InkWell(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                onChanged(it);
+                                Navigator.pop(ctx);
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpace.screenMargin,
+                                    vertical: 14),
+                                child: Row(children: [
+                                  Expanded(
+                                    child: Text(it,
+                                        style: AppType.inter(15.5,
+                                            color: sel
+                                                ? DarkTokens.gold
+                                                : DarkTokens.ivory)),
+                                  ),
+                                  if (sel)
+                                    Icon(Icons.check,
+                                        size: 18, color: DarkTokens.gold),
+                                ]),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                SizedBox(height: MediaQuery.of(ctx).padding.bottom + 8),
+              ]),
+            ),
+          );
+        }),
+      ),
+    );
+    search.dispose();
+  }
 
   // ---- E. Creed & finance ----
   Widget _sectionE() => StepScaffold(
