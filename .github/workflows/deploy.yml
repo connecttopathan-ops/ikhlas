@@ -58,6 +58,31 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
 
+      - name: Configure Android release signing
+        # Writes the release keystore + key.properties from repo secrets so the
+        # member APK is signed with a STABLE key whose SHA-1/256 is registered
+        # in Firebase (required for Google Sign-In). Absent secret → falls back
+        # to the debug key (build still succeeds; Google Sign-In won't).
+        if: ${{ inputs.target == 'all' || inputs.target == 'hosting' }}
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 not set — release APK uses the debug key; Google Sign-In will fail."
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > app/android/app/upload-keystore.jks
+          cat > app/android/key.properties <<PROPS
+          storeFile=upload-keystore.jks
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          PROPS
+          echo "Release signing configured."
+
       - name: Build admin web + member APK
         if: ${{ inputs.target == 'all' || inputs.target == 'hosting' }}
         run: |
