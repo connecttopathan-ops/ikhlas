@@ -53,7 +53,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   String? _hijab;
   final _dressing = TextEditingController();
   // Beliefs & family
-  String? _aqidah;
   final _islamicPractice = TextEditingController();
   final _scholars = TextEditingController();
   final _aboutFamily = TextEditingController();
@@ -141,7 +140,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _beard = prof['beard'] as String?;
     _hijab = prof['hijab'] as String?;
     _dressing.text = (prof['dressingStyle'] ?? '') as String;
-    _aqidah = prof['aqidah'] as String?;
     _islamicPractice.text = (prof['islamicPractice'] ?? '') as String;
     _scholars.text = (prof['scholars'] ?? '') as String;
     _aboutFamily.text = (prof['aboutFamily'] ?? '') as String;
@@ -245,7 +243,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         beard: _beard,
         hijab: _hijab,
         dressingStyle: _dressing.text,
-        aqidah: _aqidah,
         islamicPractice: _islamicPractice.text,
         scholars: _scholars.text,
         aboutFamily: _aboutFamily.text,
@@ -351,11 +348,6 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               // ---- Beliefs & family ----
               const SizedBox(height: 24),
               _section('Beliefs & family'),
-              const QuestionLabel('Aqidah (optional)'),
-              OptionList(
-                  options: Choices.aqidah,
-                  selected: _aqidah,
-                  onSelect: (v) => setState(() => _aqidah = v)),
               const QuestionLabel('Describe your Islamic practice'),
               _freeText(_islamicPractice,
                   'e.g. congregation when I can, weekly knowledge, good character.'),

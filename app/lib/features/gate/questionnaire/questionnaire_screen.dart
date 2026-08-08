@@ -378,6 +378,15 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         eyebrow: 'Section C · Life & roots',
         title: 'Where life has placed you',
         children: [
+          // Nationality first (where you're from), then the residence block
+          // (where you live) — grouped so the screen reads top-to-bottom
+          // instead of interleaving the two.
+          _dropdown(
+              label: 'Nationality — where you are from',
+              value: _a.nationality.isEmpty ? null : _a.nationality,
+              items: kCountries,
+              onChanged: (v) => setState(() => _a.nationality = v ?? '')),
+          const SizedBox(height: 12),
           _dropdown(
               label: 'Where you currently live — country',
               value: _a.residenceCountry.isEmpty ? null : _a.residenceCountry,
@@ -420,12 +429,6 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
               label: 'Town / area (optional)',
               controller: _town,
               onChanged: (v) => setState(() => _a.residenceTown = v)),
-          const SizedBox(height: 12),
-          _dropdown(
-              label: 'Nationality — where you are from',
-              value: _a.nationality.isEmpty ? null : _a.nationality,
-              items: kCountries,
-              onChanged: (v) => setState(() => _a.nationality = v ?? '')),
           const QuestionLabel('Your residency status where you live'),
           OptionList(
               options: Choices.residencyStatus,

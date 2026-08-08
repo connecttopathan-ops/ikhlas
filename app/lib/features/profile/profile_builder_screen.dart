@@ -42,7 +42,6 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   final _dressing = TextEditingController();
 
   // Step 4 — beliefs & family
-  String? _aqidah;
   final _islamicPractice = TextEditingController();
   final _scholars = TextEditingController();
   final _aboutFamily = TextEditingController();
@@ -138,7 +137,6 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
         beard: _beard,
         hijab: _hijab,
         dressingStyle: _dressing.text,
-        aqidah: _aqidah,
         islamicPractice: _islamicPractice.text,
         scholars: _scholars.text,
         aboutFamily: _aboutFamily.text,
@@ -330,11 +328,6 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
         eyebrow: 'Your profile · Beliefs & family',
         title: 'Your deen and your people',
         children: [
-          const QuestionLabel('Aqidah (optional)'),
-          OptionList(
-              options: Choices.aqidah,
-              selected: _aqidah,
-              onSelect: (v) => setState(() => _aqidah = v)),
           const QuestionLabel('Describe your Islamic practice'),
           _freeText(_islamicPractice,
               'e.g. I pray in congregation when I can, seek knowledge weekly, '

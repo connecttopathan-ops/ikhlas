@@ -325,9 +325,8 @@ class Choices {
   // which is never captured or shown — §0). ----
   static const build = [
     Choice('slim', 'Slim'),
-    Choice('athletic', 'Athletic'),
     Choice('average', 'Average'),
-    Choice('stocky', 'Stocky'),
+    Choice('athletic', 'Athletic'),
     Choice('heavy', 'Heavy-set'),
   ];
   static const beard = [

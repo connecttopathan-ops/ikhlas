@@ -140,7 +140,11 @@ class OptionList extends StatelessWidget {
             label: options[i].label,
             note: options[i].note,
             selected: selected == options[i].value,
-            onTap: () => onSelect(options[i].value),
+            onTap: () {
+              // Tactile confirmation on every option tap.
+              HapticFeedback.selectionClick();
+              onSelect(options[i].value);
+            },
           ),
           if (i < options.length - 1) const Hairline(),
         ],
