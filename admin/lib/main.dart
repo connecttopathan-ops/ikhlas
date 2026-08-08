@@ -13,6 +13,20 @@ import 'tokens.dart';
 /// so this UI gate is convenience, not security.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Surface build-time exceptions inline instead of Flutter web's default
+  // featureless grey box, and — because each card/panel is its own widget —
+  // confine the failure to that widget so one malformed document can't blank
+  // out an entire tab.
+  ErrorWidget.builder = (FlutterErrorDetails details) => Container(
+        color: T.bg,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(20),
+        child: Text(
+          'Could not render this item.\n${details.exceptionAsString()}',
+          textAlign: TextAlign.center,
+          style: T.inter(12.5, color: T.muted, height: 1.5),
+        ),
+      );
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const AdminApp());
 }

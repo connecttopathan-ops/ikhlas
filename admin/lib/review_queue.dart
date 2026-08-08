@@ -310,7 +310,9 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                             '${device['isPhysicalDevice'] == false ? ' · EMULATOR' : ''}'),
                 _Fact('App version', device['appVersion']),
                 _Fact('Location status', client['locationStatus']),
-                if (location != null)
+                if (location != null &&
+                    location['lat'] is num &&
+                    location['lng'] is num)
                   _LocationFact(
                       lat: (location['lat'] as num).toDouble(),
                       lng: (location['lng'] as num).toDouble(),
