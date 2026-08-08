@@ -1840,6 +1840,30 @@ exports.markWaliDigestSent = onCall({ region: REGION }, async (request) => {
   return { ok: true };
 });
 
+/** Admin control for the Family Stage access gate (config/featureFlags).
+ *  Moderator-only — config/* is not client-writable by rules. Add/remove
+ *  testers and flip the CA/legal sign-off with an audit stamp. */
+exports.setFamilyStageFlag = onCall({ region: REGION }, async (request) => {
+  requireModerator(request);
+  const { legalSignedOff, addTester, removeTester } = request.data || {};
+  const ref = db.doc('config/featureFlags');
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const fs = (snap.exists && snap.get('familyStage')) || {};
+    const testers = new Set(Array.isArray(fs.testerUids) ? fs.testerUids : []);
+    if (addTester) testers.add(String(addTester).trim());
+    if (removeTester) testers.delete(String(removeTester).trim());
+    const next = { ...fs, testerUids: [...testers].filter(Boolean) };
+    if (typeof legalSignedOff === 'boolean') {
+      next.legalSignedOff = legalSignedOff;
+      next.signedOffBy = legalSignedOff ? request.auth.uid : null;
+      next.signedOffAt = legalSignedOff ? FieldValue.serverTimestamp() : null;
+    }
+    tx.set(ref, { familyStage: next }, { merge: true });
+  });
+  return { ok: true };
+});
+
 /** Periodic guardian digest — runs daily, sends only conversations that are
  *  due per their own cadence. Kept off the message path so chat stays fast. */
 exports.sendWaliDigests = onSchedule(

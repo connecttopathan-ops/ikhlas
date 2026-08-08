@@ -4,6 +4,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'family_gate.dart';
 import 'reports_queue.dart';
 import 'tokens.dart';
 import 'wali_digests.dart';
@@ -18,7 +19,7 @@ class ReviewQueueScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: T.bg,
@@ -42,6 +43,7 @@ class ReviewQueueScreen extends StatelessWidget {
               Tab(text: 'All applications'),
               Tab(text: 'Reports'),
               Tab(text: 'Wali digests'),
+              Tab(text: 'Family gate'),
             ],
           ),
         ),
@@ -50,6 +52,7 @@ class ReviewQueueScreen extends StatelessWidget {
           _ApplicationsList(queueOnly: false),
           ReportsQueue(),
           WaliDigestsQueue(),
+          FamilyGateScreen(),
         ]),
       ),
     );

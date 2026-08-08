@@ -139,9 +139,12 @@ config/featureFlags {
 locked** (the safe default is "nobody", never "everybody"). `declineFamilyStage`
 is intentionally ungated — it only clears an already-pending request.
 
-**To enable closed testing:** set `config/featureFlags.familyStage.testerUids`
-to the tester UIDs. **To go GA:** after CA + legal review, set
-`legalSignedOff: true` (record `signedOffBy` / `signedOffAt`).
+**Operated from the admin — no raw Firestore edits.** The **"Family gate"** tab
+adds/removes tester UIDs and flips CA/legal sign-off (with a confirmation, since
+it opens the feature to everyone). All writes go through the moderator-only
+`setFamilyStageFlag` callable, which stamps `signedOffBy` / `signedOffAt`.
+- **Closed testing:** add the tester UIDs.
+- **GA:** after CA + legal review, toggle sign-off on.
 
 ## ⚠️ Flagged divergence — contact sharing scope
 The implementation task prompt asked to share the **couple's personal phone
