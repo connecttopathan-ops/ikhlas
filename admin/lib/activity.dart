@@ -189,12 +189,12 @@ class _ActivityScreenState extends State<ActivityScreen> {
             return hay.contains(_q);
           }).toList();
         }
-        int num(Map m, String k) => (m[k] as num?)?.toInt() ?? 0;
+        int intOf(Map m, String k) => (m[k] as num?)?.toInt() ?? 0;
         int lastMs(Map m) =>
             (m['lastActiveAt'] as Timestamp?)?.millisecondsSinceEpoch ?? 0;
         docs = [...docs]..sort((a, b) {
             if (_sort == 'lastActive') return lastMs(b.data()).compareTo(lastMs(a.data()));
-            return num(b.data(), _sort).compareTo(num(a.data(), _sort));
+            return intOf(b.data(), _sort).compareTo(intOf(a.data(), _sort));
           });
         if (docs.isEmpty) {
           return Padding(
