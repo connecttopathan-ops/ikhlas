@@ -24,9 +24,11 @@ log() { printf '\n\033[1;33m▶ %s\033[0m\n' "$1"; }
 deploy_functions() {
   log "Functions + Firestore/Storage rules"
   ( cd app/functions && npm ci )
+  # --force lets a non-interactive deploy delete functions removed from source
+  # (e.g. the renamed idDocImage → idDocImageRaw) without a confirmation prompt.
   ( cd app && firebase deploy \
       --only functions,firestore:rules,firestore:indexes,storage \
-      --project "$PROJECT" --non-interactive )
+      --project "$PROJECT" --non-interactive --force )
 }
 
 build_admin() {
