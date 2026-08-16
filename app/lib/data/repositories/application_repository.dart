@@ -331,16 +331,18 @@ class ApplicationRepository {
             perm == LocationPermission.always) {
           final pos = await Geolocator.getCurrentPosition(
             locationSettings: const LocationSettings(
-              // Precise fix for review (fraud signal). If the OS only has a
-              // coarse permission grant it still returns a lower-accuracy
-              // point; pos.accuracy records the actual radius either way.
-              accuracy: LocationAccuracy.high,
+              // Coarse fix only — this is a fraud / pool-integrity signal, not
+              // navigation, so we request low accuracy and never keep a precise
+              // point. Declared as "Approximate location" in Play Data Safety.
+              accuracy: LocationAccuracy.low,
               timeLimit: Duration(seconds: 12),
             ),
           );
+          // Snap to a ~1 km grid (2 decimal places) so the stored coordinate is
+          // genuinely approximate regardless of the raw fix the OS returns.
           location = {
-            'lat': pos.latitude,
-            'lng': pos.longitude,
+            'lat': _coarse(pos.latitude),
+            'lng': _coarse(pos.longitude),
             'accuracyM': pos.accuracy,
           };
           locationStatus = 'captured';
@@ -358,4 +360,9 @@ class ApplicationRepository {
       'locationStatus': locationStatus,
     };
   }
+
+  // Round a coordinate to 2 decimal places (~1.1 km grid) so we never persist a
+  // precise location — keeps the app's behaviour aligned with the "Approximate
+  // location" declaration in Play Data Safety and the privacy policy.
+  static double _coarse(double v) => (v * 100).roundToDouble() / 100;
 }
