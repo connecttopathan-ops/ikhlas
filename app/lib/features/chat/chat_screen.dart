@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -29,7 +31,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   // resubscribes Firestore and makes the transcript flicker.
   late final _repo = ref.read(chatRepositoryProvider);
   late final _convStream = _repo.conversationStream(widget.convId);
+  // Chrome (header / bars / composer) rebuilds only on STRUCTURAL changes:
+  // read & delivery receipts are stripped from the signature, so the frequent
+  // receipt updates never rebuild the whole screen while the user is typing.
+  late final _chromeStream =
+      _convStream.distinct((a, b) => _chromeSig(a) == _chromeSig(b));
+  // A second, independent conversation subscription feeds ONLY the message
+  // list's ticks — a receipt change rebuilds the list, never the chrome.
+  late final _receiptStream = _repo.conversationStream(widget.convId);
   late final _msgStream = _repo.messagesStream(widget.convId);
+
+  /// Signature of the conversation doc with the receipt fields removed, used to
+  /// suppress chrome rebuilds on read/delivery updates. Any real structural
+  /// change alters the string; reordering only causes a (harmless) extra
+  /// rebuild — never a stale UI.
+  static String _chromeSig(DocumentSnapshot<Map<String, dynamic>> snap) {
+    final d = snap.data();
+    if (d == null) return 'null';
+    final m = Map<String, dynamic>.of(d)
+      ..remove('readUpTo')
+      ..remove('deliveredUpTo');
+    return jsonEncode(m, toEncodable: (o) {
+      if (o is Timestamp) return o.millisecondsSinceEpoch;
+      if (o is DateTime) return o.millisecondsSinceEpoch;
+      return o.toString();
+    });
+  }
   final _scroll = ScrollController();
   int _lastCount = 0;
   String? _readMarkedFor;
@@ -226,7 +253,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final me = user.uid;
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: _convStream,
+      stream: _chromeStream,
       builder: (context, convSnap) {
         final conv = convSnap.data?.data();
         if (conv == null) {
@@ -277,7 +304,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Expanded(child: _AdabGate(convId: widget.convId))
             else ...[
               if (revealBar != null && !closed) revealBar,
-              Expanded(child: _messages(me, other, conv)),
+              Expanded(child: _messages(me, other)),
               if (familyExchange != null)
                 _familyPanel(familyExchange, me, other)
               else if (!closed && !frozen)
@@ -320,6 +347,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         padding: const EdgeInsets.fromLTRB(8, 8, 4, 4),
         child: Row(children: [
           IconButton(
+            tooltip: 'Back',
             onPressed: () =>
                 context.canPop() ? context.pop() : context.go('/conversations'),
             icon: Icon(Icons.arrow_back, size: 22, color: DarkTokens.muted(.7)),
@@ -626,11 +654,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ),
       );
 
-  Widget _messages(String me, String other, Map<String, dynamic> conv) {
-    final readUpTo = (conv['readUpTo'] as Map?) ?? const {};
-    final deliveredUpTo = (conv['deliveredUpTo'] as Map?) ?? const {};
-    final otherRead = readUpTo[other] as Timestamp?;
-    final otherDelivered = deliveredUpTo[other] as Timestamp?;
+  Widget _messages(String me, String other) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: _msgStream,
       builder: (context, snap) {
@@ -672,32 +696,54 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           });
         }
 
-        // Flatten into a display list with date dividers between days.
-        final items = <Widget>[];
+        // Build LIGHTWEIGHT row descriptors only (references + a few day
+        // computations) — the heavy bubble widgets are built lazily per
+        // visible index in itemBuilder, so a long thread no longer rebuilds
+        // every bubble on each snapshot.
+        final rows = <_ChatRow>[];
         DateTime? lastDay;
         for (final doc in msgs) {
-          final m = doc.data();
-          final at = m['at'];
+          final at = doc.data()['at'];
           final dt = at is Timestamp ? at.toDate() : null;
           if (dt != null) {
             final day = DateTime(dt.year, dt.month, dt.day);
             if (lastDay == null || day != lastDay) {
-              items.add(_dateDivider(day));
+              rows.add(_ChatRow.divider(day));
               lastDay = day;
             }
           }
-          items.add(_bubble(m, me, dt, otherRead, otherDelivered));
+          rows.add(_ChatRow.message(doc, dt));
         }
-        // Optimistic messages not yet confirmed by the server, at the bottom.
         for (final p in _pending) {
           if (confirmed.contains(p['clientId'])) continue;
-          items.add(_pendingBubble(p['text'] ?? ''));
+          rows.add(_ChatRow.pending(p['text'] ?? ''));
         }
-        return ListView.builder(
-          controller: _scroll,
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-          itemCount: items.length,
-          itemBuilder: (_, i) => items[i],
+
+        // Receipts live on their own stream: a read/delivery update rebuilds
+        // ONLY this ListView (tick refresh), never the chrome above.
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: _receiptStream,
+          builder: (context, convSnap) {
+            final conv = convSnap.data?.data() ?? const <String, dynamic>{};
+            final readUpTo = (conv['readUpTo'] as Map?) ?? const {};
+            final deliveredUpTo = (conv['deliveredUpTo'] as Map?) ?? const {};
+            final otherRead = readUpTo[other] as Timestamp?;
+            final otherDelivered = deliveredUpTo[other] as Timestamp?;
+            return ListView.builder(
+              controller: _scroll,
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+              itemCount: rows.length,
+              itemBuilder: (_, i) {
+                final r = rows[i];
+                return switch (r.kind) {
+                  _RowKind.divider => _dateDivider(r.day!),
+                  _RowKind.message => _bubble(
+                      r.doc!.data(), me, r.dt, otherRead, otherDelivered),
+                  _RowKind.pending => _pendingBubble(r.text!),
+                };
+              },
+            );
+          },
         );
       },
     );
@@ -837,6 +883,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
           const SizedBox(width: 10),
           IconButton(
+            tooltip: 'Send',
             onPressed: _sending ? null : _send,
             icon: _sending
                 ? const SizedBox(
@@ -857,6 +904,26 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           style: AppType.inter(12.5, color: DarkTokens.muted()),
         ),
       );
+}
+
+/// Lightweight transcript row descriptor — lets the message ListView build
+/// each row lazily by index instead of materializing every bubble up front.
+enum _RowKind { divider, message, pending }
+
+class _ChatRow {
+  final _RowKind kind;
+  final DateTime? day;
+  final QueryDocumentSnapshot<Map<String, dynamic>>? doc;
+  final DateTime? dt;
+  final String? text;
+  const _ChatRow._(this.kind, {this.day, this.doc, this.dt, this.text});
+  factory _ChatRow.divider(DateTime day) =>
+      _ChatRow._(_RowKind.divider, day: day);
+  factory _ChatRow.message(
+          QueryDocumentSnapshot<Map<String, dynamic>> doc, DateTime? dt) =>
+      _ChatRow._(_RowKind.message, doc: doc, dt: dt);
+  factory _ChatRow.pending(String text) =>
+      _ChatRow._(_RowKind.pending, text: text);
 }
 
 /// One-time adab (etiquette) screen — the bismillah moment before the

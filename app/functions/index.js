@@ -1054,6 +1054,8 @@ exports.photo = onRequest(
 
       const owner = String(req.query.owner || '');
       const idx = parseInt(req.query.idx || '0', 10) || 0;
+      // Requested display size in pixels (logical × DPR). 0/absent → full size.
+      const reqEdge = parseInt(req.query.w || '0', 10) || 0;
       if (!owner) return res.status(400).send('owner required');
 
       const ownerSnap = await db.doc(`users/${owner}`).get();
@@ -1099,6 +1101,7 @@ exports.photo = onRequest(
       const out = await processPhoto(bytes, {
         blur,
         watermarkText: viewer === owner ? null : viewer.slice(0, 8),
+        maxEdge: reqEdge,
       });
 
       res.set('Cache-Control', 'private, max-age=300');

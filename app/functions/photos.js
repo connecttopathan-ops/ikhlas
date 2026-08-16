@@ -11,9 +11,14 @@ const BLUR_PX = 22;
  *     leaked screenshot is traceable to who saw it
  * Pure transform: bytes in, JPEG bytes out. No I/O, no permissions here.
  */
-async function processPhoto(buffer, { blur, watermarkText }) {
+async function processPhoto(buffer, { blur, watermarkText, maxEdge }) {
+  // Serve a right-sized rendition: the viewer passes the pixel size they'll
+  // actually display (logical × DPR), clamped to a sane range. Absent →
+  // full MAX_EDGE (back-compat). A small avatar no longer downloads/decodes a
+  // 1080px blob, and the large detail still gets a crisp full-size image.
+  const edge = Math.max(96, Math.min(MAX_EDGE, Math.round(maxEdge) || MAX_EDGE));
   const img = await Jimp.read(buffer);
-  img.scaleToFit(MAX_EDGE, MAX_EDGE);
+  img.scaleToFit(edge, edge);
 
   if (blur) {
     img.blur(BLUR_PX);

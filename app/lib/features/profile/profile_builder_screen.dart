@@ -554,20 +554,26 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
       );
 
   Widget _toggle(String label, bool value, ValueChanged<bool> onChanged) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: InkWell(
-          onTap: () => onChanged(!value),
-          child: Row(children: [
-            Expanded(
-                child: Text(label,
-                    style: AppType.inter(14.5, color: DarkTokens.ivory))),
-            AnimatedOpacity(
-              duration: const Duration(milliseconds: 250),
-              opacity: value ? 1 : .3,
-              child: const DiamondBullet(size: 10),
-            ),
-          ]),
+      Semantics(
+        toggled: value,
+        label: label,
+        container: true,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: InkWell(
+            onTap: () => onChanged(!value),
+            child: Row(children: [
+              Expanded(
+                  child: Text(label,
+                      style: AppType.inter(14.5, color: DarkTokens.ivory))),
+              // Clear on/off affordance (a faint diamond read ambiguously).
+              Icon(
+                value ? Icons.check_circle : Icons.radio_button_unchecked,
+                size: 22,
+                color: value ? DarkTokens.gold : DarkTokens.muted(.5),
+              ),
+            ]),
+          ),
         ),
       );
 

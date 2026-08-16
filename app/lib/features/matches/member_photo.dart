@@ -62,14 +62,23 @@ class _MemberPhotoState extends State<MemberPhoto> {
         future: _token,
         builder: (context, snap) {
           if (!snap.hasData || snap.data == null) return _silhouette();
-          final url =
-              '${MemberPhoto._base}?owner=${widget.ownerUid}&idx=${widget.index}';
+          // Ask the server for exactly the pixels we'll display (logical × DPR),
+          // so a 44px avatar fetches a small rendition and the big detail a
+          // crisp full one — each cached separately, and never decoding a
+          // 1080px blob into a tiny box.
+          final dpr = MediaQuery.of(context).devicePixelRatio;
+          final longest =
+              widget.width > widget.height ? widget.width : widget.height;
+          final px = (longest * dpr).clamp(96, 1080).round();
+          final url = '${MemberPhoto._base}?owner=${widget.ownerUid}'
+              '&idx=${widget.index}&w=$px';
           return CachedNetworkImage(
             imageUrl: url,
             cacheKey:
-                '${widget.ownerUid}_${widget.index}${widget.cacheBust ?? ''}',
+                '${widget.ownerUid}_${widget.index}_$px${widget.cacheBust ?? ''}',
             width: widget.width,
             height: widget.height,
+            memCacheWidth: px,
             fit: BoxFit.cover,
             httpHeaders: {'Authorization': 'Bearer ${snap.data}'},
             // The silhouette is the placeholder AND the error state — never a
