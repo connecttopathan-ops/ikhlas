@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -154,6 +155,53 @@ class _ApplicationCardState extends State<_ApplicationCard> {
         setState(() => _busy = false);
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Failed: $e')));
+      }
+    }
+  }
+
+  /// Moderator reset — fully delete this tester (auth + profile + application
+  /// + ID review + photos) so they can sign up again. The card drops out of
+  /// the list on its own once the docs are gone (the query stream updates).
+  Future<void> _purgeAccount() async {
+    final email = _data['email'] ?? _uid;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: T.panel,
+        title: Text('Delete this account?',
+            style: T.fraunces(19, color: T.ivory)),
+        content: Text(
+            'Permanently removes the login, profile, application, ID review '
+            'and photos for:\n\n$email\n($_uid)\n\nThe person can then sign up '
+            'fresh. This cannot be undone.',
+            style: T.inter(13.5, color: T.muted, height: 1.6)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: T.inter(13.5, color: T.muted))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(backgroundColor: T.reject),
+              child:
+                  Text('Delete account', style: T.inter(13.5, color: T.ivory))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    setState(() => _busy = true);
+    try {
+      await FirebaseFunctions.instanceFor(region: 'asia-south1')
+          .httpsCallable('purgeUserAsAdmin')
+          .call({'uid': _uid});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Account deleted — they can sign up again.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Delete failed: $e')));
       }
     }
   }
@@ -379,6 +427,20 @@ class _ApplicationCardState extends State<_ApplicationCard> {
                   ],
                 ]),
               ],
+
+              // ---- moderator: delete this tester so they can sign up again ----
+              const SizedBox(height: 14),
+              Container(height: 1, color: T.hairline),
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _busy ? null : _purgeAccount,
+                  icon: Icon(Icons.delete_outline, size: 16, color: T.reject),
+                  label: Text('Delete tester account',
+                      style: T.inter(12.5, color: T.reject)),
+                ),
+              ),
             ],
           );
         },
