@@ -83,12 +83,23 @@ jobs:
           PROPS
           echo "Release signing configured."
 
-      - name: Build admin web + member APK
+      - name: Build admin web + member APK + Play AAB
         if: ${{ inputs.target == 'all' || inputs.target == 'hosting' }}
         run: |
           ( cd admin && flutter pub get && flutter build web --release )
           ( cd app && flutter pub get && flutter build apk --release )
           cp app/build/app/outputs/flutter-apk/app-release.apk admin/build/web/ikhlas.apk
+          # Signed App Bundle for the Play Store (Play requires .aab, not .apk).
+          ( cd app && flutter build appbundle --release )
+
+      - name: Upload Play AAB artifact
+        if: ${{ inputs.target == 'all' || inputs.target == 'hosting' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ikhlaas-playstore-aab
+          path: app/build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
 
       - name: Build wali portal web
         if: ${{ inputs.target == 'all' || inputs.target == 'hosting' }}
