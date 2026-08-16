@@ -2352,10 +2352,14 @@ exports.syncModerators = onDocumentWritten(
   { document: 'config/moderators', region: REGION },
   async (event) => {
     const norm = (s) => String(s || '').trim().toLowerCase();
+    // Accept `emails` as an array OR a single/comma-separated string, so the
+    // doc is easy to author by hand in the Firebase console.
+    const toList = (v) =>
+      Array.isArray(v) ? v : typeof v === 'string' ? v.split(/[,;\s]+/) : [];
     const after = event.data?.after?.data() || {};
     const before = event.data?.before?.data() || {};
-    const next = [...new Set((after.emails || []).map(norm).filter(Boolean))];
-    const prev = [...new Set((before.emails || []).map(norm).filter(Boolean))];
+    const next = [...new Set(toList(after.emails).map(norm).filter(Boolean))];
+    const prev = [...new Set(toList(before.emails).map(norm).filter(Boolean))];
     const removed = prev.filter((e) => !next.includes(e));
 
     async function setModerator(email, on) {
