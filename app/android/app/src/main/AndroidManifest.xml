@@ -1,17 +1,23 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Firebase Auth/Firestore/Storage need network access in release builds
          (debug/profile manifests already grant it for dev tooling). -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Precise location recorded with the application (fraud signal;
-         disclosed to the applicant on the verification step). FINE gives
-         the reviewer an accurate fix; COARSE is the graceful fallback when
-         the applicant only grants approximate location. -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <!-- Approximate location only, recorded with the application (fraud /
+         pool-integrity signal; disclosed to the applicant). We request COARSE
+         so the OS shows the "approximate" grant, matching the "Approximate
+         location" declaration in Play Data Safety. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <!-- Decision push notifications (Android 13+ runtime permission). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Front-camera selfie verification. -->
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- No ads / no advertising ID. Strip the AD_ID permission that some
+         Play Services transitive dependencies (e.g. via firebase_messaging)
+         would otherwise merge in, so the built app matches the "No" answer to
+         the Play advertising-ID declaration. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove"/>
     <application
         android:label="Ikhlaas"
         android:name="${applicationName}"
