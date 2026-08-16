@@ -18,6 +18,14 @@ on:
         description: "Optional: seed demo matches + a chat for this member email (screenshots)"
         type: string
         default: ""
+      add_sha1:
+        description: "Optional: register this SHA-1 fingerprint on the Firebase Android app"
+        type: string
+        default: ""
+      add_sha256:
+        description: "Optional: register this SHA-256 fingerprint on the Firebase Android app"
+        type: string
+        default: ""
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -78,6 +86,19 @@ jobs:
               console.log("moderator granted:", email, u.uid);
             })().catch((e) => { console.error(e.message || e); process.exit(1); });
           '
+
+      - name: Register SHA fingerprint (optional)
+        # Adds SHA-1/SHA-256 to the Firebase Android app via the Firebase
+        # Management API (Google Sign-In authorizes builds signed with that
+        # key). Fingerprints are run inputs, not committed. Idempotent.
+        if: ${{ inputs.add_sha1 != '' || inputs.add_sha256 != '' }}
+        working-directory: app/functions
+        env:
+          SHA1: ${{ inputs.add_sha1 }}
+          SHA256: ${{ inputs.add_sha256 }}
+        run: |
+          npm ci
+          node scripts/add-sha.js
 
       - name: Seed demo matches + chat (optional)
         # Writes demo match entries + a live conversation for the given member
