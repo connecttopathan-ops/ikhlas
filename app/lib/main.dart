@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,9 +13,6 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // Show foreground pushes + handle notification taps (token/permission are
-  // requested later, in-context, by PushService).
-  await NotificationService.initialize();
   // Light 2d theme → dark status-bar icons on the sage ground.
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -23,6 +22,13 @@ Future<void> main() async {
   // Fonts are bundled as assets (see pubspec) — sharp on the first frame,
   // no runtime fetch, works fully offline.
   runApp(const ProviderScope(child: IkhlasApp()));
+
+  // Notification setup runs AFTER the first frame: it includes an FCM
+  // getInitialMessage() round-trip that would otherwise gate cold start. It's
+  // only about *showing* foreground pushes + routing taps, so nothing on the
+  // first screen depends on it. Taps that arrive before the router attaches
+  // are no-ops (handled once attachRouter runs).
+  unawaited(NotificationService.initialize());
 }
 
 class IkhlasApp extends ConsumerWidget {

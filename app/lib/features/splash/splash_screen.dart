@@ -53,7 +53,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       _restoredUser(auth),
       // Floor, not deadline: keeps the brand rite on screen even when auth
       // resolves instantly. Auth slower than this just extends the splash.
-      Future<void>.delayed(const Duration(milliseconds: 2600)),
+      // Kept short — a long floor was the bulk of a slow cold start.
+      Future<void>.delayed(const Duration(milliseconds: 1000)),
     ]);
     final user = (results[0] as User?) ?? auth.currentUser;
 
