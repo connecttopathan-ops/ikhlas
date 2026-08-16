@@ -97,12 +97,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return IkhlasScaffold(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpace.screenMargin),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 32),
+      // Scroll-safe: the email/OTP fields + fixed content must not overflow
+      // when the keyboard opens or the OS text size is large.
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpace.screenMargin),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 32),
             Text('BEGIN YOUR APPLICATION',
                 style: AppType.eyebrow(DarkTokens.gold)),
             const SizedBox(height: 14),
@@ -218,6 +225,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ],
             const Spacer(),
           ],
+        ),
+              ),
+            ),
+          ),
         ),
       ),
     );

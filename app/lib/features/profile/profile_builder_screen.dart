@@ -81,6 +81,19 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
 
   void _next() => setState(() => _step++);
 
+  @override
+  void dispose() {
+    _dressing.dispose();
+    _islamicPractice.dispose();
+    _scholars.dispose();
+    _aboutFamily.dispose();
+    _lookingForSpouse.dispose();
+    _lookingForFamily.dispose();
+    _waliName.dispose();
+    _waliPhone.dispose();
+    super.dispose();
+  }
+
   /// preferences map — new deen/lifestyle preference fields are nullable and
   /// only written when set (an unset preference must not become a filter).
   Map<String, dynamic> _prefsMap() => {
@@ -110,7 +123,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
   Future<void> _addPhotos() async {
     if (_photos.length >= 6) return;
     final picked = await ImagePicker()
-        .pickMultiImage(maxWidth: 1200, imageQuality: 78);
+        .pickMultiImage(maxWidth: 1600, imageQuality: 90);
     if (picked.isNotEmpty) {
       setState(() {
         for (final img in picked) {

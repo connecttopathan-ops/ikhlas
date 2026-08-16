@@ -33,7 +33,7 @@ class _SelfieCaptureScreenState extends State<SelfieCaptureScreen> {
         (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.isNotEmpty ? cameras.first : throw 'no-camera',
       );
-      final controller = CameraController(front, ResolutionPreset.medium,
+      final controller = CameraController(front, ResolutionPreset.high,
           enableAudio: false);
       await controller.initialize();
       if (!mounted) return;

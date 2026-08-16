@@ -174,7 +174,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   Future<void> _addPhotos() async {
     if (_photos.length >= 6) return;
     final picked =
-        await ImagePicker().pickMultiImage(maxWidth: 1200, imageQuality: 78);
+        await ImagePicker().pickMultiImage(maxWidth: 1600, imageQuality: 90);
     if (picked.isNotEmpty) {
       setState(() {
         for (final img in picked) {

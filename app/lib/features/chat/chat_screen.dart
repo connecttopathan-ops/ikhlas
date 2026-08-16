@@ -423,15 +423,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         Text('They asked to involve families.',
             style: AppType.inter(12.5, color: DarkTokens.muted())),
         const SizedBox(height: 8),
-        SizedBox(
-          height: 44,
-          child: PrimaryCta(
-            label: 'Agree & exchange guardians',
-            onPressed: () => _run(
-                () => ref.read(chatRepositoryProvider)
-                    .confirmFamilyStage(widget.convId),
-                errorMsg: 'Could not confirm. Please try again.'),
-          ),
+        PrimaryCta(
+          label: 'Agree & exchange guardians',
+          onPressed: () => _run(
+              () => ref.read(chatRepositoryProvider)
+                  .confirmFamilyStage(widget.convId),
+              errorMsg: 'Could not confirm. Please try again.'),
         ),
         const SizedBox(height: 4),
         TextButton(
@@ -454,7 +451,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Text(label,
               style: AppType.inter(12.5, color: DarkTokens.muted())),
           const SizedBox(height: 8),
-          SizedBox(height: 44, child: PrimaryCta(label: cta, onPressed: onTap)),
+          PrimaryCta(label: cta, onPressed: onTap),
         ]),
       );
 

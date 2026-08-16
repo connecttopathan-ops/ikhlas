@@ -99,16 +99,38 @@ class QuietLink extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final mutedColor = isDark ? DarkTokens.muted() : LightTokens.muted();
     final linkColor = isDark ? DarkTokens.gold : LightTokens.link;
-    return GestureDetector(
-      onTap: onTap,
-      child: Text.rich(
-        TextSpan(children: [
-          if (prefix.isNotEmpty)
-            TextSpan(text: '$prefix ', style: AppType.inter(13.5, color: mutedColor)),
-          TextSpan(
-              text: linkText,
-              style: AppType.inter(13.5, weight: FontWeight.w500, color: linkColor)),
-        ]),
+    return Semantics(
+      button: true,
+      enabled: onTap != null,
+      label: linkText,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        // Guarantee a comfortable ≥44dp tap target regardless of text size —
+        // these are the app's secondary actions (Pass, Sign in, Skip, Resend).
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+            child: Align(
+              alignment: Alignment.center,
+              widthFactor: 1,
+              heightFactor: 1,
+              child: Text.rich(
+                TextSpan(children: [
+                  if (prefix.isNotEmpty)
+                    TextSpan(
+                        text: '$prefix ',
+                        style: AppType.inter(13.5, color: mutedColor)),
+                  TextSpan(
+                      text: linkText,
+                      style: AppType.inter(13.5,
+                          weight: FontWeight.w500, color: linkColor)),
+                ]),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

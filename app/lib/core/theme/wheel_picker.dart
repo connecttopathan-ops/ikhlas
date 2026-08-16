@@ -75,34 +75,42 @@ Widget _shell(
       ),
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(ctx).padding.bottom + 12, top: 10),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-          width: 40,
-          height: 4,
-          margin: const EdgeInsets.only(bottom: 14),
-          decoration: BoxDecoration(
-              color: DarkTokens.hairline(),
-              borderRadius: BorderRadius.circular(2)),
+      // Cap + scroll so the sheet can never overflow on a short screen or at a
+      // large OS text size.
+      child: ConstrainedBox(
+        constraints:
+            BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * .85),
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(
+                  color: DarkTokens.hairline(),
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            Text(title, style: AppType.fraunces(20, color: DarkTokens.ivory)),
+            const SizedBox(height: 10),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: toggles),
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 200,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpace.screenMargin),
+                child: wheels,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpace.screenMargin),
+              child: PrimaryCta(label: 'Set', onPressed: onSet),
+            ),
+          ]),
         ),
-        Text(title, style: AppType.fraunces(20, color: DarkTokens.ivory)),
-        const SizedBox(height: 10),
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: toggles),
-        const SizedBox(height: 4),
-        SizedBox(
-          height: 200,
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: AppSpace.screenMargin),
-            child: wheels,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: AppSpace.screenMargin),
-          child: PrimaryCta(label: 'Set', onPressed: onSet),
-        ),
-      ]),
+      ),
     );
 
 /// Height in cm (140–210), with a ft-in / cm toggle. Returns the chosen cm,

@@ -323,13 +323,10 @@ class _MatchCardState extends ConsumerState<_MatchCard> {
           if (action == null)
             Row(children: [
               Expanded(
-                child: SizedBox(
-                  height: 46,
-                  child: PrimaryCta(
-                      label: 'Express interest',
-                      loading: _busy,
-                      onPressed: _busy ? null : () => _act('interested')),
-                ),
+                child: PrimaryCta(
+                    label: 'Express interest',
+                    loading: _busy,
+                    onPressed: _busy ? null : () => _act('interested')),
               ),
               const SizedBox(width: 14),
               QuietLink(

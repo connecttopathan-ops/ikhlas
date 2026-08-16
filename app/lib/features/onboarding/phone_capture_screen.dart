@@ -20,6 +20,12 @@ class _PhoneCaptureScreenState extends ConsumerState<PhoneCaptureScreen> {
 
   bool get _valid => RegExp(r'^[6-9]\d{9}$').hasMatch(_ctrl.text.trim());
 
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _save() async {
     setState(() => _busy = true);
     try {

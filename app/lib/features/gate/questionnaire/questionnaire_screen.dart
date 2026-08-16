@@ -275,67 +275,75 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
         ),
         padding: EdgeInsets.only(
             bottom: MediaQuery.of(ctx).padding.bottom + 12, top: 10),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 14),
-            decoration: BoxDecoration(
-                color: DarkTokens.hairline(),
-                borderRadius: BorderRadius.circular(2)),
+        // Cap + scroll so the sheet can't overflow on a short screen / large text.
+        child: ConstrainedBox(
+          constraints:
+              BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * .85),
+          child: SingleChildScrollView(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 14),
+                decoration: BoxDecoration(
+                    color: DarkTokens.hairline(),
+                    borderRadius: BorderRadius.circular(2)),
+              ),
+              Text('Date of birth',
+                  style: AppType.fraunces(20, color: DarkTokens.ivory)),
+              const SizedBox(height: 4),
+              Text('You must be 18 or older',
+                  style: AppType.inter(12.5, color: DarkTokens.muted(.7))),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 200,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpace.screenMargin),
+                  child: Row(children: [
+                    wheel(
+                        controller: dayCtrl,
+                        count: 31,
+                        flex: 3,
+                        labelOf: (i) => '${i + 1}',
+                        onChanged: (i) => tmpDay = i + 1),
+                    wheel(
+                        controller: monthCtrl,
+                        count: 12,
+                        flex: 5,
+                        labelOf: (i) => _monthNames[i],
+                        onChanged: (i) => tmpMonth = i + 1),
+                    wheel(
+                        controller: yearCtrl,
+                        count: years.length,
+                        flex: 4,
+                        labelOf: (i) => '${years[i]}',
+                        onChanged: (i) => tmpYear = years[i]),
+                  ]),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpace.screenMargin),
+                child: PrimaryCta(
+                    label: 'Set date',
+                    onPressed: () {
+                      // Clamp the day to the chosen month/year (e.g. 31 → Feb).
+                      final maxDay =
+                          DateUtils.getDaysInMonth(tmpYear, tmpMonth);
+                      setState(() {
+                        _dobD = tmpDay.clamp(1, maxDay);
+                        _dobM = tmpMonth;
+                        _dobY = tmpYear;
+                        _syncDob();
+                      });
+                      Navigator.pop(ctx);
+                    }),
+              ),
+            ]),
           ),
-          Text('Date of birth',
-              style: AppType.fraunces(20, color: DarkTokens.ivory)),
-          const SizedBox(height: 4),
-          Text('You must be 18 or older',
-              style: AppType.inter(12.5, color: DarkTokens.muted(.7))),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 200,
-            child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: AppSpace.screenMargin),
-              child: Row(children: [
-                wheel(
-                    controller: dayCtrl,
-                    count: 31,
-                    flex: 3,
-                    labelOf: (i) => '${i + 1}',
-                    onChanged: (i) => tmpDay = i + 1),
-                wheel(
-                    controller: monthCtrl,
-                    count: 12,
-                    flex: 5,
-                    labelOf: (i) => _monthNames[i],
-                    onChanged: (i) => tmpMonth = i + 1),
-                wheel(
-                    controller: yearCtrl,
-                    count: years.length,
-                    flex: 4,
-                    labelOf: (i) => '${years[i]}',
-                    onChanged: (i) => tmpYear = years[i]),
-              ]),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: AppSpace.screenMargin),
-            child: PrimaryCta(
-                label: 'Set date',
-                onPressed: () {
-                  // Clamp the day to the chosen month/year (e.g. 31 → Feb).
-                  final maxDay = DateUtils.getDaysInMonth(tmpYear, tmpMonth);
-                  setState(() {
-                    _dobD = tmpDay.clamp(1, maxDay);
-                    _dobM = tmpMonth;
-                    _dobY = tmpYear;
-                    _syncDob();
-                  });
-                  Navigator.pop(ctx);
-                }),
-          ),
-        ]),
+        ),
       ),
     );
 
