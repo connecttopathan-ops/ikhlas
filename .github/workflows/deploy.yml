@@ -10,6 +10,10 @@ on:
         type: choice
         default: all
         options: [all, functions, hosting]
+      grant_moderator_email:
+        description: "Optional: grant this email the moderator claim (admin portal access)"
+        type: string
+        default: ""
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -42,6 +46,34 @@ jobs:
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
+
+      - name: Grant moderator claim (optional)
+        # Directly sets the `moderator:true` custom claim (and seeds the
+        # config/moderators allowlist) for the email passed as a run input,
+        # using the service account. The email is a workflow input, never
+        # committed to the repo. Run this workflow with the field filled in.
+        if: ${{ inputs.grant_moderator_email != '' }}
+        working-directory: app/functions
+        env:
+          GRANT_EMAIL: ${{ inputs.grant_moderator_email }}
+          GCLOUD_PROJECT: ${{ env.PROJECT }}
+        run: |
+          npm ci
+          node -e '
+            const admin = require("firebase-admin");
+            admin.initializeApp();
+            (async () => {
+              const email = String(process.env.GRANT_EMAIL || "").trim().toLowerCase();
+              if (!email) { console.log("no email"); return; }
+              const u = await admin.auth().getUserByEmail(email);
+              const claims = { ...(u.customClaims || {}), moderator: true };
+              await admin.auth().setCustomUserClaims(u.uid, claims);
+              await admin.auth().revokeRefreshTokens(u.uid);
+              await admin.firestore().doc("config/moderators")
+                .set({ emails: admin.firestore.FieldValue.arrayUnion(email) }, { merge: true });
+              console.log("moderator granted:", email, u.uid);
+            })().catch((e) => { console.error(e.message || e); process.exit(1); });
+          '
 
       - name: Deploy functions + rules
         if: ${{ inputs.target == 'all' || inputs.target == 'functions' }}
