@@ -47,4 +47,19 @@ class EmailOtpAuth {
       FirebaseAuth.instance.isSignInWithEmailLink(link);
 }
 
+/// Password sign-in for the ONE dedicated app-store / Play-review account.
+/// Normal users stay passwordless (Google + email link). This exists so a
+/// reviewer can enter the app without access to an inbox or a Google login.
+/// The email below is only an identifier that unlocks the password field in
+/// the UI — the password itself lives solely in Firebase Auth, never here.
+/// Requires: Email/Password provider enabled in Firebase, and this user
+/// pre-created in Authentication → Users.
+class ReviewerAuth {
+  static const reviewerEmail = 'playreview@ikhlaas.io';
+
+  Future<UserCredential> signIn(String email, String password) =>
+      FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+}
+
 class AuthCancelled implements Exception {}

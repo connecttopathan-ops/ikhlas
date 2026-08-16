@@ -17,8 +17,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailCtrl = TextEditingController();
+  final _pwCtrl = TextEditingController();
   bool _busy = false;
   bool _linkSent = false;
+  bool _reviewerMode = false; // dedicated review account uses a password
 
   Future<void> _google() async {
     setState(() => _busy = true);
@@ -36,10 +38,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  Future<void> _emailLink() async {
+  Future<void> _emailPrimary() async {
     final email = _emailCtrl.text.trim();
     if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
       _err('Enter a valid email address.');
+      return;
+    }
+    // The dedicated review account signs in with a password, not a link.
+    if (email.toLowerCase() == ReviewerAuth.reviewerEmail && !_reviewerMode) {
+      setState(() => _reviewerMode = true);
+      return;
+    }
+    if (_reviewerMode) {
+      await _reviewerSignIn(email);
       return;
     }
     setState(() => _busy = true);
@@ -48,6 +59,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       setState(() => _linkSent = true);
     } on FirebaseAuthException catch (e) {
       _err('Could not send the link (${e.code}).');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _reviewerSignIn(String email) async {
+    if (_pwCtrl.text.isEmpty) {
+      _err('Enter the password.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final cred = await ReviewerAuth().signIn(email, _pwCtrl.text);
+      await ref.read(applicationRepositoryProvider).ensureUserDoc(
+          email: cred.user?.email ?? email, authProvider: 'password');
+      if (mounted) context.go('/phone');
+    } on FirebaseAuthException catch (e) {
+      _err('Sign-in failed (${e.code}). Please try again.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -118,11 +147,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       borderSide: BorderSide(color: DarkTokens.gold)),
                 ),
               ),
+              if (_reviewerMode) ...[
+                const SizedBox(height: 24),
+                Text('PASSWORD',
+                    style: AppType.eyebrow(DarkTokens.gold.withOpacity(.8))),
+                const SizedBox(height: 4),
+                TextField(
+                  controller: _pwCtrl,
+                  obscureText: true,
+                  style: AppType.inter(16, color: DarkTokens.ivory),
+                  cursorColor: DarkTokens.gold,
+                  onSubmitted: (_) => _busy ? null : _emailPrimary(),
+                  decoration: InputDecoration(
+                    hintText: '••••••••',
+                    hintStyle: AppType.inter(16, color: DarkTokens.muted(.4)),
+                    enabledBorder: UnderlineInputBorder(
+                        borderSide:
+                            BorderSide(color: DarkTokens.gold.withOpacity(.65))),
+                    focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: DarkTokens.gold)),
+                  ),
+                ),
+              ],
               const SizedBox(height: 28),
               PrimaryCta(
-                  label: 'Send sign-in link',
+                  label: _reviewerMode ? 'Sign in' : 'Send sign-in link',
                   loading: _busy,
-                  onPressed: _busy ? null : _emailLink),
+                  onPressed: _busy ? null : _emailPrimary),
             ] else ...[
               Row(children: [
                 const DiamondBullet(),
