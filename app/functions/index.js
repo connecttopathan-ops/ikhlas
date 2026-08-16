@@ -2177,6 +2177,48 @@ const hashCode = (salt, code) =>
 const normalizeEmail = (raw) => String(raw || '').trim().toLowerCase();
 const validEmail = (e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
 
+/**
+ * Optional store-REVIEWER bypass. Reads config/reviewAccess { email, code, uid }
+ * from Firestore — deliberately NOT in source, so the public repo never carries
+ * the backdoor code. When a sign-in matches, the OTP email + approval gate are
+ * skipped and a pre-approved account is seeded, so a Play/App-Store reviewer can
+ * walk the full app. Delete the doc to turn the feature off entirely.
+ */
+async function reviewAccess() {
+  const snap = await db.doc('config/reviewAccess').get();
+  if (!snap.exists) return null;
+  const d = snap.data() || {};
+  const email = normalizeEmail(d.email);
+  const code = String(d.code || '').trim();
+  const uid = String(d.uid || '').trim();
+  if (!email || !/^\d{6}$/.test(code) || !uid) return null;
+  return { email, code, uid };
+}
+
+/** Seed the reviewer as an approved, profile-complete member (idempotent). */
+async function seedReviewerUser(uid, email) {
+  await db.doc(`users/${uid}`).set({
+    email,
+    authProvider: 'review',
+    gender: 'male',
+    dob: new Date(new Date().getFullYear() - 30, 0, 1),
+    status: 'approved',
+    profileComplete: true,
+    reviewer: true,
+    profile: {
+      maritalStatus: 'never_married',
+      photoVisibility: 'on_mutual_blur',
+      residence: { country: 'India', city: 'Hyderabad' },
+      nationality: 'India',
+    },
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  // Let the reviewer exercise the family-stage flow too.
+  await db.doc('config/featureFlags').set({
+    familyStage: { testerUids: FieldValue.arrayUnion(uid) },
+  }, { merge: true });
+}
+
 /** Step 1 — generate a code, store its hash, email it via Resend. */
 exports.sendEmailOtp = onCall(
   { region: REGION, secrets: [RESEND_API_KEY] },
@@ -2185,6 +2227,10 @@ exports.sendEmailOtp = onCall(
     if (!validEmail(email)) {
       throw new HttpsError('invalid-argument', 'Enter a valid email address.');
     }
+    // Reviewer bypass: don't send a real email (the code is fixed) and skip
+    // the rate limits, so a store reviewer is never blocked on delivery.
+    const rev = await reviewAccess();
+    if (rev && email === rev.email) return { ok: true };
     const ref = db.doc(`emailOtps/${emailKey(email)}`);
     const now = Date.now();
     let pendingCode;
@@ -2241,6 +2287,17 @@ exports.verifyEmailOtp = onCall({ region: REGION }, async (request) => {
   const code = String(request.data?.code || '').trim();
   if (!validEmail(email) || !/^\d{6}$/.test(code)) {
     throw new HttpsError('invalid-argument', 'Enter the 6-digit code.');
+  }
+  // Reviewer bypass: fixed code → seed a pre-approved account and sign in,
+  // skipping the emailed-OTP check and the moderation gate entirely.
+  const rev = await reviewAccess();
+  if (rev && email === rev.email) {
+    if (code !== rev.code) {
+      throw new HttpsError('permission-denied', 'Incorrect code. Please try again.');
+    }
+    await seedReviewerUser(rev.uid, email);
+    const token = await getAuth().createCustomToken(rev.uid);
+    return { token };
   }
   const ref = db.doc(`emailOtps/${emailKey(email)}`);
   const snap = await ref.get();
