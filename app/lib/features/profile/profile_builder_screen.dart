@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/wheel_picker.dart';
 import '../../core/theme/widgets.dart';
 import '../../providers/application_provider.dart';
 import '../gate/questionnaire/questionnaire_models.dart';
@@ -35,9 +36,7 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
 
   // Step 3 — appearance
   int? _heightCm;
-  bool _heightImperial = true; // ft/in by default (India); toggle to cm
   int? _weightKg;
-  bool _weightMetric = true; // kg by default; toggle to lb
   String? _build;
   String? _beard; // brothers
   String? _hijab; // sisters
@@ -389,162 +388,59 @@ class _ProfileBuilderScreenState extends ConsumerState<ProfileBuilderScreen> {
         ),
       );
 
-  /// Own height with an ft-in / cm toggle. Stored as cm (int, single source of
-  /// truth); imperial is entry/display only.
+  /// Own height — opens the shared wheel picker (ft-in / cm), matching the
+  /// gate's DOB picker for animation + haptics. Stored as cm.
   Widget _heightPicker() {
     final cm = _heightCm;
-    int? feet, inch;
-    if (cm != null) {
-      final t = (cm / 2.54).round();
-      feet = t ~/ 12;
-      inch = t % 12;
-    }
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Expanded(
-            child: Text('Height (optional)',
-                style: AppType.inter(12.5, color: DarkTokens.muted()))),
-        _heightUnitPill('ft/in', true),
-        const SizedBox(width: 8),
-        _heightUnitPill('cm', false),
-      ]),
-      const SizedBox(height: 4),
-      if (_heightImperial)
-        Row(children: [
-          Expanded(
-              child: _pbDropdown<int>(
-                  value: feet,
-                  items: [for (var f = 4; f <= 7; f++) f],
-                  labelOf: (v) => '$v ft',
-                  onChanged: (f) => setState(() => _heightCm =
-                      (((f ?? 5) * 12 + (inch ?? 0)) * 2.54).round()))),
-          const SizedBox(width: 12),
-          Expanded(
-              child: _pbDropdown<int>(
-                  value: inch,
-                  items: [for (var i = 0; i <= 11; i++) i],
-                  labelOf: (v) => '$v in',
-                  onChanged: (i) => setState(() => _heightCm =
-                      (((feet ?? 5) * 12 + (i ?? 0)) * 2.54).round()))),
-        ])
-      else
-        _pbDropdown<int>(
-            value: cm,
-            items: [for (var c = 140; c <= 210; c++) c],
-            labelOf: (v) => '$v cm',
-            onChanged: (c) => setState(() => _heightCm = c)),
-      if (cm != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Text('$feet\'$inch" ($cm cm)',
-              style: AppType.inter(13, color: DarkTokens.gold)),
-        ),
-    ]);
+    final label = cm == null
+        ? 'Add your height'
+        : "${(cm / 2.54).round() ~/ 12}'${(cm / 2.54).round() % 12}\" ($cm cm)";
+    return _pickerField('Height (optional)', label, cm != null, () async {
+      final v = await showHeightWheel(context, initialCm: cm);
+      if (v != null && mounted) setState(() => _heightCm = v);
+    });
   }
 
-  Widget _heightUnitPill(String label, bool imperial) {
-    final on = _heightImperial == imperial;
-    return GestureDetector(
-      onTap: () => setState(() => _heightImperial = imperial),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: on ? DarkTokens.gold.withOpacity(.12) : null,
-          border: Border.all(
-              color: on ? DarkTokens.gold : DarkTokens.hairline(.5)),
-        ),
-        child: Text(label,
-            style: AppType.inter(12,
-                color: on ? DarkTokens.gold : DarkTokens.muted())),
-      ),
-    );
-  }
-
-  /// Weight with a kg/lb toggle — mirrors the height ft/cm pattern. Stored as
-  /// kg (int, single source of truth); lb is display-only.
+  /// Own weight — shared wheel picker (kg / lb). Stored as kg.
   Widget _weightPicker() {
     final kg = _weightKg;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Expanded(
-            child: Text('Weight (optional)',
-                style: AppType.inter(12.5, color: DarkTokens.muted()))),
-        _weightUnitPill('kg', true),
-        const SizedBox(width: 8),
-        _weightUnitPill('lb', false),
-      ]),
-      const SizedBox(height: 4),
-      if (_weightMetric)
-        _pbDropdown<int>(
-            value: kg,
-            items: [for (var w = 40; w <= 150; w++) w],
-            labelOf: (v) => '$v kg',
-            onChanged: (v) => setState(() => _weightKg = v))
-      else
-        _pbDropdown<int>(
-            value: kg == null ? null : (kg * 2.20462).round(),
-            items: [for (var w = 90; w <= 330; w++) w],
-            labelOf: (v) => '$v lb',
-            onChanged: (lb) => setState(
-                () => _weightKg = lb == null ? null : (lb / 2.20462).round())),
-      if (kg != null)
-        Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Text('$kg kg (${(kg * 2.20462).round()} lb)',
-              style: AppType.inter(13, color: DarkTokens.gold)),
-        ),
-    ]);
+    final label = kg == null
+        ? 'Add your weight'
+        : '$kg kg (${(kg * 2.20462).round()} lb)';
+    return _pickerField('Weight (optional)', label, kg != null, () async {
+      final v = await showWeightWheel(context, initialKg: kg);
+      if (v != null && mounted) setState(() => _weightKg = v);
+    });
   }
 
-  Widget _weightUnitPill(String label, bool metric) {
-    final on = _weightMetric == metric;
-    return GestureDetector(
-      onTap: () => setState(() => _weightMetric = metric),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          color: on ? DarkTokens.gold.withOpacity(.12) : null,
-          border: Border.all(
-              color: on ? DarkTokens.gold : DarkTokens.hairline(.5)),
-        ),
-        child: Text(label,
-            style: AppType.inter(12,
-                color: on ? DarkTokens.gold : DarkTokens.muted())),
-      ),
-    );
-  }
-
-  Widget _pbDropdown<T>({
-    required T? value,
-    required List<T> items,
-    required String Function(T) labelOf,
-    required ValueChanged<T?> onChanged,
-  }) =>
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
+  /// Labelled tap-to-open field, consistent with the gate's picker fields.
+  Widget _pickerField(
+          String label, String value, bool chosen, VoidCallback onTap) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label, style: AppType.inter(12.5, color: DarkTokens.muted())),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(AppRadius.control),
-          border: Border.all(color: DarkTokens.gold.withOpacity(.4)),
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<T>(
-            value: value,
-            isExpanded: true,
-            dropdownColor: DarkTokens.bg,
-            icon: Icon(Icons.expand_more, color: DarkTokens.muted(.7)),
-            hint: Text('Select',
-                style: AppType.inter(14, color: DarkTokens.muted(.5))),
-            style: AppType.inter(14.5, color: DarkTokens.ivory),
-            items: [
-              for (final it in items)
-                DropdownMenuItem<T>(value: it, child: Text(labelOf(it))),
-            ],
-            onChanged: onChanged,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.control),
+              border: Border.all(
+                  color: DarkTokens.gold.withOpacity(chosen ? .75 : .4)),
+            ),
+            child: Row(children: [
+              Expanded(
+                child: Text(value,
+                    style: AppType.inter(15.5,
+                        color:
+                            chosen ? DarkTokens.ivory : DarkTokens.muted(.55))),
+              ),
+              Icon(Icons.expand_more, size: 22, color: DarkTokens.muted(.7)),
+            ]),
           ),
         ),
-      );
+      ]);
 
   Widget _preferencesStep() => StepScaffold(
         step: 5,

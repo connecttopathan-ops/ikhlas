@@ -1042,49 +1042,62 @@ class _QuestionnaireScreenState extends ConsumerState<QuestionnaireScreen> {
                     _idType = v;
                   })),
           const SizedBox(height: 20),
-          // Preview / target zone — full width so it never reads cramped.
-          // The cue names the correct side: OCR + face-match need the front
-          // (photo + name), not the Aadhaar back (address).
-          Container(
-            width: double.infinity,
-            height: 210,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.control),
-              border: Border.all(
-                  color: DarkTokens.gold
-                      .withOpacity(_idImage == null ? .45 : .9),
-                  width: 1),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: _idImage == null
-                ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.badge_outlined,
-                          size: 40,
-                          color: DarkTokens.muted(_idType == null ? .3 : .7)),
-                      const SizedBox(height: 12),
-                      Text(
-                          _idType == null
-                              ? 'Choose a document first'
-                              : 'A clear photo of your ${_idType == 'passport' ? 'passport' : 'Aadhaar'}',
-                          textAlign: TextAlign.center,
-                          style: AppType.inter(13,
-                              color: DarkTokens.muted(.7))),
-                      if (_idType != null) ...[
-                        const SizedBox(height: 5),
+          // Preview / target zone — full width so it never reads cramped, and
+          // TAPPABLE: tapping the box captures (or retakes), so the primary
+          // action is always on screen even before the button scrolls into
+          // view. The cue names the correct side: OCR + face-match need the
+          // front (photo + name), not the Aadhaar back (address).
+          GestureDetector(
+            onTap: _idType == null || _submitting ? null : _captureId,
+            child: Container(
+              width: double.infinity,
+              height: 180,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadius.control),
+                border: Border.all(
+                    color: DarkTokens.gold
+                        .withOpacity(_idImage == null ? .45 : .9),
+                    width: 1),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: _idImage == null
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                            _idType == null
+                                ? Icons.badge_outlined
+                                : Icons.photo_camera_outlined,
+                            size: 38,
+                            color: DarkTokens.gold
+                                .withOpacity(_idType == null ? .3 : .9)),
+                        const SizedBox(height: 12),
                         Text(
-                            _idType == 'passport'
-                                ? 'The photo page.'
-                                : 'Front side — the one with your photo.',
+                            _idType == null
+                                ? 'Choose a document first'
+                                : 'Tap to photograph your '
+                                    '${_idType == 'passport' ? 'passport' : 'Aadhaar'}',
                             textAlign: TextAlign.center,
-                            style: AppType.inter(12.5,
-                                weight: FontWeight.w500,
-                                color: DarkTokens.gold.withOpacity(.9))),
+                            style: AppType.inter(13.5,
+                                weight: FontWeight.w600,
+                                color: _idType == null
+                                    ? DarkTokens.muted(.6)
+                                    : DarkTokens.ivory)),
+                        if (_idType != null) ...[
+                          const SizedBox(height: 5),
+                          Text(
+                              _idType == 'passport'
+                                  ? 'The photo page.'
+                                  : 'Front side — the one with your photo.',
+                              textAlign: TextAlign.center,
+                              style: AppType.inter(12.5,
+                                  weight: FontWeight.w500,
+                                  color: DarkTokens.gold.withOpacity(.9))),
+                        ],
                       ],
-                    ],
-                  )
-                : Image.file(File(_idImage!.path), fit: BoxFit.cover),
+                    )
+                  : Image.file(File(_idImage!.path), fit: BoxFit.cover),
+            ),
           ),
           const SizedBox(height: 16),
           // Capture is the primary path (the overlay guide gives better OCR);
