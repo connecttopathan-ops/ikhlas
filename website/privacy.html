@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — Ikhlaas</title>
+<meta name="description" content="What the Ikhlaas app collects, how we use it, how long we keep it, who we share it with, and the choices you have. Your trust is an amanah.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..500&family=Inter:wght@400;500;600&family=Amiri&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#F4EFE3; --bg2:#EDE4D2; --bg3:#E6DAC3; --surface:#F0E8D8; --ink:#20281F;
+  --gold:#B4923A; --gold-lum:#DFB85C; --gold-link:#96762C; --green:#356048;
+  --hair:rgba(148,116,32,.18); --muted:rgba(23,37,27,.62);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:radial-gradient(150% 80% at 50% -8%, var(--bg) 0%, var(--bg2) 55%, var(--bg3) 100%);
+  background-attachment:fixed; color:var(--ink);
+  font-family:Inter,system-ui,sans-serif; -webkit-font-smoothing:antialiased; line-height:1.7}
+body::before{content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.04;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E")}
+
+/* top bar */
+.topbar{position:relative; z-index:2; border-bottom:1px solid var(--hair)}
+.topbar .inner{max-width:760px; margin:0 auto; padding:20px 32px; display:flex; align-items:center; justify-content:space-between}
+.wordmark{font-family:Fraunces,serif; font-weight:440; font-size:22px; letter-spacing:-.018em; color:var(--ink); text-decoration:none; display:inline-flex; align-items:center; gap:8px}
+.wordmark .dot{width:7px; height:7px; background:var(--gold-lum); transform:rotate(45deg)}
+.back{font-size:13px; color:var(--gold-link); text-decoration:none; border-bottom:1px solid rgba(148,116,32,.35)}
+
+.wrap{position:relative; z-index:2; max-width:680px; margin:0 auto; padding:0 32px}
+
+/* header */
+header.page{text-align:center; padding:72px 0 40px}
+.kicker{font-family:Amiri,serif; font-size:22px; color:var(--gold)}
+h1{font-family:Fraunces,serif; font-variation-settings:'opsz' 144; font-weight:400; font-size:42px;
+  line-height:1.1; color:var(--ink); margin-top:14px; text-wrap:balance}
+.amanah{font-family:Fraunces,serif; font-style:italic; font-size:19px; color:var(--green); margin-top:16px}
+.updated{font-size:12.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-top:20px}
+.rule{width:60px; height:1px; margin:34px auto 0; background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+
+/* intro */
+.lede{font-size:16.5px; color:rgba(23,37,27,.72); margin:40px 0 8px; line-height:1.75}
+.lede a{color:var(--gold-link)}
+
+/* sections */
+section{padding:34px 0; border-top:1px solid var(--hair)}
+section:first-of-type{border-top:none}
+h2{font-family:Fraunces,serif; font-weight:500; font-size:25px; color:var(--ink); margin-bottom:16px; text-wrap:balance}
+h3{font-family:Inter,sans-serif; font-weight:600; font-size:13px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--gold-link); margin:24px 0 10px}
+p{color:rgba(23,37,27,.74); margin-bottom:14px}
+p:last-child, ul:last-child{margin-bottom:0}
+strong{font-weight:600; color:var(--ink)}
+a{color:var(--gold-link)}
+ul{list-style:none; margin:0 0 14px}
+li{position:relative; padding-left:22px; margin-bottom:12px; color:rgba(23,37,27,.74)}
+li::before{content:""; position:absolute; left:2px; top:9px; width:6px; height:6px;
+  background:var(--green); transform:rotate(45deg)}
+.callout{background:var(--surface); border:1px solid var(--hair); border-radius:12px; padding:22px 26px; margin-top:6px}
+.callout p:last-child{margin-bottom:0}
+
+/* footer */
+footer{position:relative; z-index:2; text-align:center; padding:56px 32px 64px; margin-top:24px; border-top:1px solid var(--hair)}
+footer .wordmark{font-size:19px; justify-content:center}
+footer .tagline{margin-top:10px; font-family:Fraunces,serif; font-style:italic; font-size:14px; color:var(--muted)}
+footer .links{margin-top:18px; display:flex; gap:22px; justify-content:center; flex-wrap:wrap}
+footer .links a{font-size:13px; color:var(--gold-link); text-decoration:none}
+footer .copy{margin-top:22px; font-size:12px; color:rgba(23,37,27,.42)}
+
+@media(max-width:600px){
+  header.page{padding:52px 0 32px}
+  h1{font-size:34px}
+  h2{font-size:22px}
+  .topbar .inner,.wrap{padding-left:22px; padding-right:22px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="inner">
+    <a class="wordmark" href="index.html">ıkhlaas<span class="dot"></span></a>
+    <a class="back" href="index.html">Back to ikhlaas.io</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <header class="page">
+    <div class="kicker">إخلاص</div>
+    <h1>Privacy Policy</h1>
+    <div class="amanah">Your trust is an amanah.</div>
+    <div class="updated">Last updated: July 2026</div>
+    <div class="rule"></div>
+  </header>
+
+  <p class="lede">This policy explains what information the Ikhlaas app collects, how we use it, how long we keep it, who we share it with, and the choices you have. Ikhlaas is a matrimonial service for practising Muslims seeking nikah. Please read this together with our <a href="#">Terms</a>.</p>
+
+  <section>
+    <h2>Who we are</h2>
+    <p>Ikhlaas ("we", "us", "our") operates the Ikhlaas website (<a href="https://ikhlaas.io">ikhlaas.io</a>) and the Ikhlaas matrimonial app. Ikhlaas is registered as an MSME (Udyam) in India. We are committed to protecting the privacy of everyone who trusts us with their information, and we treat that information as an amanah.</p>
+  </section>
+
+  <section>
+    <h2>Information we collect</h2>
+    <p>To operate an application-only matrimonial service with genuine identity verification, the app collects the following. We collect it because a serious, verified, deen-first matching service cannot function without it — and we collect no more than we need.</p>
+
+    <h3>Account and contact information</h3>
+    <ul>
+      <li>Name, gender, date of birth, email address, phone number, city, country, nationality, and residency status.</li>
+    </ul>
+
+    <h3>Identity verification information</h3>
+    <ul>
+      <li>A government identity document you upload — Aadhaar or passport — and the information read from it. For Aadhaar, we retain only the last four digits of the number, never the full number.</li>
+      <li>A selfie used for liveness detection and to confirm that the identity document belongs to you. This involves processing face (biometric) data.</li>
+      <li>The result of verification, including whether it passed and the match outcome.</li>
+    </ul>
+
+    <h3>Your profile and questionnaire answers</h3>
+    <ul>
+      <li>Your answers about your deen and practice, including prayer, aqidah, your affirmations regarding tawhid and riba, Quran engagement, and scholars you follow.</li>
+      <li>Your marriage intentions and timeframe, education, profession, income band, family details, living arrangements, any health information you choose to share, appearance details, and free-text answers about yourself and what you are seeking.</li>
+      <li>Photos you choose to upload, and your photo-visibility settings.</li>
+    </ul>
+
+    <h3>Your activity on the service</h3>
+    <ul>
+      <li>Matches shown to you, interest you express or receive, and the content of conversations you have with other members.</li>
+      <li>Contact details exchanged when you and a match both choose to involve your families.</li>
+    </ul>
+
+    <h3>Guardian (wali) information</h3>
+    <ul>
+      <li>If you add a wali, their name, relationship to you, and contact details, so that we can involve them as you direct.</li>
+    </ul>
+
+    <h3>Payment information</h3>
+    <ul>
+      <li>If you subscribe, your payment is processed by our payment provider. We receive confirmation of your subscription status. We do not receive or store your card or bank details.</li>
+    </ul>
+
+    <h3>Technical information</h3>
+    <ul>
+      <li>Approximate location, device type, and app-usage information, collected to keep the service secure and to prevent misuse.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Sensitive and biometric information</h2>
+    <p>Some of the information above is sensitive personal information, including your government identity document, your face (biometric) data, and information that reveals your religious practice and, if you provide it, your health.</p>
+    <ul>
+      <li>We collect your identity document and selfie only to confirm that you are a real person who is who you say you are. Preventing impersonation is central to the safety of the service. Your verification selfie is never shown on your profile or to any other member.</li>
+      <li>We process your face data only to match your selfie against your identity document, and for no other purpose.</li>
+      <li>Information about your religious practice is the heart of the service and is used only for eligibility and matching, as you would expect on a deen-first matrimonial platform.</li>
+    </ul>
+    <p>We ask for your consent to process this information as part of your application, and you may withdraw that consent by contacting us and closing your account.</p>
+  </section>
+
+  <section>
+    <h2>How we use your information</h2>
+    <ul>
+      <li>To assess your application against our eligibility standard and to verify your identity.</li>
+      <li>To build your profile and show it to potential matches within the service, according to your privacy settings.</li>
+      <li>To generate daily matches based on deen, intention, and your stated preferences.</li>
+      <li>To enable guarded conversations and, when you choose, to involve your families.</li>
+      <li>To keep your wali informed as you have directed.</li>
+      <li>To process your subscription.</li>
+      <li>To keep the service secure, prevent misuse, and respond to your support requests.</li>
+    </ul>
+    <div class="callout">
+      <p>We do not use your information to serve you third-party advertising, and we do not rank or match members on skin tone or physical appearance.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>How we share your information</h2>
+    <ul>
+      <li><strong>With other members.</strong> Your profile is shown to potential matches according to your privacy settings. If you and a match both choose to involve your families, the contact details of you and your wali are shared into your conversation so that your families can connect. We tell you clearly at the moment this happens. After contact details are exchanged, your conversation may continue off Ikhlaas, outside our control.</li>
+      <li><strong>With your wali.</strong> If you add a wali, they receive a copy or digest of your relevant conversations, as part of the guardian involvement you have chosen.</li>
+      <li><strong>With our service providers.</strong> We use trusted providers for identity verification, hosting, email, messaging, and payments, who process information on our behalf under confidentiality obligations, and only as needed to run the service.</li>
+      <li><strong>When required by law.</strong></li>
+    </ul>
+    <div class="callout">
+      <p>We will never sell your personal information, and we will never share your details with advertisers.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>How long we keep your information</h2>
+    <p>We keep your account and profile information for as long as your account is active. If you close your account, we remove your profile from the service, subject to limited retention needed for security, dispute resolution, and our legal obligations.</p>
+    <p>Identity-verification information, including your uploaded document and selfie, is held in restricted, access-controlled storage used only for verification. It is never shown to other members and cannot be accessed from within the app. You may ask us to delete your verification information, and we will do so subject to any legal obligation to retain certain records. We are moving toward verification methods that confirm your identity without storing a copy of your document, and we will update this policy as those methods take effect.</p>
+  </section>
+
+  <section>
+    <h2>Your rights and choices</h2>
+    <p>You may ask us to access, correct, or delete the personal information we hold about you, and you may withdraw your consent, at any time. Within the app you can change your photo-visibility and wali settings, and remove your wali, who will be notified. To make any request, or if you have a concern or complaint about your information, contact us at <a href="mailto:salaam@ikhlaas.io">salaam@ikhlaas.io</a> and we will respond.</p>
+  </section>
+
+  <section>
+    <h2>Data security</h2>
+    <p>We take reasonable technical and organisational measures to protect your information. Access to verification information is restricted, and information is encrypted in transit. Verification images are held in access-controlled storage kept separate from your profile. No method of transmission or storage is completely secure, but we work to safeguard your information appropriately.</p>
+  </section>
+
+  <section>
+    <h2>Children</h2>
+    <p>Ikhlaas is only for adults seeking marriage. You must be 18 or older to apply, and we verify date of birth as part of the application. We do not knowingly collect information from anyone under 18, and we will remove any such account we become aware of.</p>
+  </section>
+
+  <section>
+    <h2>Where your information is stored</h2>
+    <p>Your information is stored and processed using cloud infrastructure located in India. Where any information is processed outside India by our service providers, we take steps to ensure it is protected to a comparable standard.</p>
+  </section>
+
+  <section>
+    <h2>Changes to this policy</h2>
+    <p>We may update this policy from time to time. When we do, we will revise the date at the top of this page. For significant changes, we will notify you where appropriate.</p>
+  </section>
+
+  <section>
+    <h2>Contact us</h2>
+    <p>If you have any questions about this policy or your information, please email us at <a href="mailto:salaam@ikhlaas.io">salaam@ikhlaas.io</a>.</p>
+  </section>
+</div>
+
+<footer>
+  <a class="wordmark" href="index.html">ıkhlaas<span class="dot"></span></a>
+  <div class="tagline">Where nikah begins with deen</div>
+  <div class="links">
+    <a href="privacy.html">Privacy</a>
+    <a href="#">Terms</a>
+    <a href="mailto:salaam@ikhlaas.io">Contact</a>
+    <a href="https://instagram.com/ikhlaas.io">Instagram</a>
+  </div>
+  <div class="copy">© 2026 Ikhlaas. Built with adab, for the ummah.</div>
+</footer>
+
+</body>
+</html>
