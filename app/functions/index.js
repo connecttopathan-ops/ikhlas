@@ -2330,3 +2330,50 @@ exports.verifyEmailOtp = onCall({ region: REGION }, async (request) => {
   const token = await auth.createCustomToken(uid);
   return { token };
 });
+
+/**
+ * Moderator provisioning — grant/revoke the `moderator` custom claim from a
+ * Firestore allowlist you can edit in the Firebase console. There is no
+ * console UI for custom claims, so this is how admin/portal access is granted.
+ *
+ * Edit `config/moderators` (console → Firestore) to:
+ *   { emails: ["connecttopathan@gmail.com", ...] }
+ *
+ * On every write we reconcile against the list: each email that resolves to an
+ * auth user gets moderator:true (existing claims preserved); anyone dropped
+ * from the list is revoked. We revoke refresh tokens so the new claim is
+ * picked up on the next sign-in. The admin portal + firestore/storage rules all
+ * read this claim, so after being added you must sign out and back in.
+ *
+ * config/moderators is moderator-read-only and never client-writable (rules),
+ * so the email list is not exposed to app clients.
+ */
+exports.syncModerators = onDocumentWritten(
+  { document: 'config/moderators', region: REGION },
+  async (event) => {
+    const norm = (s) => String(s || '').trim().toLowerCase();
+    const after = event.data?.after?.data() || {};
+    const before = event.data?.before?.data() || {};
+    const next = [...new Set((after.emails || []).map(norm).filter(Boolean))];
+    const prev = [...new Set((before.emails || []).map(norm).filter(Boolean))];
+    const removed = prev.filter((e) => !next.includes(e));
+
+    async function setModerator(email, on) {
+      try {
+        const u = await getAuth().getUserByEmail(email);
+        const claims = { ...(u.customClaims || {}) };
+        if (on) claims.moderator = true;
+        else delete claims.moderator;
+        await getAuth().setCustomUserClaims(u.uid, claims);
+        await getAuth().revokeRefreshTokens(u.uid);
+        console.log(`syncModerators: ${on ? 'granted' : 'revoked'} ${email} (${u.uid})`);
+      } catch (e) {
+        // Best-effort per email — an unknown/absent email must not fail the batch.
+        console.warn(`syncModerators: skip ${email} -> ${e.code || e.message}`);
+      }
+    }
+
+    for (const email of next) await setModerator(email, true);
+    for (const email of removed) await setModerator(email, false);
+  },
+);
