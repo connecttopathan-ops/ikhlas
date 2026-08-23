@@ -37,9 +37,9 @@ test('missing dob never auto-passes', () => {
   assert.equal(v.result, 'auto_reject');
 });
 
-test('"exploring" timeframe soft-rejects (the gate doing its job)', () => {
+test('"exploring" timeframe routes to manual review (human decides)', () => {
   const v = evaluateGate({ ...GOOD_ANSWERS, timeframe: 'exploring' }, ADULT, {}, SELFIE);
-  assert.equal(v.result, 'auto_reject');
+  assert.equal(v.result, 'manual_review');
   assert.ok(v.reasons.some((r) => r.includes('timeframe')));
 });
 

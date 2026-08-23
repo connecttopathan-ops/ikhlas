@@ -26,6 +26,10 @@ on:
         description: "Optional: register this SHA-256 fingerprint on the Firebase Android app"
         type: string
         default: ""
+      approve_member_email:
+        description: "Optional: moderator override — approve this member email (rescind a prior rejection)"
+        type: string
+        default: ""
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -86,6 +90,17 @@ jobs:
               console.log("moderator granted:", email, u.uid);
             })().catch((e) => { console.error(e.message || e); process.exit(1); });
           '
+
+      - name: Approve member (optional)
+        # Moderator override — approve a member by email (rescinds a prior gate
+        # rejection). Email is a run input, not committed.
+        if: ${{ inputs.approve_member_email != '' }}
+        working-directory: app/functions
+        env:
+          APPROVE_MEMBER_EMAIL: ${{ inputs.approve_member_email }}
+        run: |
+          npm ci
+          node scripts/approve-member.js
 
       - name: Register SHA fingerprint (optional)
         # Adds SHA-1/SHA-256 to the Firebase Android app via the Firebase

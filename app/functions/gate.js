@@ -17,7 +17,6 @@ const DEFAULT_RULES = {
   minAge: 18,
   shortAnswerMinChars: 100,
   autoRejectAnswers: {
-    timeframe: ['exploring'],
     prayer: ['working', 'rarely'],
     e1_tawhid: ['not_affirm'],
     e2_riba: ['not_affirm'],
@@ -25,6 +24,9 @@ const DEFAULT_RULES = {
     e4_incomeSource: ['not_halal'], // "No" soft-rejects (PRD §4.1 E4)
   },
   manualReviewAnswers: {
+    // "Just exploring" no longer auto-rejects — a human decides, since some
+    // sincere applicants under-state their timeframe. Routes to the queue.
+    timeframe: ['exploring'],
     prayer: ['most'],
     e4_incomeSource: ['uncertain'], // "Uncertain" → human, same logic as prayer:most
     // Not fasting Ramadan is NEVER an auto-reject — legitimate exemptions
