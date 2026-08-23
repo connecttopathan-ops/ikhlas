@@ -30,6 +30,14 @@ on:
         description: "Optional: moderator override — approve this member email (rescind a prior rejection)"
         type: string
         default: ""
+      set_gender_email:
+        description: "Optional: correct a member's gender (with set_gender_value)"
+        type: string
+        default: ""
+      set_gender_value:
+        description: "Optional: male|female — the gender to set for set_gender_email"
+        type: string
+        default: ""
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -90,6 +98,18 @@ jobs:
               console.log("moderator granted:", email, u.uid);
             })().catch((e) => { console.error(e.message || e); process.exit(1); });
           '
+
+      - name: Set member gender (optional)
+        # Moderator correction of a member's gender. Email + value are run
+        # inputs, not committed.
+        if: ${{ inputs.set_gender_email != '' }}
+        working-directory: app/functions
+        env:
+          SET_GENDER_EMAIL: ${{ inputs.set_gender_email }}
+          SET_GENDER_VALUE: ${{ inputs.set_gender_value }}
+        run: |
+          npm ci
+          node scripts/set-gender.js
 
       - name: Approve member (optional)
         # Moderator override — approve a member by email (rescinds a prior gate
