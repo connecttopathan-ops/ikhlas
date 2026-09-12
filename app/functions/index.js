@@ -2410,7 +2410,7 @@ const NUDGE_COPY = {
   },
   profile: {
     title: 'Complete your profile',
-    body: 'Your profile is not visible to matches yet — add the last details to begin, in shaa Allah.',
+    body: 'Your profile is not visible to matches yet. Add the last details to begin, in shaa Allah.',
     route: '/profile-builder',
   },
 };
