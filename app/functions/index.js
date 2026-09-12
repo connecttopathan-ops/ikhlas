@@ -2381,3 +2381,89 @@ exports.syncModerators = onDocumentWritten(
     for (const email of removed) await setModerator(email, false);
   },
 );
+
+// ============================================================
+// Onboarding nudges — someone signs up, stalls mid-funnel, and then never
+// hears from us again. A daily sweep sends one gentle reminder for the two
+// states the MEMBER can actually act on:
+//   · status 'applying'              → application never submitted
+//   · 'approved' + !profileComplete  → profile never built, so they are not
+//                                      yet visible to matches
+// 'under_review' is deliberately excluded: that wait is on the moderator, so
+// a nudge would be noise the member can do nothing about.
+//
+// Guardrails so this never becomes spam: nothing until the account is a day
+// old, at most NUDGE_MAX per stage, and NUDGE_GAP_DAYS between sends.
+// Advancing to a new stage resets the count. Members with no FCM token are
+// skipped entirely rather than burning a nudge they cannot receive.
+// State lives on users/{uid}.onboardingNudge = {stage, count, lastAt}.
+// ============================================================
+const NUDGE_MAX = 3;
+const NUDGE_GAP_DAYS = 3;
+const NUDGE_MIN_AGE_HOURS = 24;
+
+const NUDGE_COPY = {
+  apply: {
+    title: 'Your application is unfinished',
+    body: 'You are a few answers away from completing it, in shaa Allah. Tap to continue.',
+    route: '/questionnaire',
+  },
+  profile: {
+    title: 'Complete your profile',
+    body: 'Your profile is not visible to matches yet — add the last details to begin, in shaa Allah.',
+    route: '/profile-builder',
+  },
+};
+
+/** Send the stage's nudge to each stalled member that clears the guardrails. */
+async function sendOnboardingNudges(stage, docs) {
+  const now = Date.now();
+  const copy = NUDGE_COPY[stage];
+  let sent = 0;
+  for (const d of docs) {
+    const u = d.data();
+
+    // No token → no point, and don't consume one of their nudges.
+    if (Object.keys(u.fcmTokens || {}).length === 0) continue;
+
+    // Give a brand-new signup a day before prodding them.
+    const created = u.createdAt?.toMillis?.();
+    if (created && now - created < NUDGE_MIN_AGE_HOURS * 3600e3) continue;
+
+    // Count is per-stage: progressing to a new stage starts a fresh budget.
+    const prev = u.onboardingNudge || {};
+    const count = prev.stage === stage ? (prev.count || 0) : 0;
+    if (count >= NUDGE_MAX) continue;
+
+    const lastAt = prev.lastAt?.toMillis?.();
+    if (lastAt && now - lastAt < NUDGE_GAP_DAYS * 86400e3) continue;
+
+    await pushTo(d.id, copy.title, copy.body, { route: copy.route });
+    await d.ref.set(
+      { onboardingNudge: { stage, count: count + 1, lastAt: FieldValue.serverTimestamp() } },
+      { merge: true },
+    );
+    sent++;
+  }
+  return sent;
+}
+
+exports.nudgeIncompleteOnboarding = onSchedule(
+  { schedule: '0 10 * * *', timeZone: 'Asia/Kolkata', region: REGION },
+  async () => {
+    // profileComplete is only ever written as `true`, so it is ABSENT (not
+    // false) on stalled members — an equality query would match nobody.
+    // Fetch the approved set and filter in code instead.
+    const [applying, approved] = await Promise.all([
+      db.collection('users').where('status', '==', 'applying').get(),
+      db.collection('users').where('status', '==', 'approved').get(),
+    ]);
+    const noProfile = approved.docs.filter((d) => d.get('profileComplete') !== true);
+
+    const a = await sendOnboardingNudges('apply', applying.docs);
+    const p = await sendOnboardingNudges('profile', noProfile);
+    console.log(
+      `onboarding nudges: apply=${a}/${applying.size} profile=${p}/${noProfile.length}`
+    );
+  },
+);
