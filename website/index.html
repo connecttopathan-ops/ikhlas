@@ -76,6 +76,21 @@ h1{font-family:Fraunces,serif; font-variation-settings:'opsz' 144; font-weight:4
   opacity:0; animation:fadePulse 2.5s ease 3s infinite}
 @keyframes fadePulse{0%,100%{opacity:0}50%{opacity:.6}}
 
+/* CTA as link + app-store buttons */
+a.cta{display:inline-flex; align-items:center; justify-content:center; gap:9px; text-decoration:none}
+.cta-ic{width:19px; height:19px; fill:currentColor; flex:none}
+.stores{display:flex; gap:15px; flex-wrap:wrap; justify-content:center; margin-top:34px}
+.store-btn{display:inline-flex; align-items:center; gap:13px; height:60px; padding:0 24px;
+  border-radius:12px; text-decoration:none; background:var(--cta); color:var(--cta-text);
+  box-shadow:inset 0 0 0 1px rgba(201,162,39,.4); transition:transform .35s ease, box-shadow .35s ease}
+.store-btn:hover{box-shadow:inset 0 0 0 1px rgba(217,188,87,.7), 0 8px 24px rgba(21,42,29,.22); transform:translateY(-1px)}
+.store-btn .st-ic{width:25px; height:25px; fill:currentColor; flex:none}
+.store-btn .st-tx{display:flex; flex-direction:column; line-height:1.12; text-align:left}
+.store-btn .st-tx small{font-size:10px; letter-spacing:.13em; text-transform:uppercase; opacity:.82}
+.store-btn .st-tx b{font-family:Fraunces,serif; font-weight:500; font-size:17px}
+.store-btn.soon{background:transparent; color:rgba(23,37,27,.5); box-shadow:inset 0 0 0 1px var(--hair); cursor:default}
+.store-btn.soon:hover{transform:none; box-shadow:inset 0 0 0 1px var(--hair)}
+
 /* SOCIAL PROOF STRIP */
 .proof-strip{position:relative; z-index:2; text-align:center; padding:26px 32px;
   border-top:1px solid rgba(148,116,32,.14); border-bottom:1px solid rgba(148,116,32,.14)}
@@ -245,13 +260,13 @@ footer .copy{margin-top:24px; font-size:12px; color:rgba(23,37,27,.4)}
     <span class="diamond"></span>
     <span>Selfie-verified · Application-reviewed · Fewer than 4 in 10 accepted</span>
   </div>
-  <button class="cta" onclick="document.getElementById('apply').scrollIntoView()">Request your invitation</button>
-  <div class="signin">Already a member? <a href="#">Sign in</a></div>
+  <a class="cta" href="https://play.google.com/store/apps/details?id=io.ikhlaas.app" target="_blank" rel="noopener"><svg class="cta-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.4v17.2c0 .5.54.82.98.57l14.4-8.6c.44-.26.44-.9 0-1.16L5.98 2.83C5.54 2.58 5 2.9 5 3.4z"/></svg>Get it on Google Play</a>
+  <div class="signin">On iPhone? Coming soon, inshaAllah.</div>
   <div class="scroll-hint">Scroll</div>
 </div>
 
 <div class="proof-strip">
-  <p><strong>Nearly <span class="js-following">1,000</span> practicing Muslims are already following along.</strong><span class="sep">◆</span>Applications open soon, inshaAllah.</p>
+  <p><strong>Nearly <span class="js-following">1,000</span> practicing Muslims are already following along.</strong><span class="sep">◆</span>Now available on Android.</p>
 </div>
 
 <div class="wrap">
@@ -345,23 +360,23 @@ footer .copy{margin-top:24px; font-size:12px; color:rgba(23,37,27,.4)}
   </section>
 </div>
 
-<section class="waitlist" id="apply">
+<section class="waitlist" id="get">
   <div class="wrap">
     <div class="reveal" style="text-align:center">
       <div class="sec-kicker">إخلاص</div>
-      <h2 class="sec-h" style="margin:0 auto; text-align:center">Be among the first.</h2>
-      <p class="sub" style="margin:14px auto 0">Applications open soon. Join nearly <span class="js-following">1,000</span> practicing Muslims waiting for a better way to begin.</p>
-    </div>
-    <form class="form reveal" id="waitlist-form" novalidate>
-      <div class="field"><label for="wl-name">Your name</label><input id="wl-name" name="name" type="text" placeholder="Full name" required></div>
-      <div class="field"><label for="wl-email">Email</label><input id="wl-email" name="email" type="email" placeholder="you@example.com" required></div>
-      <label class="check"><input type="checkbox" name="intent" required>
-        <span>I am seeking nikah and intend to marry, inshaAllah.</span></label>
-      <button class="cta" type="submit">Request your invitation</button>
-    </form>
-    <div class="form-success" id="waitlist-success">
-      <div class="amiri">جزاك الله خيرًا</div>
-      <p>JazakAllahuKhairan — you're on the list, inshaAllah. We'll be in touch when applications open.</p>
+      <h2 class="sec-h" style="margin:0 auto; text-align:center">Begin, inshaAllah.</h2>
+      <p class="sub" style="margin:14px auto 0">Download Ikhlaas, complete your application, and meet others as serious about nikah as you are.</p>
+      <div class="stores">
+        <a class="store-btn" href="https://play.google.com/store/apps/details?id=io.ikhlaas.app" target="_blank" rel="noopener">
+          <svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3.4v17.2c0 .5.54.82.98.57l14.4-8.6c.44-.26.44-.9 0-1.16L5.98 2.83C5.54 2.58 5 2.9 5 3.4z"/></svg>
+          <span class="st-tx"><small>Get it on</small><b>Google Play</b></span>
+        </a>
+        <span class="store-btn soon" aria-disabled="true" title="Coming soon to iPhone, inshaAllah">
+          <svg class="st-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.428-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.886.06 4.374 2.19-.13.09-2.383 1.37-2.383 4.19 0 3.26 2.854 4.42 2.955 4.45z"/></svg>
+          <span class="st-tx"><small>Coming soon</small><b>App Store</b></span>
+        </span>
+      </div>
+      <p class="sub" style="margin:26px auto 0; font-size:13.5px">Nearly <span class="js-following">1,000</span> practising Muslims are already following along.</p>
     </div>
   </div>
 </section>
@@ -369,7 +384,7 @@ footer .copy{margin-top:24px; font-size:12px; color:rgba(23,37,27,.4)}
 <footer>
   <div class="wordmark">ıkhlaas<span class="dot"></span></div>
   <div class="tagline">Where nikah begins with deen</div>
-  <div class="links"><a href="privacy.html">Privacy</a><a href="#">Terms</a><a href="mailto:salaam@ikhlaas.io">Contact</a><a href="https://instagram.com/ikhlaas.io">Instagram</a></div>
+  <div class="links"><a href="download.html">Get the app</a><a href="privacy.html">Privacy</a><a href="#">Terms</a><a href="mailto:salaam@ikhlaas.io">Contact</a><a href="https://instagram.com/ikhlaas.io">Instagram</a></div>
   <div class="copy">© 2026 Ikhlaas</div>
 </footer>
 
@@ -382,18 +397,6 @@ document.querySelectorAll('.js-following').forEach(el=>{el.textContent = FOLLOWI
 window.addEventListener('load',()=>document.body.classList.add('loaded'));
 const io=new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting)e.target.classList.add('in')}),{threshold:.12});
 document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
-
-/* Waitlist submit — show the honest success state (wire to backend before launch) */
-const form=document.getElementById('waitlist-form');
-if(form){
-  form.addEventListener('submit',(e)=>{
-    e.preventDefault();
-    if(!form.checkValidity()){form.reportValidity();return;}
-    // TODO: POST to waitlist endpoint here.
-    form.style.display='none';
-    document.getElementById('waitlist-success').style.display='block';
-  });
-}
 
 // subtle parallax on ambient girih (respects reduced motion)
 if(!matchMedia('(prefers-reduced-motion:reduce)').matches){
