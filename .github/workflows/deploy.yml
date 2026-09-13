@@ -18,6 +18,10 @@ on:
         description: "Optional: seed demo matches + a chat for this member email (screenshots)"
         type: string
         default: ""
+      clear_demo_email:
+        description: "Optional: REMOVE the seeded demo members/matches/chat for this member email"
+        type: string
+        default: ""
       add_sha1:
         description: "Optional: register this SHA-1 fingerprint on the Firebase Android app"
         type: string
@@ -134,6 +138,17 @@ jobs:
         run: |
           npm ci
           node scripts/add-sha.js
+
+      - name: Clear demo matches + chat (optional)
+        # Removes the seeded screenshot data (demo_* ids / {demo:true} flags)
+        # so no fabricated profiles remain in the live matching pool.
+        if: ${{ inputs.clear_demo_email != '' }}
+        working-directory: app/functions
+        env:
+          CLEAR_DEMO_EMAIL: ${{ inputs.clear_demo_email }}
+        run: |
+          npm ci
+          node scripts/clear-demo.js
 
       - name: Seed demo matches + chat (optional)
         # Writes demo match entries + a live conversation for the given member
