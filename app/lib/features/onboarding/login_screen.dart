@@ -51,6 +51,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _apple() async {
+    setState(() => _busy = true);
+    try {
+      final cred = await AppleAuth().signIn();
+      await _enter(cred.user?.email ?? '', 'apple');
+    } on AuthCancelled {
+      // user backed out — no error surface needed
+    } on FirebaseAuthException catch (e) {
+      _err('Sign-in failed (${e.code}). Please try again.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   Future<void> _sendCode() async {
     final email = _emailCtrl.text.trim();
     if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
@@ -135,6 +149,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         weight: FontWeight.w500, color: DarkTokens.ivory)),
               ),
             ),
+            // Apple — App Store guideline 4.8 requires this wherever a
+            // third-party sign-in is offered, and it is only meaningful on
+            // Apple platforms, so it never renders on Android.
+            if (defaultTargetPlatform == TargetPlatform.iOS ||
+                defaultTargetPlatform == TargetPlatform.macOS) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 56,
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _busy ? null : _apple,
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: DarkTokens.hairline(.4)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.control)),
+                  ),
+                  child: Text('Continue with Apple',
+                      style: AppType.inter(15,
+                          weight: FontWeight.w500, color: DarkTokens.ivory)),
+                ),
+              ),
+            ],
             const SizedBox(height: 28),
             Row(children: [
               const Expanded(child: Hairline()),

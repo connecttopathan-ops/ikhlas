@@ -1,7 +1,7 @@
 name: ikhlas
 description: Ikhlas — where nikah begins with deen.
 publish_to: "none"
-version: 0.1.28+29
+version: 0.1.29+30
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -30,6 +30,9 @@ dependencies:
   # Auth providers
   google_sign_in: ^6.2.1
   sign_in_with_apple: ^6.1.1   # iOS requirement when offering Google login
+  # SHA-256 for the Sign in with Apple nonce (Firebase needs the raw nonce
+  # whose hash was sent to Apple).
+  crypto: ^3.0.3
 
   # Photo selection from the gallery (profile photos)
   image_picker: ^1.1.2
@@ -65,7 +68,7 @@ dev_dependencies:
 # Regenerate after changing assets/icon/*: flutter pub run flutter_launcher_icons
 flutter_launcher_icons:
   android: true
-  ios: false
+  ios: true
   image_path: "assets/icon/icon.png"
   adaptive_icon_background: "#0A120C"
   adaptive_icon_foreground: "assets/icon/icon_foreground.png"
