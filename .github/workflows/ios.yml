@@ -1,0 +1,68 @@
+name: iOS
+
+# iOS lives in its own workflow: the platform folder is generated on Linux,
+# but anything that actually COMPILES iOS needs a macOS runner, so keeping it
+# apart from deploy.yml avoids dragging a macOS job into every deploy.
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: What to run
+        type: choice
+        default: scaffold
+        options: [scaffold, build]
+
+env:
+  # Match deploy.yml — the version the pubspec.lock files were resolved with.
+  FLUTTER_VERSION: 3.38.4
+
+jobs:
+  # One-off bootstrap: the project was created Android-only, so there is no
+  # ios/ directory at all. `flutter create` writes the platform templates
+  # (no Xcode required), and we publish them as an artifact to be committed
+  # deliberately rather than auto-pushed from CI.
+  scaffold:
+    if: ${{ inputs.job == 'scaffold' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Generate the iOS platform folder
+        working-directory: app
+        run: |
+          flutter create --platforms=ios --org io.ikhlaas .
+          echo "--- generated ---"
+          find ios -maxdepth 2 -type f | sort
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-scaffold
+          path: app/ios
+          if-no-files-found: error
+          retention-days: 7
+
+  # Compile check on a real macOS runner. Unsigned, so it needs no
+  # certificates — it only proves the app builds for iOS.
+  build:
+    if: ${{ inputs.job == 'build' }}
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Build iOS (no codesign)
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build ios --release --no-codesign
