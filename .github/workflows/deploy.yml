@@ -42,6 +42,14 @@ on:
         description: "Optional: male|female — the gender to set for set_gender_email"
         type: string
         default: ""
+      scaffold_ios:
+        description: "Optional: set to true to generate the ios/ platform folder as an artifact"
+        type: string
+        default: ""
+      ios_build:
+        description: "Optional: set to true to run an unsigned iOS compile check on macOS"
+        type: string
+        default: ""
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -172,10 +180,31 @@ jobs:
             --project "$PROJECT" --non-interactive --force
 
       - uses: subosito/flutter-action@v2
-        if: ${{ inputs.target == 'all' || inputs.target == 'hosting' }}
+        if: ${{ inputs.target == 'all' || inputs.target == 'hosting' || inputs.scaffold_ios == 'true' }}
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
+
+      - name: Generate the iOS platform folder (optional)
+        # The project was created Android-only, so there is no ios/ directory.
+        # `flutter create` writes the platform templates (no Xcode needed); we
+        # publish them as an artifact to be committed deliberately rather than
+        # auto-pushed from CI.
+        if: ${{ inputs.scaffold_ios == 'true' }}
+        working-directory: app
+        run: |
+          flutter create --platforms=ios --org io.ikhlaas .
+          echo "--- generated ---"
+          find ios -maxdepth 2 -type f | sort
+
+      - name: Upload iOS scaffold artifact (optional)
+        if: ${{ inputs.scaffold_ios == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-scaffold
+          path: app/ios
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Configure Android release signing
         # Writes the release keystore + key.properties from repo secrets so the
@@ -227,3 +256,24 @@ jobs:
       - name: Deploy hosting
         if: ${{ inputs.target == 'all' || inputs.target == 'hosting' }}
         run: firebase deploy --only hosting --project "$PROJECT" --non-interactive
+
+  # Unsigned iOS compile check. Separate job because it needs a macOS runner —
+  # gated on an input so it never burns macOS minutes on a normal deploy.
+  # Requires app/ios to exist (see the scaffold_ios step above).
+  ios:
+    if: ${{ inputs.ios_build == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+
+      - name: Build iOS (no codesign)
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build ios --release --no-codesign
