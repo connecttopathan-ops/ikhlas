@@ -76,6 +76,35 @@ jobs:
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$RUNNER_TEMP/sa.json"
           echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/sa.json" >> "$GITHUB_ENV"
 
+      - name: Check billing state
+        # Cloud Functions v2 run on Cloud Run, which REQUIRES billing. When
+        # billing lapses, every endpoint returns a Google Frontend 500/503 and
+        # the deploy dies on an unrelated-looking Secret Manager 403 — the same
+        # outage has now happened twice and both times cost an hour to trace.
+        # This states the cause up front. Diagnostic only: it never fails the
+        # run, so a missing permission or API can't block a deploy.
+        continue-on-error: true
+        run: |
+          gcloud auth activate-service-account \
+            --key-file="$GOOGLE_APPLICATION_CREDENTIALS" --quiet 2>/dev/null || {
+              echo "::warning::Could not authenticate gcloud; skipping the billing check."; exit 0; }
+          TOKEN=$(gcloud auth print-access-token 2>/dev/null) || {
+              echo "::warning::Could not mint an access token; skipping the billing check."; exit 0; }
+          OUT=$(curl -sS -H "Authorization: Bearer $TOKEN" \
+            "https://cloudbilling.googleapis.com/v1/projects/$PROJECT/billingInfo" || true)
+          echo "$OUT"
+          # billingEnabled is omitted (not `false`) by the JSON API when billing
+          # is off, so treat anything other than an explicit true as disabled.
+          ENABLED=$(echo "$OUT" | jq -r '.billingEnabled // false' 2>/dev/null || echo unknown)
+          ACCOUNT=$(echo "$OUT" | jq -r '.billingAccountName // ""' 2>/dev/null || echo "")
+          if [ "$ENABLED" = "true" ]; then
+            echo "Billing ENABLED on $PROJECT (account: ${ACCOUNT:-unknown})."
+          elif echo "$OUT" | grep -qi '"error"'; then
+            echo "::warning::Billing state could not be read (see the response above). Not necessarily a problem."
+          else
+            echo "::error::BILLING IS DISABLED on $PROJECT. Every Cloud Function will return 500/503 and this deploy will fail on a Secret Manager 403. Re-link a billing account at https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT — the existing functions recover on their own once billing is back, with no redeploy needed."
+          fi
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -175,9 +204,18 @@ jobs:
         working-directory: app
         run: |
           ( cd functions && npm ci )
+          set +e
           firebase deploy \
             --only functions,firestore:rules,firestore:indexes,storage \
-            --project "$PROJECT" --non-interactive --force
+            --project "$PROJECT" --non-interactive --force 2>&1 | tee "$RUNNER_TEMP/deploy.log"
+          CODE=${PIPESTATUS[0]}
+          set -e
+          # A lapsed billing account surfaces as a Secret Manager 403 deep in the
+          # log, which reads like a permissions problem and is not. Name it.
+          if [ "$CODE" -ne 0 ] && grep -qi 'requires billing to be enabled' "$RUNNER_TEMP/deploy.log"; then
+            echo "::error::Deploy failed because BILLING IS DISABLED on $PROJECT, not because of the code or the service-account permissions. Re-link a billing account at https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT, then re-run."
+          fi
+          exit "$CODE"
 
       - uses: subosito/flutter-action@v2
         if: ${{ inputs.target == 'all' || inputs.target == 'hosting' || inputs.scaffold_ios == 'true' }}
