@@ -49,6 +49,10 @@ on:
         description: "Optional: Firebase project to act on (defaults to the PROJECT env below). Used to stand up the new project before cutting the apps over."
         type: string
         default: ""
+      sync_secrets:
+        description: "Optional: set to true to push RESEND_API_KEY / WHATSAPP_TOKEN from repo secrets into the target project's Secret Manager"
+        type: string
+        default: ""
       backup:
         description: "Optional: set to true to dump Firestore + Auth users to a private artifact (contains personal data)"
         type: string
@@ -146,6 +150,42 @@ jobs:
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
+
+      - name: Sync function secrets (optional)
+        # The functions declare RESEND_API_KEY and WHATSAPP_TOKEN with
+        # defineSecret(). A deploy FAILS outright if a declared secret does not
+        # exist in the target project's Secret Manager, so a new project needs
+        # them created before the first deploy. Secret VALUES cannot be copied
+        # between projects, so they come from repo secrets — which GitHub masks
+        # in logs — rather than workflow inputs, which are displayed in the UI.
+        if: ${{ inputs.sync_secrets == 'true' }}
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          WHATSAPP_TOKEN: ${{ secrets.WHATSAPP_TOKEN }}
+        run: |
+          set -u
+          put () {
+            # Value arrives via env and goes out over stdin; never on a command
+            # line or in an echo, so it cannot land in the log.
+            printf '%s' "$2" | firebase functions:secrets:set "$1" \
+              --project "$PROJECT" --data-file - --force >/dev/null
+            echo "  $1: set"
+          }
+          if [ -n "${RESEND_API_KEY:-}" ]; then
+            put RESEND_API_KEY "$RESEND_API_KEY"
+          else
+            echo "::error::RESEND_API_KEY repo secret is empty. Email OTP sign-in — how most members log in — will not work. Add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          if [ -n "${WHATSAPP_TOKEN:-}" ]; then
+            put WHATSAPP_TOKEN "$WHATSAPP_TOKEN"
+          else
+            # The deploy needs the secret to EXIST; wali digests fall back to
+            # audit-only logging while the Firestore whatsapp config is absent,
+            # so a placeholder is harmless and keeps the deploy unblocked.
+            put WHATSAPP_TOKEN "placeholder-not-configured"
+            echo "::warning::WHATSAPP_TOKEN was not supplied; a placeholder was stored so the deploy can proceed. Guardian digests stay audit-only until a real token is set."
+          fi
 
       - name: Back up Firestore + Auth (optional)
         # Logical backup via the Admin SDK rather than `gcloud firestore
