@@ -9,7 +9,10 @@ on:
         description: What to deploy
         type: choice
         default: all
-        options: [all, functions, hosting]
+        # `none` runs no deploy at all, for runs that only use the optional
+        # steps below (a backup, a moderator grant) — useful when billing is
+        # down and any deploy would fail.
+        options: [all, functions, hosting, none]
       grant_moderator_email:
         description: "Optional: grant this email the moderator claim (admin portal access)"
         type: string
@@ -40,6 +43,10 @@ on:
         default: ""
       set_gender_value:
         description: "Optional: male|female — the gender to set for set_gender_email"
+        type: string
+        default: ""
+      backup:
+        description: "Optional: set to true to dump Firestore + Auth users to a private artifact (contains personal data)"
         type: string
         default: ""
       scaffold_ios:
@@ -111,6 +118,33 @@ jobs:
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
+
+      - name: Back up Firestore + Auth (optional)
+        # Logical backup via the Admin SDK rather than `gcloud firestore
+        # export`, because the managed export needs billing enabled — the very
+        # thing that is broken when a backup matters most. Firestore and Auth
+        # keep serving on their free quotas while billing is suspended.
+        if: ${{ inputs.backup == 'true' }}
+        working-directory: app/functions
+        env:
+          GCLOUD_PROJECT: ${{ env.PROJECT }}
+        run: |
+          npm ci
+          node scripts/backup-all.js "$RUNNER_TEMP/backup"
+
+      - name: Upload backup artifact (optional)
+        # always() so the backup still reaches you if a later deploy step fails
+        # (which it will, while billing is down).
+        if: ${{ always() && inputs.backup == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ikhlaas-backup
+          path: ${{ runner.temp }}/backup
+          if-no-files-found: error
+          # Short window on purpose: this contains member profiles, messages
+          # and ID-verification state. Download it, store it securely, and let
+          # the artifact expire.
+          retention-days: 3
 
       - name: Grant moderator claim (optional)
         # Directly sets the `moderator:true` custom claim (and seeds the
