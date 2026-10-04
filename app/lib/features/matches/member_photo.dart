@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/backend.dart';
 import '../../core/theme/widgets.dart';
 
 /// Renders a member's photo through the server pipeline (permission +
@@ -30,9 +31,9 @@ class MemberPhoto extends StatefulWidget {
     this.cacheBust,
   });
 
-  // The deployed HTTPS function (asia-south1).
-  static const _base =
-      'https://asia-south1-ikhlas-caecf.cloudfunctions.net/photo';
+  // The deployed HTTPS function (asia-south1). Derived from the Firebase
+  // options rather than hardcoded, so it follows a project migration.
+  static String get _base => Backend.fn('photo');
 
   @override
   State<MemberPhoto> createState() => _MemberPhotoState();

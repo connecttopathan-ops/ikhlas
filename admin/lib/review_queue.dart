@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'activity.dart';
+import 'backend.dart';
 import 'family_gate.dart';
 import 'reports_queue.dart';
 import 'tokens.dart';
@@ -624,8 +625,9 @@ class _IdInlinePanel extends StatefulWidget {
 }
 
 class _IdInlinePanelState extends State<_IdInlinePanel> {
-  static const _imgBase =
-      'https://asia-south1-ikhlas-caecf.cloudfunctions.net/idDocImageRaw';
+  // Derived from the Firebase options rather than hardcoded, so it follows a
+  // project migration instead of silently breaking ID review.
+  static String get _imgBase => Backend.fn('idDocImageRaw');
   String? _idUrl, _selfieUrl;
   bool _loading = false;
 

@@ -10,7 +10,7 @@ const {
 } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError, onRequest } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
-const { initializeApp } = require('firebase-admin/app');
+const { initializeApp, getApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 const { getAuth } = require('firebase-admin/auth');
@@ -24,7 +24,25 @@ const { analyzeIdDoc } = require('./verification');
 // Quarantine bucket for government-ID images: admin-only, unreachable from the
 // app (no client SDK access, no reference in any client-readable doc). Images
 // are retained (not deleted) for manual re-check during closed testing.
-const ID_QUARANTINE_BUCKET = 'ikhlas-caecf-idquarantine';
+//
+// Derived from the active project rather than hardcoded, so a project
+// migration does not need an edit here. Resolved lazily and cached: doing it
+// at module load would turn a missing project id into a cold-start failure of
+// every function in the file, rather than an error at the one call site that
+// actually needs the bucket.
+let _idQuarantineBucket;
+function idQuarantineBucket() {
+  if (_idQuarantineBucket) return _idQuarantineBucket;
+  const projectId =
+    process.env.GCLOUD_PROJECT ||
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    getApp().options.projectId;
+  if (!projectId) {
+    throw new Error('cannot resolve the project id for the ID quarantine bucket');
+  }
+  _idQuarantineBucket = `${projectId}-idquarantine`;
+  return _idQuarantineBucket;
+}
 
 // Resend transactional email. The API key is a secret:
 //   firebase functions:secrets:set RESEND_API_KEY
@@ -312,7 +330,7 @@ async function purgeIdDoc(uid) {
     if (!snap.exists) return;
     const ref = snap.get('storageRef');
     if (ref) {
-      await getStorage().bucket(ID_QUARANTINE_BUCKET).file(ref).delete()
+      await getStorage().bucket(idQuarantineBucket()).file(ref).delete()
         .catch(() => {}); // already gone / never uploaded
     }
     await db.doc(`idReview/${uid}`).delete().catch(() => {});
@@ -373,7 +391,7 @@ exports.onIdDocSubmit = onCall(
 
     // Image → admin-only quarantine bucket. Retained (no delete) for re-check.
     const storageRef = `idDocs/${uid}.jpg`;
-    await getStorage().bucket(ID_QUARANTINE_BUCKET).file(storageRef).save(idBuffer, {
+    await getStorage().bucket(idQuarantineBucket()).file(storageRef).save(idBuffer, {
       contentType: 'image/jpeg',
       resumable: false,
       metadata: { metadata: { uid, type } },
@@ -428,7 +446,7 @@ exports.analyzeIdReview = onDocumentWritten(
     const uid = event.params.uid;
     try {
       const [idBuf] = await getStorage()
-        .bucket(ID_QUARANTINE_BUCKET).file(after.storageRef).download();
+        .bucket(idQuarantineBucket()).file(after.storageRef).download();
       let selfieBuf = null;
       try {
         const [s] = await getStorage().bucket()
@@ -567,7 +585,7 @@ exports.idDocImageRaw = onRequest(
       } else {
         const ref = (await db.doc(`idReview/${uid}`).get()).get('storageRef');
         if (!ref) return res.status(404).send('not found');
-        [buf] = await getStorage().bucket(ID_QUARANTINE_BUCKET).file(ref).download();
+        [buf] = await getStorage().bucket(idQuarantineBucket()).file(ref).download();
       }
       res.set('Cache-Control', 'private, max-age=120');
       res.set('Content-Type', 'image/jpeg');
