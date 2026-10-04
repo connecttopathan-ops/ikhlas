@@ -164,11 +164,24 @@ jobs:
           WHATSAPP_TOKEN: ${{ secrets.WHATSAPP_TOKEN }}
         run: |
           set -u
+          # A brand-new project has none of these on. firebase enables what it
+          # needs during a deploy, but secrets are written BEFORE that, so
+          # Secret Manager has to be on first. Idempotent.
+          gcloud services enable \
+            secretmanager.googleapis.com \
+            cloudbilling.googleapis.com \
+            --project "$PROJECT"
           put () {
             # Value arrives via env and goes out over stdin; never on a command
-            # line or in an echo, so it cannot land in the log.
-            printf '%s' "$2" | firebase functions:secrets:set "$1" \
-              --project "$PROJECT" --data-file - --force >/dev/null
+            # line or in an echo, so it cannot land in the log. Output is
+            # captured rather than discarded — the Firebase CLI reports errors
+            # on stdout, so sending it to /dev/null hides the only diagnosis.
+            if ! out=$(printf '%s' "$2" | firebase functions:secrets:set "$1" \
+                 --project "$PROJECT" --data-file - --force 2>&1); then
+              echo "$out"
+              echo "::error::Could not set secret $1 on $PROJECT (see output above)."
+              return 1
+            fi
             echo "  $1: set"
           }
           if [ -n "${RESEND_API_KEY:-}" ]; then
