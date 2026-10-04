@@ -167,10 +167,14 @@ jobs:
           # A brand-new project has none of these on. firebase enables what it
           # needs during a deploy, but secrets are written BEFORE that, so
           # Secret Manager has to be on first. Idempotent.
+          # Best-effort: the service account may lack serviceusage.services.enable,
+          # and the APIs may already be on. Either way the secret write below
+          # gives the real answer, so this must not fail the run.
           gcloud services enable \
             secretmanager.googleapis.com \
             cloudbilling.googleapis.com \
-            --project "$PROJECT"
+            --project "$PROJECT" 2>/dev/null \
+            || echo "::warning::Could not enable APIs from CI (likely missing serviceusage.services.enable). Continuing; they may already be enabled."
           put () {
             # Value arrives via env and goes out over stdin; never on a command
             # line or in an echo, so it cannot land in the log. Output is
