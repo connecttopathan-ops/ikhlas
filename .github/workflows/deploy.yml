@@ -416,7 +416,11 @@ jobs:
         # invoked by Eventarc and Cloud Scheduler as service accounts, and
         # making them public would expose them to anyone. The split is derived
         # from the trigger each function is declared with, so it cannot drift.
-        if: ${{ inputs.target == 'all' || inputs.target == 'functions' }}
+        #
+        # always(): a partly failed deploy is exactly when this matters — the
+        # functions that DID deploy still need their invoker, and letting the
+        # failure skip this step leaves them answering 403 with no sign why.
+        if: ${{ always() && (inputs.target == 'all' || inputs.target == 'functions') }}
         working-directory: app
         run: |
           PUBLIC=$(grep -oE '^exports\.[A-Za-z0-9_]+ *= *(onCall|onRequest)' functions/index.js \
