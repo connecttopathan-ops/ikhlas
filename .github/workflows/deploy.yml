@@ -45,8 +45,20 @@ on:
         description: "Optional: male|female — the gender to set for set_gender_email"
         type: string
         default: ""
+      project:
+        description: "Optional: Firebase project to act on (defaults to the PROJECT env below). Used to stand up the new project before cutting the apps over."
+        type: string
+        default: ""
       backup:
         description: "Optional: set to true to dump Firestore + Auth users to a private artifact (contains personal data)"
+        type: string
+        default: ""
+      restore:
+        description: "Optional: run id of a backup artifact to restore into the target project (migration)"
+        type: string
+        default: ""
+      restore_dry_run:
+        description: "Optional: set to true to report what a restore would write without writing it"
         type: string
         default: ""
       scaffold_ios:
@@ -63,7 +75,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PROJECT: ikhlas-caecf
+  # Default project. The `project` run input overrides it, so the new project
+  # can be stood up and verified before the apps are cut over to it.
+  DEFAULT_PROJECT: ikhlas-caecf
   # Match the version the apps' pubspec.lock files were resolved with
   # (sdks: flutter >=3.38.4). Older Flutter can't satisfy cloud_functions.
   FLUTTER_VERSION: 3.38.4
@@ -74,6 +88,20 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+
+      - name: Resolve target project
+        # Every later step reads $PROJECT. Resolved once here so a run can be
+        # pointed at the new project without editing the workflow, and so the
+        # log always states which project was acted on.
+        run: |
+          RESOLVED="${{ inputs.project }}"
+          # An if-block, not `[ -z … ] && …`: steps run under `bash -e`, where
+          # a false test as a whole statement fails the step.
+          if [ -z "$RESOLVED" ]; then
+            RESOLVED="$DEFAULT_PROJECT"
+          fi
+          echo "PROJECT=$RESOLVED" >> "$GITHUB_ENV"
+          echo "Target project: $RESOLVED"
 
       - name: Auth to Firebase
         # Add a repo secret FIREBASE_SERVICE_ACCOUNT with a service-account JSON
@@ -250,6 +278,29 @@ jobs:
             echo "::error::Deploy failed because BILLING IS DISABLED on $PROJECT, not because of the code or the service-account permissions. Re-link a billing account at https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT, then re-run."
           fi
           exit "$CODE"
+
+      - name: Download backup to restore (optional)
+        if: ${{ inputs.restore != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ikhlaas-backup
+          path: ${{ runner.temp }}/restore
+          run-id: ${{ inputs.restore }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore Firestore + Auth (optional)
+        # Migration step: writes the dump into the TARGET project (the `project`
+        # input). restore-all.js refuses to write onto the project the dump came
+        # from, and refuses a target that already holds data unless forced, so a
+        # mistyped project cannot quietly overwrite the live one.
+        if: ${{ inputs.restore != '' }}
+        working-directory: app/functions
+        env:
+          GCLOUD_PROJECT: ${{ env.PROJECT }}
+        run: |
+          npm ci
+          node scripts/restore-all.js "$RUNNER_TEMP/restore" \
+            ${{ inputs.restore_dry_run == 'true' && '--dry-run' || '' }}
 
       - uses: subosito/flutter-action@v2
         if: ${{ inputs.target == 'all' || inputs.target == 'hosting' || inputs.scaffold_ios == 'true' }}
