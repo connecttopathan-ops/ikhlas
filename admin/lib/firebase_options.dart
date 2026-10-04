@@ -53,12 +53,12 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyAjaa88549kVBQdNzkYoLE-8p3CGgXQUfk',
-    appId: '1:443572192702:web:b9793a74f32babe9aa65ef',
-    messagingSenderId: '443572192702',
-    projectId: 'ikhlas-caecf',
-    authDomain: 'ikhlas-caecf.firebaseapp.com',
-    storageBucket: 'ikhlas-caecf.firebasestorage.app',
-    measurementId: 'G-815E8LZWSD',
+    apiKey: 'AIzaSyAKY4cs_TxPPnOrZ6lWagJZHAUVcF_D5_o',
+    appId: '1:902494688082:web:742b1a662fa4e9b1d7e08b',
+    messagingSenderId: '902494688082',
+    projectId: 'ikhlaas-prod',
+    authDomain: 'ikhlaas-prod.firebaseapp.com',
+    storageBucket: 'ikhlaas-prod.firebasestorage.app',
+    measurementId: 'G-FCL8D7CJL2',
   );
 }

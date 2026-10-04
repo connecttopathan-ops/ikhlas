@@ -77,7 +77,7 @@ concurrency:
 env:
   # Default project. The `project` run input overrides it, so the new project
   # can be stood up and verified before the apps are cut over to it.
-  DEFAULT_PROJECT: ikhlas-caecf
+  DEFAULT_PROJECT: ikhlaas-prod
   # Match the version the apps' pubspec.lock files were resolved with
   # (sdks: flutter >=3.38.4). Older Flutter can't satisfy cloud_functions.
   FLUTTER_VERSION: 3.38.4
