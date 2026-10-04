@@ -29,6 +29,10 @@ on:
         description: "Optional: register this SHA-1 fingerprint on the Firebase Android app"
         type: string
         default: ""
+      resha:
+        description: "Optional: set to true to delete and re-add the Android SHA fingerprints, forcing Google to create the Android OAuth client"
+        type: string
+        default: ""
       add_sha256:
         description: "Optional: register this SHA-256 fingerprint on the Firebase Android app"
         type: string
@@ -302,6 +306,18 @@ jobs:
         run: |
           npm ci
           node scripts/add-sha.js
+
+      - name: Re-cycle SHA fingerprints (optional)
+        # Deletes and re-adds every fingerprint on the Android app, to force
+        # Google to create the Android OAuth client. A fingerprint added while
+        # another project still held the same package+SHA-1 pair is stored but
+        # produces no OAuth client, and Google Sign-In then fails with
+        # DEVELOPER_ERROR while everything looks correctly configured.
+        if: ${{ inputs.resha == 'true' }}
+        working-directory: app/functions
+        run: |
+          npm ci
+          node scripts/resha.js
 
       - name: Clear demo matches + chat (optional)
         # Removes the seeded screenshot data (demo_* ids / {demo:true} flags)
