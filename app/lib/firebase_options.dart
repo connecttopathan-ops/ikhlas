@@ -53,10 +53,10 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB0vGxXDnm1UL_VoW7udMGj5tEox064jt8',
-    appId: '1:443572192702:android:55c0efaaea9a8daaaa65ef',
-    messagingSenderId: '443572192702',
-    projectId: 'ikhlas-caecf',
-    storageBucket: 'ikhlas-caecf.firebasestorage.app',
+    apiKey: 'AIzaSyAiScnMFykV6JJaufvO_KdcI7YlL_swuCQ',
+    appId: '1:902494688082:android:743480b825661a22d7e08b',
+    messagingSenderId: '902494688082',
+    projectId: 'ikhlaas-prod',
+    storageBucket: 'ikhlaas-prod.firebasestorage.app',
   );
 }

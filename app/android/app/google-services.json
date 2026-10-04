@@ -1,65 +1,33 @@
 {
   "project_info": {
-    "project_number": "443572192702",
-    "project_id": "ikhlas-caecf",
-    "storage_bucket": "ikhlas-caecf.firebasestorage.app"
+    "project_number": "902494688082",
+    "project_id": "ikhlaas-prod",
+    "storage_bucket": "ikhlaas-prod.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:443572192702:android:55c0efaaea9a8daaaa65ef",
+        "mobilesdk_app_id": "1:902494688082:android:743480b825661a22d7e08b",
         "android_client_info": {
           "package_name": "io.ikhlaas.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "443572192702-66q8ju1amej35037sajft14pbur02tp7.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "io.ikhlaas.app",
-            "certificate_hash": "d1918f0d1c1f488c679d55f6eb4c1d4996c345b4"
-          }
-        },
-        {
-          "client_id": "443572192702-efq7pg03nsvdscqu99c293s5qj6neqi6.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "io.ikhlaas.app",
-            "certificate_hash": "3d8bf0bbcbd4aca060d107922c00a63bafeceb09"
-          }
-        },
-        {
-          "client_id": "443572192702-eovj5gkmhr1fpk50p5po7bu2b8n9cmo9.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "io.ikhlaas.app",
-            "certificate_hash": "9754a7f1a25f66010c20ad3c0d87a5599f52ebbb"
-          }
-        },
-        {
-          "client_id": "443572192702-lqovcul1fi8ketj8g8n49sirbggko6al.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "io.ikhlaas.app",
-            "certificate_hash": "2b5695ee376b825b9fe34eb5a68835bfa78043c9"
-          }
-        },
-        {
-          "client_id": "443572192702-tjvs9dp76l5oa0rol7thiuh3vto789ui.apps.googleusercontent.com",
+          "client_id": "902494688082-kst3pbig5fhad6nc5id27dunbvrhkmgd.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyB0vGxXDnm1UL_VoW7udMGj5tEox064jt8"
+          "current_key": "AIzaSyAiScnMFykV6JJaufvO_KdcI7YlL_swuCQ"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "443572192702-tjvs9dp76l5oa0rol7thiuh3vto789ui.apps.googleusercontent.com",
+              "client_id": "902494688082-kst3pbig5fhad6nc5id27dunbvrhkmgd.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

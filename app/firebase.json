@@ -13,16 +13,16 @@
     "platforms": {
       "android": {
         "default": {
-          "projectId": "ikhlas-caecf",
-          "appId": "1:443572192702:android:55c0efaaea9a8daaaa65ef",
+          "projectId": "ikhlaas-prod",
+          "appId": "1:902494688082:android:743480b825661a22d7e08b",
           "fileOutput": "android/app/google-services.json"
         }
       },
       "dart": {
         "lib/firebase_options.dart": {
-          "projectId": "ikhlas-caecf",
+          "projectId": "ikhlaas-prod",
           "configurations": {
-            "android": "1:443572192702:android:55c0efaaea9a8daaaa65ef"
+            "android": "1:902494688082:android:743480b825661a22d7e08b"
           }
         }
       }
