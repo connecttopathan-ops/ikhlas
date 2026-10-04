@@ -10,6 +10,7 @@ const {
 } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError, onRequest } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
+const { setGlobalOptions } = require('firebase-functions/v2');
 const { initializeApp, getApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
@@ -65,6 +66,19 @@ const WALI_DIGEST_SENDER = '+971522771875';
 initializeApp();
 const db = getFirestore();
 const REGION = 'asia-south1';
+
+// Cap how far any one function can scale out. Cloud Run bills a v2 function's
+// CPU against a per-project, per-region quota, and the default ceiling of 100
+// instances across 41 functions asks for 4,100 vCPU — far past a new project's
+// allowance, so the deploy fails with "Quota exceeded for total allowable CPU
+// per project per region" rather than anything to do with the code.
+//
+// 10 is generous at this scale: it is ten concurrent invocations of a single
+// function, and these are short Firestore and email calls. It also caps the
+// blast radius of a runaway loop or a traffic spike, which matters more than
+// headroom we do not need. Per-function options still override this — `photo`
+// and `sendMessage` keep their own memory and minInstances settings.
+setGlobalOptions({ maxInstances: 10 });
 
 /**
  * Tier 1 — runs the moment an application is submitted.
