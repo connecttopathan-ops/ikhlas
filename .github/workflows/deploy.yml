@@ -404,6 +404,35 @@ jobs:
           fi
           exit "$CODE"
 
+      - name: Ensure public invoker on callable/HTTP functions
+        # A callable function is publicly INVOCABLE by design — the Firebase
+        # client SDK calls it unauthenticated at the transport level and the
+        # function verifies the ID token itself (request.auth / requireModerator).
+        # Firebase normally sets this on create, but a function created while
+        # the iam.allowedPolicyMemberDomains org policy was still enforced
+        # silently kept a private invoker and answers 403 forever after.
+        #
+        # Deliberately NOT a blanket grant: the 11 background triggers are
+        # invoked by Eventarc and Cloud Scheduler as service accounts, and
+        # making them public would expose them to anyone. The split is derived
+        # from the trigger each function is declared with, so it cannot drift.
+        if: ${{ inputs.target == 'all' || inputs.target == 'functions' }}
+        working-directory: app
+        run: |
+          PUBLIC=$(grep -oE '^exports\.[A-Za-z0-9_]+ *= *(onCall|onRequest)' functions/index.js \
+                   | sed -E 's/^exports\.([A-Za-z0-9_]+).*/\1/' | sort -u)
+          echo "Granting allUsers run.invoker to $(echo "$PUBLIC" | wc -l) callable/HTTP functions …"
+          for n in $PUBLIC; do
+            svc=$(echo "$n" | tr '[:upper:]' '[:lower:]')
+            if gcloud run services add-iam-policy-binding "$svc" \
+                 --region=asia-south1 --project="$PROJECT" \
+                 --member=allUsers --role=roles/run.invoker --quiet >/dev/null 2>&1; then
+              echo "  public: $n"
+            else
+              echo "::warning::Could not set invoker for $n (service may not be deployed yet)."
+            fi
+          done
+
       - name: Download backup to restore (optional)
         if: ${{ inputs.restore != '' }}
         uses: actions/download-artifact@v4
