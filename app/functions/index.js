@@ -73,12 +73,19 @@ const REGION = 'asia-south1';
 // allowance, so the deploy fails with "Quota exceeded for total allowable CPU
 // per project per region" rather than anything to do with the code.
 //
-// 10 is generous at this scale: it is ten concurrent invocations of a single
-// function, and these are short Firestore and email calls. It also caps the
-// blast radius of a runaway loop or a traffic spike, which matters more than
-// headroom we do not need. Per-function options still override this — `photo`
-// and `sendMessage` keep their own memory and minInstances settings.
-setGlobalOptions({ maxInstances: 10 });
+// Measured, not guessed: at 10 instances each, 20 of the 41 functions deployed
+// before the region ran out, putting the allowance near 200 vCPU. 3 keeps the
+// whole set at ~123 with room to spare.
+//
+// This is deliberately tight for now. It is ample at the current size — three
+// concurrent invocations of any single function, for short Firestore and email
+// calls — and it caps the blast radius of a runaway loop. Raise it once a
+// Cloud Run CPU quota increase for asia-south1 comes through; the ceiling is
+// the region's allowance, not anything about this code.
+//
+// Per-function options still override this: `photo` and `sendMessage` keep
+// their own memory and minInstances.
+setGlobalOptions({ maxInstances: 3 });
 
 /**
  * Tier 1 — runs the moment an application is submitted.
