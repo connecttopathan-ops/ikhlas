@@ -49,6 +49,10 @@ on:
         description: "Optional: Firebase project to act on (defaults to the PROJECT env below). Used to stand up the new project before cutting the apps over."
         type: string
         default: ""
+      wipe_functions:
+        description: "DESTRUCTIVE: delete every deployed function before deploying. Type the target project id to confirm (e.g. ikhlaas-prod)."
+        type: string
+        default: ""
       sync_secrets:
         description: "Optional: set to true to push RESEND_API_KEY / WHATSAPP_TOKEN from repo secrets into the target project's Secret Manager"
         type: string
@@ -317,6 +321,30 @@ jobs:
         run: |
           npm ci
           node scripts/seed-demo.js
+
+      - name: Wipe deployed functions (DESTRUCTIVE, optional)
+        # A partially failed deploy strands functions in the wrong shape — a
+        # background trigger left behind as an HTTPS stub — and every later
+        # deploy then dies on "Changing from an HTTPS function to a background
+        # triggered function is not allowed". The only fix is to delete them.
+        #
+        # Guarded by requiring the input to equal the target project id, so
+        # this cannot be triggered by a stray "true" and cannot be aimed at the
+        # wrong project. It takes a live app down; it is only for a project
+        # that is not yet serving.
+        if: ${{ inputs.wipe_functions != '' }}
+        run: |
+          if [ "${{ inputs.wipe_functions }}" != "$PROJECT" ]; then
+            echo "::error::wipe_functions must be exactly the target project id ('$PROJECT') to confirm. Got '${{ inputs.wipe_functions }}'. Nothing deleted."
+            exit 1
+          fi
+          echo "Deleting all functions in $PROJECT / asia-south1 …"
+          for f in $(gcloud functions list --project "$PROJECT" \
+                       --regions=asia-south1 --format='value(name)'); do
+            gcloud functions delete "$f" --region=asia-south1 \
+              --project "$PROJECT" --quiet && echo "  deleted $f"
+          done
+          echo "Done."
 
       - name: Deploy functions + rules
         if: ${{ inputs.target == 'all' || inputs.target == 'functions' }}
