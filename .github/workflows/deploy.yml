@@ -69,6 +69,10 @@ on:
         description: "Optional: set to true to report what a restore would write without writing it"
         type: string
         default: ""
+      restore_force:
+        description: "Optional: set to true to let a restore overwrite collections the target already has (it refuses by default)"
+        type: string
+        default: ""
       scaffold_ios:
         description: "Optional: set to true to generate the ios/ platform folder as an artifact"
         type: string
@@ -458,7 +462,8 @@ jobs:
         run: |
           npm ci
           node scripts/restore-all.js "$RUNNER_TEMP/restore" \
-            ${{ inputs.restore_dry_run == 'true' && '--dry-run' || '' }}
+            ${{ inputs.restore_dry_run == 'true' && '--dry-run' || '' }} \
+            ${{ inputs.restore_force == 'true' && '--force' || '' }}
 
       - uses: subosito/flutter-action@v2
         if: ${{ inputs.target == 'all' || inputs.target == 'hosting' || inputs.scaffold_ios == 'true' }}
