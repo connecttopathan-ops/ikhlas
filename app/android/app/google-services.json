@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "902494688082-tgglguh6c4j9oc9cgrpq7rjvmf2gn2uo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.ikhlaas.app",
+            "certificate_hash": "e597c01114dc691fba611d3da2f38eee98c5fe89"
+          }
+        },
+        {
           "client_id": "902494688082-kst3pbig5fhad6nc5id27dunbvrhkmgd.apps.googleusercontent.com",
           "client_type": 3
         }
