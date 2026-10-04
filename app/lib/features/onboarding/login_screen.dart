@@ -48,6 +48,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // user backed out — no error surface needed
     } on FirebaseAuthException catch (e) {
       _err('Sign-in failed (${e.code}). Please try again.');
+    } on PlatformException catch (e) {
+      // The Google Sign-In plugin throws this, NOT a FirebaseAuthException,
+      // when the project's Android OAuth client is missing or the signing
+      // certificate does not match it (ApiException: 10, DEVELOPER_ERROR).
+      // Uncaught, the button simply stopped spinning and said nothing, which
+      // leaves the member with no idea whether the app is broken or they are.
+      // Point them at the email route, which does not depend on OAuth at all.
+      _err(e.code == 'sign_in_failed'
+          ? 'Google sign-in is unavailable right now. Please use the email option below.'
+          : 'Sign-in failed. Please try again, or use the email option below.');
+    } catch (_) {
+      _err('Sign-in failed. Please try again, or use the email option below.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -62,6 +74,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       // user backed out — no error surface needed
     } on FirebaseAuthException catch (e) {
       _err('Sign-in failed (${e.code}). Please try again.');
+    } catch (_) {
+      // Same reasoning as _google(): Sign in with Apple surfaces
+      // configuration problems as its own exception types, and silence is the
+      // worst outcome for someone trying to get into the app.
+      _err('Sign-in failed. Please try again, or use the email option below.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -107,8 +124,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _err(String msg) => ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text(msg, style: AppType.inter(13))));
+  // Guarded: every caller runs after an await, so the screen may be gone by
+  // the time an error arrives — reaching for its ScaffoldMessenger then throws.
+  void _err(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg, style: AppType.inter(13))));
+  }
 
   @override
   Widget build(BuildContext context) {
