@@ -349,18 +349,58 @@ jobs:
       - name: Deploy functions + rules
         if: ${{ inputs.target == 'all' || inputs.target == 'functions' }}
         working-directory: app
+        env:
+          # Functions per batch. Cloud Run meters "total allowable CPU per
+          # project per region" against revisions that are STARTING, not just
+          # running, and every new revision holds CPU until its health check
+          # passes. Deploying all 41 at once spikes past a new project's
+          # allowance and roughly half fail with "Quota exceeded", regardless
+          # of maxInstances. Batching keeps the in-flight total under it.
+          BATCH: 8
         run: |
           ( cd functions && npm ci )
           set +e
-          firebase deploy \
-            --only functions,firestore:rules,firestore:indexes,storage \
+
+          # Rules, indexes and storage first: cheap, and they must be in place
+          # before any function serves traffic.
+          firebase deploy --only firestore:rules,firestore:indexes,storage \
             --project "$PROJECT" --non-interactive --force 2>&1 | tee "$RUNNER_TEMP/deploy.log"
           CODE=${PIPESTATUS[0]}
+
+          if [ "$CODE" -eq 0 ]; then
+            # Function names come from the source, so this never drifts out of
+            # step with what is actually exported.
+            NAMES=$(grep -oE '^exports\.[A-Za-z0-9_]+' functions/index.js | sed 's/^exports\.//' | sort -u)
+            TOTAL=$(echo "$NAMES" | wc -l)
+            echo "Deploying $TOTAL functions in batches of $BATCH …"
+            i=0; batch=""
+            flush () {
+              [ -z "$batch" ] && return 0
+              echo "::group::deploy batch: $batch"
+              firebase deploy --only "$batch" \
+                --project "$PROJECT" --non-interactive --force 2>&1 | tee -a "$RUNNER_TEMP/deploy.log"
+              rc=${PIPESTATUS[0]}
+              echo "::endgroup::"
+              [ "$rc" -ne 0 ] && CODE=$rc
+              batch=""
+              return 0
+            }
+            for n in $NAMES; do
+              batch="${batch:+$batch,}functions:$n"
+              i=$((i+1))
+              if [ $((i % BATCH)) -eq 0 ]; then flush; fi
+            done
+            flush
+          fi
           set -e
+
           # A lapsed billing account surfaces as a Secret Manager 403 deep in the
           # log, which reads like a permissions problem and is not. Name it.
           if [ "$CODE" -ne 0 ] && grep -qi 'requires billing to be enabled' "$RUNNER_TEMP/deploy.log"; then
             echo "::error::Deploy failed because BILLING IS DISABLED on $PROJECT, not because of the code or the service-account permissions. Re-link a billing account at https://console.cloud.google.com/billing/linkedaccount?project=$PROJECT, then re-run."
+          fi
+          if [ "$CODE" -ne 0 ] && grep -qi 'Quota exceeded for total allowable CPU' "$RUNNER_TEMP/deploy.log"; then
+            echo "::error::Cloud Run CPU quota for $PROJECT in asia-south1 was exceeded even when batching. Lower BATCH in this step, or request a quota increase for 'Total CPU allocation, per project per region'."
           fi
           exit "$CODE"
 
