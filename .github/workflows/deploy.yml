@@ -29,6 +29,10 @@ on:
         description: "Optional: register this SHA-1 fingerprint on the Firebase Android app"
         type: string
         default: ""
+      storage_report:
+        description: "Optional: set to true to report object counts in the project's Storage buckets"
+        type: string
+        default: ""
       resha:
         description: "Optional: set to true to delete and re-add the Android SHA fingerprints, forcing Google to create the Android OAuth client"
         type: string
@@ -306,6 +310,19 @@ jobs:
         run: |
           npm ci
           node scripts/add-sha.js
+
+      - name: Report Storage bucket contents (optional)
+        # Member photos, selfies and ID documents live in Cloud Storage, not
+        # Firestore. A Firestore restore moves the REFERENCES to those files;
+        # without the objects the app renders empty frames. This says plainly
+        # whether the objects are actually there.
+        if: ${{ inputs.storage_report == 'true' }}
+        run: |
+          for b in "${PROJECT}.firebasestorage.app" "${PROJECT}-idquarantine"; do
+            printf '%s: ' "gs://$b"
+            n=$(gcloud storage ls -r "gs://$b/**" --project "$PROJECT" 2>/dev/null | grep -vc '/$' || true)
+            echo "${n:-0} object(s)"
+          done
 
       - name: Re-cycle SHA fingerprints (optional)
         # Deletes and re-adds every fingerprint on the Android app, to force
